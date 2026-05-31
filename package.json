@@ -1,7 +1,7 @@
 {
   "name": "@wickedevolutions/mcp-obsidian",
-  "version": "1.2.0",
-  "description": "Multi-vault Obsidian MCP server — full AI operations toolset for file management, wikilinks, semantic search, frontmatter queries, daily notes, tasks, properties, templates, and more.",
+  "version": "1.2.1",
+  "description": "Multi-vault Obsidian MCP server \u2014 full AI operations toolset for file management, wikilinks, semantic search, frontmatter queries, daily notes, tasks, properties, templates, and more.",
   "type": "module",
   "main": "dist/index.js",
   "bin": {

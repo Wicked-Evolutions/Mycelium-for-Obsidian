@@ -102,18 +102,19 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 });
 
-// Process signal handlers
-process.on('SIGTERM', () => {
-  console.error('[mcp-obsidian] Received SIGTERM, shutting down...');
+// Graceful shutdown (idempotent) — used by signals AND client-disconnect detection
+let shuttingDown = false;
+function shutdown(reason: string): void {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.error(`[mcp-obsidian] Shutting down (${reason})...`);
   if (watcher) watcher.stop();
   process.exit(0);
-});
+}
 
-process.on('SIGINT', () => {
-  console.error('[mcp-obsidian] Received SIGINT, shutting down...');
-  if (watcher) watcher.stop();
-  process.exit(0);
-});
+// Process signal handlers
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
 
 process.on('uncaughtException', (error) => {
   console.error('[mcp-obsidian] Uncaught exception:', error);
@@ -140,6 +141,13 @@ async function main() {
     const transport = new StdioServerTransport();
     await server.connect(transport);
     console.error('[mcp-obsidian] Server started (stdio mode)');
+
+    // Exit when the client disconnects. Otherwise the embeddings file watcher
+    // keeps the event loop alive forever and the process orphans (reparenting to
+    // launchd/init), leaking one instance per closed client session. See issue #10.
+    transport.onclose = () => shutdown('transport closed — client disconnected');
+    process.stdin.on('end', () => shutdown('stdin EOF — client disconnected'));
+    process.stdin.on('close', () => shutdown('stdin closed — client disconnected'));
   }
 }
 
