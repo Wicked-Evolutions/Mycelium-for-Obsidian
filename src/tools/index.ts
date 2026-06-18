@@ -18,6 +18,8 @@ import { queryTools, createQueryHandlers } from './query.js';
 import { analyticsTools, createAnalyticsHandlers } from './analytics.js';
 import { fsPromotedTools, createFsPromotedHandlers } from './fs-promoted.js';
 import { cliTools, createCliHandlers } from './cli-tools.js';
+import { getStartedTools, createGetStartedHandlers } from './get-started.js';
+import { discoverToolsTools, createDiscoverToolsHandlers } from './discover-tools.js';
 
 /**
  * All tool definitions (unfiltered)
@@ -31,7 +33,9 @@ const rawTools: Tool[] = [
   ...queryTools,
   ...analyticsTools,
   ...fsPromotedTools,
-  ...cliTools
+  ...cliTools,
+  ...getStartedTools,
+  ...discoverToolsTools,
 ];
 
 /**
@@ -55,7 +59,9 @@ export function createAllHandlers(config: Config): Record<string, AnyHandler> {
     ...createQueryHandlers(config),
     ...createAnalyticsHandlers(config),
     ...createFsPromotedHandlers(config),
-    ...createCliHandlers(config)
+    ...createCliHandlers(config),
+    ...createGetStartedHandlers(config, () => allTools),
+    ...createDiscoverToolsHandlers(() => allTools),
   } as Record<string, AnyHandler>;
 
   // Filter out disabled tools

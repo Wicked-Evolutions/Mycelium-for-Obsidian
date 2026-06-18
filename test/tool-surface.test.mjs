@@ -120,6 +120,8 @@ const SNAPSHOT = [
   { name: 'get_hotkey', description: 'Get the hotkey binding for a specific command. Requires Obsidian running.' },
   { name: 'list_hotkeys', description: 'List all hotkey bindings. Requires Obsidian running.' },
   { name: 'list_enabled_snippets', description: 'List enabled CSS snippets. Requires Obsidian running.' },
+  { name: 'get_started', description: 'Orientation guide for this Obsidian MCP instance. Returns configured vault names, total tool count, tool categories with counts, and static guidance on resolver-first workflow, wikilink syntax, and CLI vs filesystem tiers. Call this first in a new session.' },
+  { name: 'discover_tools', description: 'Compact inventory of all registered tools with pagination. Returns name, category, and tier (filesystem/cli) per tool — no full schemas. Also includes a category histogram for the full tool surface. Use this for AI orientation when get_started category counts are not enough detail.' },
 ];
 
 // ---------------------------------------------------------------------------
