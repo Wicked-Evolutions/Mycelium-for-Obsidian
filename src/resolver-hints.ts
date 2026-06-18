@@ -24,6 +24,40 @@ export const NOTE_NOT_FOUND_HINT =
   'Use find_note_by_name to locate a note by title across all vaults, ' +
   'or use search_content to search by text content.';
 
+// ─── Structured error response helper ─────────────────────────────────────────
+
+/**
+ * If the caught error carries `closest_matches` + `hint` (as attached by resolveVault),
+ * returns a structured ToolResponse so the caller sees actionable JSON instead of a
+ * plain error string. Falls back to a generic message for ordinary errors.
+ *
+ * Mirrors the shape of the ENOENT note-not-found branch in the read_file handler.
+ */
+export function formatVaultError(error: unknown): {
+  content: Array<{ type: 'text'; text: string }>;
+  isError: true;
+} {
+  const err = error as Error & { closest_matches?: string[]; hint?: string };
+  if (err instanceof Error && Array.isArray(err.closest_matches) && err.hint) {
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          error: err.message,
+          closest_matches: err.closest_matches,
+          hint: err.hint
+        }, null, 2)
+      }],
+      isError: true
+    };
+  }
+  // Generic fallback for non-vault errors
+  return {
+    content: [{ type: 'text', text: String(error) }],
+    isError: true
+  };
+}
+
 // ─── Fuzzy match helpers ───────────────────────────────────────────────────────
 
 /**

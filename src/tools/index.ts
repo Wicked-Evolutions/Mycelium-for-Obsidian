@@ -4,9 +4,10 @@
  */
 
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
-import { Config } from '../config.js';
+import { Config, resolveVault } from '../config.js';
 import { ToolResponse } from '../types/index.js';
 import { injectVaultEnum } from './schema-helpers.js';
+import { formatVaultError } from '../resolver-hints.js';
 
 // Import tool definitions and handler creators
 import { fileTools, createFileHandlers } from './files.js';
@@ -47,10 +48,41 @@ export let allTools: Tool[] = rawTools;
 type AnyHandler = (args: any) => Promise<ToolResponse>;
 
 /**
+ * Wraps a handler so that if `args.vault` names an unknown vault, the handler
+ * returns a structured JSON error (with `closest_matches` and `hint`) instead of
+ * propagating the thrown Error or letting it collapse into a bare string message.
+ *
+ * Cross-vault tools (which accept no `vault` param) pass through unchanged.
+ */
+function withVaultGuard(config: Config, handler: AnyHandler): AnyHandler {
+  return async (args: Record<string, unknown>): Promise<ToolResponse> => {
+    if (args && typeof args.vault === 'string' && args.vault) {
+      try {
+        resolveVault(config, args.vault);
+      } catch (err) {
+        return formatVaultError(err);
+      }
+    }
+    return handler(args);
+  };
+}
+
+/**
+ * Apply withVaultGuard to every handler in a map.
+ */
+function guardAll(config: Config, map: Record<string, AnyHandler>): Record<string, AnyHandler> {
+  const out: Record<string, AnyHandler> = {};
+  for (const [name, handler] of Object.entries(map)) {
+    out[name] = withVaultGuard(config, handler);
+  }
+  return out;
+}
+
+/**
  * Create all tool handlers for a given config, excluding disabled tools
  */
 export function createAllHandlers(config: Config): Record<string, AnyHandler> {
-  const handlers = {
+  const handlers = guardAll(config, {
     ...createFileHandlers(config),
     ...createWikilinkHandlers(config),
     ...createSemanticHandlers(config),
@@ -62,7 +94,7 @@ export function createAllHandlers(config: Config): Record<string, AnyHandler> {
     ...createCliHandlers(config),
     ...createGetStartedHandlers(config, () => allTools),
     ...createDiscoverToolsHandlers(() => allTools),
-  } as Record<string, AnyHandler>;
+  } as Record<string, AnyHandler>);
 
   // Filter out disabled tools
   if (config.disabledTools.size > 0) {

@@ -269,3 +269,56 @@ test('resolve_wikilink handler — near-miss suggests the correct note', async (
   assert.ok(data.closest_matches.includes('Daily Log'),
     `Expected "Daily Log" in suggestions: ${JSON.stringify(data.closest_matches)}`);
 });
+
+// ─── HANDLER RESPONSE for unknown vault (the bug this PR fixes) ───────────────
+// Previously the structured hint + closest_matches were only on the thrown Error
+// object and were silently swallowed by the handler catch, returning only a bare
+// string message. These tests assert the *handler response* not just the thrown err.
+
+test('read_file handler — unknown vault returns isError:true with structured JSON', async () => {
+  // 'Platfrm' is edit distance 1 from 'Platform' — configured in before()
+  const res = await handlers.read_file({ vault: 'Platfrm', path: 'Meeting Notes.md' });
+
+  assert.equal(res.isError, true, 'Expected isError:true for unknown vault');
+  assert.ok(Array.isArray(res.content) && res.content.length > 0);
+
+  // Must be parseable JSON, not a bare "Error reading file: ..." string
+  let data;
+  try {
+    data = JSON.parse(res.content[0].text);
+  } catch {
+    assert.fail(`Expected JSON response, got: ${res.content[0].text}`);
+  }
+
+  assert.ok(data.error, `Expected error field, got: ${JSON.stringify(data)}`);
+  assert.ok(Array.isArray(data.closest_matches),
+    `Expected closest_matches array, got: ${typeof data.closest_matches}`);
+  assert.ok(data.closest_matches.includes('Platform'),
+    `Expected Platform in closest_matches: ${JSON.stringify(data.closest_matches)}`);
+  assert.equal(data.hint, VAULT_NOT_FOUND_HINT,
+    `Expected VAULT_NOT_FOUND_HINT in hint field`);
+});
+
+test('read_file handler — completely unknown vault has empty closest_matches', async () => {
+  const res = await handlers.read_file({ vault: 'ZZZZZ', path: 'Meeting Notes.md' });
+
+  assert.equal(res.isError, true);
+  const data = JSON.parse(res.content[0].text);
+
+  assert.ok(Array.isArray(data.closest_matches),
+    `Expected closest_matches array`);
+  assert.equal(data.closest_matches.length, 0,
+    `Expected empty closest_matches for ZZZZZ, got: ${JSON.stringify(data.closest_matches)}`);
+  assert.equal(data.hint, VAULT_NOT_FOUND_HINT);
+});
+
+test('create_file handler — unknown vault returns structured JSON hint', async () => {
+  const res = await handlers.create_file({ vault: 'Platfrm', path: 'foo.md', content: '' });
+
+  assert.equal(res.isError, true);
+  const data = JSON.parse(res.content[0].text);
+
+  assert.ok(data.closest_matches.includes('Platform'),
+    `Expected Platform in closest_matches: ${JSON.stringify(data.closest_matches)}`);
+  assert.equal(data.hint, VAULT_NOT_FOUND_HINT);
+});
