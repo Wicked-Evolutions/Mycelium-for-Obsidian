@@ -25,7 +25,7 @@ test('vaultParam has type "string"', () => {
 test('vaultParam description matches canonical text', () => {
   assert.equal(
     vaultParam.description,
-    'Vault name (e.g., "Platform", "Helena"). Defaults to first vault if omitted.'
+    'Vault name. Defaults to first configured vault if omitted.'
   );
 });
 
@@ -83,13 +83,13 @@ test('limitParam returns a new object on each call', () => {
 // Schema equivalence — fragments reproduce what inline literals produced
 // ---------------------------------------------------------------------------
 
-test('vaultParam JSON matches inline vault param literal', () => {
-  // This is the exact literal that existed in every tool file before the refactor.
-  const inlineLiteral = {
+test('vaultParam JSON matches canonical text', () => {
+  // Canonical text updated to remove stale "Platform"/"Helena" examples (source-drift cleanup).
+  const canonicalLiteral = {
     type: 'string',
-    description: 'Vault name (e.g., "Platform", "Helena"). Defaults to first vault if omitted.'
+    description: 'Vault name. Defaults to first configured vault if omitted.'
   };
-  assert.deepEqual(vaultParam, inlineLiteral);
+  assert.deepEqual(vaultParam, canonicalLiteral);
 });
 
 test('limitParam(50) JSON matches analytics.ts inline limit literal', () => {

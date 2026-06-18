@@ -16,6 +16,7 @@ import {
   extractTitle
 } from '../parsers/markdown.js';
 import { vaultParam } from './schema-helpers.js';
+import { closestMatches, NOTE_NOT_FOUND_HINT } from '../resolver-hints.js';
 
 /**
  * Tool definitions for file operations
@@ -260,6 +261,28 @@ export function createFileHandlers(config: Config) {
           isError: false
         };
       } catch (error) {
+        // On ENOENT, augment the error with closest-match suggestions
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+          try {
+            const vault = resolveVault(config, args.vault);
+            const noteNames = await collectNoteBasenames(vault.path);
+            const query = path.basename(args.path, '.md');
+            const suggestions = closestMatches(query, noteNames);
+            return {
+              content: [{
+                type: 'text',
+                text: JSON.stringify({
+                  error: `File not found: ${args.path}`,
+                  closest_matches: suggestions,
+                  hint: NOTE_NOT_FOUND_HINT
+                }, null, 2)
+              }],
+              isError: true
+            };
+          } catch {
+            // Fall through to generic error if vault resolution also fails
+          }
+        }
         return {
           content: [{ type: 'text', text: `Error reading file: ${error}` }],
           isError: true
@@ -531,6 +554,42 @@ export function createFileHandlers(config: Config) {
       }
     }
   };
+}
+
+/**
+ * Helper: Collect all note basenames (without .md) from a vault for fuzzy matching.
+ * Caps at 2000 entries to keep the search fast in very large vaults.
+ */
+async function collectNoteBasenames(
+  vaultPath: string,
+  results: string[] = [],
+  dirPath?: string
+): Promise<string[]> {
+  const MAX_NOTES = 2000;
+  if (results.length >= MAX_NOTES) return results;
+
+  const searchDir = dirPath || vaultPath;
+  let entries: import('fs').Dirent[];
+  try {
+    entries = await fs.readdir(searchDir, { withFileTypes: true });
+  } catch {
+    return results;
+  }
+
+  for (const entry of entries) {
+    if (results.length >= MAX_NOTES) break;
+    if (entry.name.startsWith('.')) continue;
+
+    const fullPath = path.join(searchDir, entry.name);
+
+    if (entry.isDirectory()) {
+      await collectNoteBasenames(vaultPath, results, fullPath);
+    } else if (entry.isFile() && entry.name.endsWith('.md')) {
+      results.push(path.basename(entry.name, '.md'));
+    }
+  }
+
+  return results;
 }
 
 /**

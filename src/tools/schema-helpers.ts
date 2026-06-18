@@ -22,7 +22,7 @@
  */
 export const vaultParam = {
   type: 'string' as const,
-  description: 'Vault name (e.g., "Platform", "Helena"). Defaults to first vault if omitted.'
+  description: 'Vault name. Defaults to first configured vault if omitted.'
 };
 
 /**

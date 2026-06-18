@@ -4,7 +4,7 @@
  * Derives a category name for each tool based on which source module it belongs to.
  * The mapping is explicit: leaf tool module exports are imported here and used to
  * build the lookup table. This file is the single source of category truth and
- * is shared by get_started and (future) discover_tools.
+ * is shared by get_started and discover_tools.
  *
  * Dependency direction: categories.ts → leaf modules only.
  * NEVER import from index.ts or get-started.ts here (would create a cycle).

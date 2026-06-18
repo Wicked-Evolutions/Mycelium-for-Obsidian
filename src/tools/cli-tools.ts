@@ -11,11 +11,7 @@ import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { Config } from '../config.js';
 import { ToolResponse } from '../types/index.js';
 import { execCli, execCliForVault, evalInObsidian, isCliAvailable } from '../cli/bridge.js';
-
-const vaultParam = {
-  type: 'string' as const,
-  description: 'Vault name (e.g., "Platform", "Helena"). Defaults to first vault if omitted.'
-};
+import { vaultParam } from './schema-helpers.js';
 
 /**
  * Wrap a CLI tool handler to check availability first

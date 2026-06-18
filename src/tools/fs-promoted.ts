@@ -11,11 +11,7 @@ import { parseMarkdownFile } from '../parsers/markdown.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import matter from 'gray-matter';
-
-const vaultParam = {
-  type: 'string' as const,
-  description: 'Vault name (e.g., "Platform", "Helena"). Defaults to first vault if omitted.'
-};
+import { vaultParam } from './schema-helpers.js';
 
 const ok = (text: string): ToolResponse => ({
   content: [{ type: 'text', text }],

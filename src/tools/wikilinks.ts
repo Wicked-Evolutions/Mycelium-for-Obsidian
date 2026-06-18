@@ -16,15 +16,11 @@ import {
   getWikilinkLineNumber,
   getWikilinkContext
 } from '../parsers/wikilink.js';
+import { vaultParam } from './schema-helpers.js';
+import { closestMatches, NOTE_NOT_FOUND_HINT } from '../resolver-hints.js';
 
 // Per-vault file index cache
 const fileIndexCaches = new Map<string, Map<string, string>>();
-
-// Vault parameter definition
-const vaultParam = {
-  type: 'string' as const,
-  description: 'Vault name (e.g., "Platform", "Helena"). Defaults to first vault if omitted.'
-};
 
 /**
  * Tool definitions for wikilink operations
@@ -147,13 +143,18 @@ export function createWikilinkHandlers(config: Config) {
             isError: false
           };
         } else {
+          // fileIndex values are absolute paths; derive proper-cased basenames from them
+          const noteNames = Array.from(fileIndex.values()).map(p => path.basename(p, '.md'));
+          const suggestions = closestMatches(args.link, noteNames);
           return {
             content: [{
               type: 'text',
               text: JSON.stringify({
                 link: args.link,
                 resolved: null,
-                exists: false
+                exists: false,
+                closest_matches: suggestions,
+                hint: NOTE_NOT_FOUND_HINT
               }, null, 2)
             }],
             isError: false
@@ -260,13 +261,18 @@ export function createWikilinkHandlers(config: Config) {
         const resolved = await resolveWikilink(args.link, vault.path, fileIndex);
 
         if (!resolved) {
+          // fileIndex values are absolute paths; derive proper-cased basenames from them
+          const noteNames = Array.from(fileIndex.values()).map(p => path.basename(p, '.md'));
+          const suggestions = closestMatches(args.link, noteNames);
           return {
             content: [{
               type: 'text',
               text: JSON.stringify({
                 link: args.link,
                 found: false,
-                error: 'Link target not found'
+                error: 'Link target not found',
+                closest_matches: suggestions,
+                hint: NOTE_NOT_FOUND_HINT
               }, null, 2)
             }],
             isError: false
