@@ -266,6 +266,55 @@ test('{name, description} snapshot matches built dist/', () => {
 });
 
 // ---------------------------------------------------------------------------
+// L2 regression guard: injectVaultEnum wiring in createAllHandlers
+//
+// Verifies that createAllHandlers actually calls injectVaultEnum so that
+// vault-bearing tools receive a live .enum on their vault param.
+// If the wiring call is deleted/reordered in index.ts this test fails.
+// ---------------------------------------------------------------------------
+
+test('createAllHandlers injects vault enum into vault-bearing tools (L2 guard)', () => {
+  // Use two named vaults (both pointing at the same temp dir) so the enum
+  // is non-trivial — guards against a single-element false positive.
+  process.env.OBSIDIAN_VAULTS = JSON.stringify({ Alpha: baseVault, Beta: baseVault });
+  delete process.env.OBSIDIAN_VAULT_PATH;
+  process.env.OBSIDIAN_DISABLED_TOOLS = '';
+
+  const config = loadConfig();
+  createAllHandlers(config);
+
+  const expectedVaults = config.vaults.map(v => v.name); // ['Alpha', 'Beta']
+
+  // read_file is a well-known vault-bearing tool. Access via namespace so we
+  // always get the live reference (the destructured binding may be stale).
+  const readFileTool = toolsMod.getToolByName('read_file');
+
+  assert.ok(readFileTool, 'read_file tool must exist');
+
+  const vaultProp = readFileTool.inputSchema.properties.vault;
+  assert.ok(vaultProp, 'read_file must have a vault property in its inputSchema');
+
+  assert.deepEqual(
+    vaultProp.enum,
+    expectedVaults,
+    'read_file.inputSchema.properties.vault.enum must equal config vault names after createAllHandlers'
+  );
+
+  // Also verify the vault param description mentions the actual vault names
+  // (injected by vaultParamWithEnum — not the static "e.g. Platform, Helena" text).
+  for (const name of expectedVaults) {
+    assert.ok(
+      vaultProp.description.includes(name),
+      `vault param description must include vault name "${name}" after injection`
+    );
+  }
+
+  // Restore to single-vault mode for the disabled-tools test that follows
+  delete process.env.OBSIDIAN_VAULTS;
+  process.env.OBSIDIAN_VAULT_PATH = baseVault;
+});
+
+// ---------------------------------------------------------------------------
 // OBSIDIAN_DISABLED_TOOLS test — runs LAST because it mutates allTools
 // ---------------------------------------------------------------------------
 

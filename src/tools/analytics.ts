@@ -14,12 +14,7 @@ import {
   resolveWikilink,
   buildFileIndex
 } from '../parsers/wikilink.js';
-
-// Vault parameter definition
-const vaultParam = {
-  type: 'string' as const,
-  description: 'Vault name (e.g., "Platform", "Helena"). Defaults to first vault if omitted.'
-};
+import { vaultParam, limitParam } from './schema-helpers.js';
 
 /**
  * Tool definitions
@@ -52,11 +47,7 @@ export const analyticsTools: Tool[] = [
           description: 'Directory patterns to exclude (e.g., ["00 Inbox", "05 Resources/Templates"])',
           items: { type: 'string' }
         },
-        limit: {
-          type: 'number',
-          description: 'Maximum results',
-          default: 50
-        }
+        limit: limitParam(50)
       }
     }
   },
@@ -67,11 +58,7 @@ export const analyticsTools: Tool[] = [
       type: 'object',
       properties: {
         vault: vaultParam,
-        limit: {
-          type: 'number',
-          description: 'Maximum results',
-          default: 50
-        }
+        limit: limitParam(50)
       }
     }
   },
@@ -96,11 +83,7 @@ export const analyticsTools: Tool[] = [
           description: 'Directory patterns to exclude',
           items: { type: 'string' }
         },
-        limit: {
-          type: 'number',
-          description: 'Maximum results',
-          default: 50
-        }
+        limit: limitParam(50)
       }
     }
   }

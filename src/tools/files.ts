@@ -15,12 +15,7 @@ import {
   fileExists,
   extractTitle
 } from '../parsers/markdown.js';
-
-// Vault parameter definition (shared across all tools)
-const vaultParam = {
-  type: 'string' as const,
-  description: 'Vault name (e.g., "Platform", "Helena"). Defaults to first vault if omitted.'
-};
+import { vaultParam } from './schema-helpers.js';
 
 /**
  * Tool definitions for file operations

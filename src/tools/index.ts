@@ -6,6 +6,7 @@
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { Config } from '../config.js';
 import { ToolResponse } from '../types/index.js';
+import { injectVaultEnum } from './schema-helpers.js';
 
 // Import tool definitions and handler creators
 import { fileTools, createFileHandlers } from './files.js';
@@ -64,6 +65,12 @@ export function createAllHandlers(config: Config): Record<string, AnyHandler> {
       delete handlers[name];
     }
   }
+
+  // Inject the operator's actual vault names as an enum into every vault param.
+  // This replaces the stale "Platform/Helena" example text with the real values
+  // from the runtime config — giving the AI concrete, accurate choices.
+  const vaultNames = config.vaults.map(v => v.name);
+  injectVaultEnum(allTools, vaultNames);
 
   return handlers;
 }
