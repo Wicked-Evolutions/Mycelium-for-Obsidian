@@ -107,6 +107,19 @@ h1{font-size:clamp(38px,5vw,68px);line-height:1.02;margin:0 0 18px;letter-spacin
 .steps{display:grid;gap:8px;margin-top:14px}
 .step{display:flex;gap:10px;align-items:flex-start;color:var(--muted)}
 .step-num{width:24px;height:24px;border-radius:8px;background:var(--mist);display:grid;place-items:center;font-family:var(--mono);font-size:11px;color:var(--ink);flex:0 0 auto}
+.operator-wrap{display:grid;grid-template-columns:1.05fr .95fr;gap:14px;margin-top:26px}
+.operator-panel{background:var(--white);border:1px solid var(--line);border-radius:8px;padding:20px}
+.operator-panel h3{font-size:20px;margin:0 0 10px}
+.operator-panel p{color:var(--muted);margin:0 0 14px}
+.operator-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:14px}
+.operator-item{border:1px solid var(--line);border-radius:8px;background:var(--paper);padding:13px}
+.operator-item strong{display:block;font-size:15px;margin-bottom:4px}
+.operator-item span{display:block;color:var(--muted);font-size:13px}
+.eval-card{background:var(--ink);color:var(--white);border-color:var(--ink)}
+.eval-card p,.eval-card span{color:#d8ddd8}
+.eval-card .chip{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.24);color:#fff}
+.responsibility{border:1px solid #ecd1aa;background:var(--sun-soft);color:var(--sun);border-radius:8px;padding:16px 18px;margin-top:14px}
+.responsibility strong{color:#7d410b}
 .tool-browser{background:var(--white);border:1px solid var(--line);border-radius:8px;overflow:hidden}
 .tool-top{display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center;padding:14px;border-bottom:1px solid var(--line);background:var(--mist)}
 .search{width:100%;border:1px solid var(--line-strong);border-radius:8px;padding:11px 12px;font:inherit;background:var(--white);color:var(--ink)}
@@ -151,7 +164,7 @@ h1{font-size:clamp(38px,5vw,68px);line-height:1.02;margin:0 0 18px;letter-spacin
 @media(max-width:980px){
   .hero{grid-template-columns:1fr;min-height:auto}
   .map{max-width:620px}
-  .grid.three,.grid.four,.lanes,.coming,.vault-strategy{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .grid.three,.grid.four,.lanes,.coming,.vault-strategy,.operator-wrap{grid-template-columns:repeat(2,minmax(0,1fr))}
   .surface-line{grid-template-columns:repeat(3,minmax(0,1fr))}
   .tool-layout{grid-template-columns:1fr}
   .cat-list{border-right:0;border-bottom:1px solid var(--line);display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -161,7 +174,7 @@ h1{font-size:clamp(38px,5vw,68px);line-height:1.02;margin:0 0 18px;letter-spacin
   .topbar-inner{padding:0 14px}
   .wrap{padding:0 16px}
   .hero{padding-top:34px}
-  .stats,.grid.three,.grid.four,.lanes,.workflow-grid,.tool-grid,.coming,.proof-side,.vault-strategy,.surface-line{grid-template-columns:1fr}
+  .stats,.grid.three,.grid.four,.lanes,.workflow-grid,.tool-grid,.coming,.proof-side,.vault-strategy,.surface-line,.operator-wrap,.operator-grid{grid-template-columns:1fr}
   .section-head,.panel-head,.tool-top{display:block}
   .toggles{margin-top:10px}
   .cat-list{grid-template-columns:1fr}
@@ -178,6 +191,7 @@ h1{font-size:clamp(38px,5vw,68px);line-height:1.02;margin:0 0 18px;letter-spacin
       <a href="#multi-vault">Multi-vault</a>
       <a href="#together">What we can do</a>
       <a href="#ways-in">Ways in</a>
+      <a href="#inside-obsidian">Inside Obsidian</a>
       <a href="#workflows">Workflows</a>
       <a href="#toolset">Toolset</a>
       <a href="#proof">Proof</a>
@@ -338,6 +352,36 @@ h1{font-size:clamp(38px,5vw,68px);line-height:1.02;margin:0 0 18px;letter-spacin
         <div class="chips"><span class="chip ok">database-like</span><span class="chip">query_notes</span><span class="chip app">query_base</span></div>
       </article>
     </div>
+  </section>
+
+  <section class="section" id="inside-obsidian">
+    <p class="eyebrow">Advanced operator layer</p>
+    <h2>When Obsidian is running, the AI can work inside the living app.</h2>
+    <p class="section-intro">The filesystem tier gives Mycelium sovereignty and reliability: markdown on disk, available even when Obsidian is closed. The CLI tier adds something different. It lets an experienced AI and Obsidian operator reach into the running application: commands, Bases, templates, sync, history, plugins, snippets, themes, hotkeys, recents, and runtime APIs.</p>
+    <div class="operator-wrap">
+      <article class="operator-panel">
+        <div class="iconline"><span class="iconbox i-sun"><i data-lucide="app-window"></i></span><h3>The CLI tier is the app-aware layer</h3></div>
+        <p>This is where Mycelium stops being only a file operator and starts becoming an Obsidian operator. The AI can use Obsidian's own search, create from your templates, inspect Bases views, compare and restore history, read sync state, and run commands from the command palette.</p>
+        <div class="operator-grid">
+          <div class="operator-item"><strong>Use Obsidian structures</strong><span><span class="chip">vault_search</span> <span class="chip">query_base</span> <span class="chip">list_base_views</span></span></div>
+          <div class="operator-item"><strong>Create in your patterns</strong><span><span class="chip">list_templates</span> <span class="chip">read_template</span> <span class="chip">create_from_template</span></span></div>
+          <div class="operator-item"><strong>Recover and compare</strong><span><span class="chip">diff_versions</span> <span class="chip">restore_version</span> <span class="chip">sync_history</span></span></div>
+          <div class="operator-item"><strong>Shape the workspace</strong><span><span class="chip">execute_command</span> <span class="chip">set_theme</span> <span class="chip">enable_plugin</span></span></div>
+        </div>
+      </article>
+      <article class="operator-panel eval-card">
+        <div class="iconline"><span class="iconbox i-berry"><i data-lucide="square-terminal"></i></span><h3><span class="chip">eval_obsidian</span> is the power hatch</h3></div>
+        <p><span class="chip">eval_obsidian</span> runs JavaScript inside Obsidian with access to the app runtime. That means the AI can inspect internal state, use Obsidian APIs, reach capabilities that are not yet wrapped as formal tools, and prototype highly specific operations.</p>
+        <p>This is the advanced world. It belongs with experienced AI and Obsidian operators who understand the vault, the app, and the consequences of runtime access.</p>
+        <div class="operator-grid">
+          <div class="operator-item eval-card"><strong>Deep inspection</strong><span>Ask the live app what it knows, not only what files contain.</span></div>
+          <div class="operator-item eval-card"><strong>Plugin bridges</strong><span>Explore APIs exposed by installed plugins.</span></div>
+          <div class="operator-item eval-card"><strong>Custom operations</strong><span>Do precise runtime work before it deserves a dedicated tool.</span></div>
+          <div class="operator-item eval-card"><strong>Operator choice</strong><span>Disable it with <span class="chip">OBSIDIAN_DISABLED_TOOLS</span> when a deployment should stay conservative.</span></div>
+        </div>
+      </article>
+    </div>
+    <div class="responsibility"><strong>Ownership and responsibility:</strong> this power is not a scare warning; it is the honest shape of local ownership. The human operator owns the vault, chooses which tools are exposed, decides when the app-aware layer is appropriate, and can disable advanced tools for safer everyday deployments.</div>
   </section>
 
   <section class="section" id="workflows">
@@ -693,8 +737,8 @@ const categories = [
     ]
   },
   {
-    id:"app-state", label:"Plugin and appearance control", tier:"cli",
-    desc:"Read and change runtime state in Obsidian: plugins, snippets, themes, and advanced app evaluation.",
+    id:"app-state", label:"Advanced app control", tier:"cli",
+    desc:"Read and change runtime state in Obsidian: plugins, snippets, themes, and the advanced eval_obsidian power hatch for experienced operators.",
     tools:[
       ["enable_plugin","Enable an installed plugin."],
       ["disable_plugin","Disable a plugin."],
@@ -702,7 +746,7 @@ const categories = [
       ["enable_snippet","Enable a CSS snippet."],
       ["disable_snippet","Disable a CSS snippet."],
       ["set_theme","Set the active theme."],
-      ["eval_obsidian","Execute JavaScript inside Obsidian's process."]
+      ["eval_obsidian","Execute JavaScript inside Obsidian's process with access to the app runtime. Advanced operator tool."]
     ]
   }
 ];
