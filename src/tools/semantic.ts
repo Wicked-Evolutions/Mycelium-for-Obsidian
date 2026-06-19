@@ -488,6 +488,10 @@ export function createSemanticHandlers(config: Config) {
 
             if (fileIndexed) {
               indexedFiles++;
+            } else {
+              // All sections were up-to-date or skipped (short/empty) — count as skipped
+              // so that: indexedFiles + skipped + errors === totalFiles
+              skipped++;
             }
 
             // Log progress every 10 files

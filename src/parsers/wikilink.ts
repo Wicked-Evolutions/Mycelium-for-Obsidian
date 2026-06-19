@@ -61,7 +61,9 @@ export function parseCrossVaultLink(link: string): { vault?: string; note: strin
 export async function resolveWikilink(
   target: string,
   vaultPath: string,
-  fileIndex?: Map<string, string> // Map of lowercase filename -> full path
+  fileIndex?: Map<string, string>, // Map of lowercase filename -> full path
+  sourcePath?: string,             // Absolute path of the file containing the link (for same-folder tiebreak)
+  multiIndex?: Map<string, string[]> // Multi-candidate index (basename -> [abs paths]) for duplicate-basename resolution
 ): Promise<string | null> {
   // Normalize target
   let normalizedTarget = target;
@@ -78,6 +80,30 @@ export async function resolveWikilink(
     return exactPath;
   } catch {
     // Not found at exact path, or path traversal blocked
+  }
+
+  // If we have a multi-candidate index, apply Obsidian tiebreak rules:
+  // 1. Same folder as source  2. Shortest relative path  3. Alphabetical
+  if (multiIndex) {
+    const targetName = path.basename(normalizedTarget).toLowerCase();
+    const candidates = multiIndex.get(targetName);
+    if (candidates && candidates.length > 0) {
+      if (candidates.length === 1) return candidates[0];
+      const sourceDir = sourcePath ? path.dirname(sourcePath) : null;
+      // Prefer same-folder as source
+      if (sourceDir) {
+        const sameFolder = candidates.find(c => path.dirname(c) === sourceDir);
+        if (sameFolder) return sameFolder;
+      }
+      // Shortest relative path from vault root, then alphabetical
+      const sorted = [...candidates].sort((a, b) => {
+        const ra = path.relative(vaultPath, a);
+        const rb = path.relative(vaultPath, b);
+        const depthDiff = ra.split(path.sep).length - rb.split(path.sep).length;
+        return depthDiff !== 0 ? depthDiff : ra.localeCompare(rb);
+      });
+      return sorted[0];
+    }
   }
 
   // If we have a file index, search by filename
@@ -130,7 +156,7 @@ async function searchVaultForFile(
 
 /**
  * Build a file index for fast wikilink resolution
- * Maps lowercase filename -> absolute path
+ * Maps lowercase filename -> absolute path (first occurrence only)
  */
 export async function buildFileIndex(vaultPath: string): Promise<Map<string, string>> {
   const index = new Map<string, string>();
@@ -152,6 +178,47 @@ export async function buildFileIndex(vaultPath: string): Promise<Map<string, str
           // Only store first occurrence (Obsidian behavior)
           if (!index.has(lowerName)) {
             index.set(lowerName, fullPath);
+          }
+        }
+      }
+    } catch {
+      // Directory not readable
+    }
+  }
+
+  await indexDirectory(vaultPath);
+  return index;
+}
+
+/**
+ * Build a multi-candidate file index for source-aware wikilink resolution.
+ * Unlike buildFileIndex, this records ALL paths for each lowercase basename so
+ * that duplicate-basename collisions can be resolved via same-folder / shortest-path
+ * tiebreak rules (see resolveWikilink).
+ *
+ * Maps lowercase filename.md -> [absolute path, ...]
+ */
+export async function buildMultiFileIndex(vaultPath: string): Promise<Map<string, string[]>> {
+  const index = new Map<string, string[]>();
+
+  async function indexDirectory(dirPath: string) {
+    try {
+      const entries = await fs.readdir(dirPath, { withFileTypes: true });
+
+      for (const entry of entries) {
+        const fullPath = path.join(dirPath, entry.name);
+
+        if (entry.name.startsWith('.')) continue;
+
+        if (entry.isDirectory()) {
+          await indexDirectory(fullPath);
+        } else if (entry.isFile() && entry.name.endsWith('.md')) {
+          const lowerName = entry.name.toLowerCase();
+          const existing = index.get(lowerName);
+          if (existing) {
+            existing.push(fullPath);
+          } else {
+            index.set(lowerName, [fullPath]);
           }
         }
       }
