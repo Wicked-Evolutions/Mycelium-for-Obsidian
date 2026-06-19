@@ -239,12 +239,11 @@ To use the 28 CLI-only tools, you need Obsidian 1.12+ with CLI enabled. In Obsid
 | `follow_link` | Resolve a wikilink and read the target file |
 | `rebuild_link_index` | Rebuild the wikilink resolution index |
 
-#### Semantic Search (6)
+#### Semantic Search (5)
 
 | Tool | Description |
 |------|-------------|
 | `semantic_search` | Find similar content using embeddings (requires Ollama) |
-| `semantic_search_all` | Semantic search across all configured vaults |
 | `index_vault` | Index all files in a vault for search |
 | `index_file` | Index a single file |
 | `get_similar` | Find notes similar to a given note |
@@ -293,11 +292,12 @@ Example:
 | `prepend_to_section` | Add content to the beginning of a section |
 | `update_section` | Replace all content within a section (heading preserved) |
 
-#### Cross-Vault (4)
+#### Cross-Vault (5)
 
 | Tool | Description |
 |------|-------------|
 | `search_all_vaults` | Search across all configured vaults |
+| `semantic_search_all` | Semantic search across all configured vaults |
 | `find_note_by_name` | Find a note by name across vaults |
 | `get_cross_vault_links` | Find wikilinks between vaults |
 | `get_ecosystem_stats` | Statistics across the entire knowledge ecosystem (all vaults) |
