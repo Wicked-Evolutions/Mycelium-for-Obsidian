@@ -12,14 +12,10 @@ import { parseMarkdownFile, extractTitle } from '../parsers/markdown.js';
 import {
   extractWikilinks,
   resolveWikilink,
-  buildFileIndex
+  buildFileIndex,
+  buildMultiFileIndex
 } from '../parsers/wikilink.js';
-
-// Vault parameter definition
-const vaultParam = {
-  type: 'string' as const,
-  description: 'Vault name (e.g., "Platform", "Helena"). Defaults to first vault if omitted.'
-};
+import { vaultParam, limitParam } from './schema-helpers.js';
 
 /**
  * Tool definitions
@@ -52,11 +48,7 @@ export const analyticsTools: Tool[] = [
           description: 'Directory patterns to exclude (e.g., ["00 Inbox", "05 Resources/Templates"])',
           items: { type: 'string' }
         },
-        limit: {
-          type: 'number',
-          description: 'Maximum results',
-          default: 50
-        }
+        limit: limitParam(50)
       }
     }
   },
@@ -67,11 +59,7 @@ export const analyticsTools: Tool[] = [
       type: 'object',
       properties: {
         vault: vaultParam,
-        limit: {
-          type: 'number',
-          description: 'Maximum results',
-          default: 50
-        }
+        limit: limitParam(50)
       }
     }
   },
@@ -96,11 +84,7 @@ export const analyticsTools: Tool[] = [
           description: 'Directory patterns to exclude',
           items: { type: 'string' }
         },
-        limit: {
-          type: 'number',
-          description: 'Maximum results',
-          default: 50
-        }
+        limit: limitParam(50)
       }
     }
   }
@@ -141,14 +125,19 @@ async function collectFiles(
 async function buildBacklinkIndex(
   vaultPath: string
 ): Promise<{ backlinkCounts: Map<string, number>; brokenLinks: Array<{ source: string; target: string; lineNumber: number }> }> {
-  const fileIndex = await buildFileIndex(vaultPath);
+  // Use multi-candidate index so duplicate-basename links credit the same-folder note
+  const multiIndex = await buildMultiFileIndex(vaultPath);
   const backlinkCounts = new Map<string, number>();
   const brokenLinks: Array<{ source: string; target: string; lineNumber: number }> = [];
 
-  // Initialize all files with 0 backlinks
-  for (const [, filePath] of fileIndex) {
-    const rel = path.relative(vaultPath, filePath);
-    backlinkCounts.set(rel, 0);
+  // Initialize all files with 0 backlinks (derive from multi-index)
+  for (const paths of multiIndex.values()) {
+    for (const filePath of paths) {
+      const rel = path.relative(vaultPath, filePath);
+      if (!backlinkCounts.has(rel)) {
+        backlinkCounts.set(rel, 0);
+      }
+    }
   }
 
   // Scan all files for outgoing links
@@ -156,11 +145,13 @@ async function buildBacklinkIndex(
 
   for (const file of files) {
     try {
-      const content = await fs.readFile(path.join(vaultPath, file.relativePath), 'utf-8');
+      const sourceAbsPath = path.join(vaultPath, file.relativePath);
+      const content = await fs.readFile(sourceAbsPath, 'utf-8');
       const links = extractWikilinks(content);
 
       for (const link of links) {
-        const resolved = await resolveWikilink(link.target, vaultPath, fileIndex);
+        // Pass sourcePath so same-folder notes win the tiebreak when basenames collide
+        const resolved = await resolveWikilink(link.target, vaultPath, undefined, sourceAbsPath, multiIndex);
 
         if (resolved) {
           const relTarget = path.relative(vaultPath, resolved);

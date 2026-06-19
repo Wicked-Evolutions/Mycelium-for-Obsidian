@@ -16,6 +16,7 @@ import {
   OllamaConfig
 } from '../embeddings/ollama.js';
 import { getSharedStorage } from '../embeddings/storage.js';
+import { vaultParam } from './schema-helpers.js';
 
 /**
  * Get storage instance for a vault (shared singleton per vault path)
@@ -71,12 +72,6 @@ Alternative queries:`,
     return [query];  // Fallback to original on error
   }
 }
-
-// Vault parameter definition
-const vaultParam = {
-  type: 'string' as const,
-  description: 'Vault name (e.g., "Platform", "Helena"). Defaults to first vault if omitted.'
-};
 
 /**
  * Tool definitions for semantic search
@@ -493,6 +488,10 @@ export function createSemanticHandlers(config: Config) {
 
             if (fileIndexed) {
               indexedFiles++;
+            } else {
+              // All sections were up-to-date or skipped (short/empty) — count as skipped
+              // so that: indexedFiles + skipped + errors === totalFiles
+              skipped++;
             }
 
             // Log progress every 10 files

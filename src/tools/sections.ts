@@ -14,12 +14,7 @@ import {
   prependToSection,
   replaceSection
 } from '../parsers/markdown.js';
-
-// Vault parameter definition
-const vaultParam = {
-  type: 'string' as const,
-  description: 'Vault name (e.g., "Platform", "Helena"). Defaults to first vault if omitted.'
-};
+import { vaultParam } from './schema-helpers.js';
 
 /**
  * Tool definitions for section operations

@@ -6,6 +6,7 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import { VaultConfig } from './types/index.js';
+import { closestMatches, VAULT_NOT_FOUND_HINT } from './resolver-hints.js';
 
 export interface Config {
   mode: 'single' | 'multi';
@@ -90,7 +91,17 @@ export function resolveVault(config: Config, vaultName?: string): VaultConfig {
   if (!vaultName) return getPrimaryVault(config);
   const found = getVaultByName(config, vaultName);
   if (!found) {
-    throw new Error(`Unknown vault: "${vaultName}". Available: ${config.vaults.map(v => v.name).join(', ')}`);
+    const availableNames = config.vaults.map(v => v.name);
+    const suggestions = closestMatches(vaultName, availableNames);
+    const suggestionNote = suggestions.length > 0
+      ? ` Did you mean: ${suggestions.join(', ')}?`
+      : '';
+    const err = new Error(
+      `Unknown vault: "${vaultName}". Available: ${availableNames.join(', ')}.${suggestionNote}`
+    ) as Error & { closest_matches: string[]; hint: string };
+    err.closest_matches = suggestions;
+    err.hint = VAULT_NOT_FOUND_HINT;
+    throw err;
   }
   return found;
 }

@@ -1,6 +1,6 @@
 {
   "name": "@wickedevolutions/mcp-obsidian",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "description": "Multi-vault Obsidian MCP server \u2014 full AI operations toolset for file management, wikilinks, semantic search, frontmatter queries, daily notes, tasks, properties, templates, and more.",
   "type": "module",
   "main": "dist/index.js",
@@ -11,7 +11,9 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "start": "node dist/index.js",
-    "prepare": "npm run build"
+    "prepare": "npm run build",
+    "test": "npm run build && node --experimental-test-module-mocks --test test/*.test.mjs",
+    "test:live": "npm run build && node --test test/*.test.mjs"
   },
   "files": [
     "dist/",

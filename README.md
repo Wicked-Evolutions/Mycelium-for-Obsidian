@@ -2,13 +2,17 @@
 
 Multi-vault Obsidian MCP server — full AI operations toolset for file management, wikilinks, semantic search, frontmatter queries, daily notes, tasks, properties, templates, and more.
 
-Two-tier architecture: 72 tools work without Obsidian running + 28 CLI tools access Obsidian's runtime API when the app is running with [CLI enabled](https://obsidian.md/help/cli) (1.12+).
+Two-tier architecture: 74 tools work without Obsidian running + 28 CLI tools access Obsidian's runtime API when the app is running with [CLI enabled](https://obsidian.md/help/cli) (1.12+).
+
+New in 1.3.0: orientation tools (`get_started`, `discover_tools`) so a client can map the server's surface up front; schema legibility (your configured vault names appear as an `enum` in every tool's input schema); and self-correcting resolution — an unknown vault or note name returns closest-match suggestions and a corrective hint instead of a bare error.
 
 ## Install
 
 ### Claude Desktop — one click
 
-Download [mcp-obsidian.mcpb](https://github.com/Wicked-Evolutions/mcp-obsidian/releases/latest/download/mcp-obsidian-1.0.0.mcpb), double-click, enter your vault paths. Done.
+Download [mcp-obsidian.mcpb](https://github.com/Wicked-Evolutions/mcp-obsidian/releases/latest/download/mcp-obsidian.mcpb), double-click, enter your vault paths. Done.
+
+> The one-click bundle is built and tested on **macOS (Apple Silicon)** only — it ships a prebuilt native module for that platform. On Intel Mac, Windows, or Linux, install via **npm** below instead; it compiles the native module for your platform at install time. (A cross-platform bundle is tracked for a later release.)
 
 ### npm
 
@@ -169,7 +173,8 @@ Comma-separated list. Disabled tools are removed from both the tool list and han
 ## Features
 
 - **Unified Multi-Vault**: Single server process handles all vaults. Every tool accepts an optional `vault` parameter.
-- **Two-Tier Architecture**: 72 tools always available + 28 CLI tools when Obsidian 1.12+ is running
+- **Two-Tier Architecture**: 74 tools always available + 28 CLI tools when Obsidian 1.12+ is running
+- **Orientation & Self-Correction**: `get_started` and `discover_tools` map the server's surface; configured vault names surface as an `enum` in each tool's input schema; unknown vault/note names return closest-match suggestions instead of bare errors
 - **File Operations**: List, read, create, update, delete, move files with frontmatter support
 - **Wikilink Resolution**: Resolve `[[wikilinks]]`, get outlinks/backlinks, follow link chains
 - **Semantic Search**: Vector-based similarity search using Ollama embeddings
@@ -188,7 +193,7 @@ Comma-separated list. Disabled tools are removed from both the tool list and han
 
 | Tier | Tools | Requires | Always Available |
 |------|-------|----------|-----------------|
-| **Filesystem** | 72 tools | Node.js only | Yes — works without Obsidian running |
+| **Filesystem** | 74 tools | Node.js only | Yes — works without Obsidian running |
 | **CLI-only** | 28 tools | Obsidian 1.12+ running | No — graceful error if app not running |
 
 **Filesystem tools** read and write vault files directly. They work whether Obsidian is open or not.
@@ -201,9 +206,16 @@ If Obsidian is not running, CLI tools return a clear error message. All filesyst
 
 To use the 28 CLI-only tools, you need Obsidian 1.12+ with CLI enabled. In Obsidian: **Settings → General → Enable "Command line interface"**, then follow the prompt to register. See the [Obsidian CLI documentation](https://obsidian.md/help/cli) for install and troubleshooting details.
 
-## Available Tools (100)
+## Available Tools (102)
 
-### Always Available (72 tools — no Obsidian required)
+### Always Available (74 tools — no Obsidian required)
+
+#### Orientation (2)
+
+| Tool | Description |
+|------|-------------|
+| `get_started` | Orientation guide — configured vaults, tool categories with counts, and tier/resolver guidance. Call first in a new session |
+| `discover_tools` | Compact paginated inventory of all tools with category and tier (filesystem/cli) |
 
 #### File Operations (9)
 
@@ -282,13 +294,15 @@ Example:
 | `prepend_to_section` | Add content to the beginning of a section |
 | `update_section` | Replace all content within a section (heading preserved) |
 
-#### Cross-Vault (3)
+#### Cross-Vault (5)
 
 | Tool | Description |
 |------|-------------|
 | `search_all_vaults` | Search across all configured vaults |
+| `semantic_search_all` | Semantic search across all configured vaults |
 | `find_note_by_name` | Find a note by name across vaults |
 | `get_cross_vault_links` | Find wikilinks between vaults |
+| `get_ecosystem_stats` | Statistics across the entire knowledge ecosystem (all vaults) |
 
 #### Daily Notes (4)
 
@@ -537,16 +551,18 @@ src/
 │   ├── storage.ts        # SQLite vector storage
 │   └── watcher.ts        # File watcher for auto-indexing
 └── tools/
-    ├── index.ts          # Tool registration hub (8 modules)
+    ├── index.ts          # Tool registration hub (11 modules)
     ├── files.ts          # File ops (9 tools)
     ├── wikilinks.ts      # Wikilink ops (5 tools)
     ├── semantic.ts       # Semantic search (5 tools)
-    ├── crossvault.ts     # Cross-vault ops (3 tools)
+    ├── crossvault.ts     # Cross-vault ops (5 tools)
     ├── sections.ts       # Section editing (3 tools)
     ├── query.ts          # Frontmatter queries (1 tool)
     ├── analytics.ts      # Vault health (4 tools)
     ├── fs-promoted.ts    # Filesystem-promoted tools (40 tools)
-    └── cli-tools.ts      # CLI-only tools (28 tools)
+    ├── cli-tools.ts      # CLI-only tools (28 tools)
+    ├── get-started.ts    # Onboarding tool (1 tool)
+    └── discover-tools.ts # Tool discovery (1 tool)
 ```
 
 ## Safety Notes

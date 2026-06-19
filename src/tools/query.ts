@@ -9,12 +9,7 @@ import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { Config, resolveVault, resolvePathInVault } from '../config.js';
 import { ToolResponse } from '../types/index.js';
 import { parseMarkdownFile, extractTitle } from '../parsers/markdown.js';
-
-// Vault parameter definition
-const vaultParam = {
-  type: 'string' as const,
-  description: 'Vault name (e.g., "Platform", "Helena"). Defaults to first vault if omitted.'
-};
+import { vaultParam, limitParam } from './schema-helpers.js';
 
 /**
  * Supported filter operators
@@ -64,11 +59,7 @@ export const queryTools: Tool[] = [
           type: 'string',
           description: 'Frontmatter field to sort by. Prefix with "-" for descending (e.g., "-updated", "title")'
         },
-        limit: {
-          type: 'number',
-          description: 'Maximum results to return',
-          default: 20
-        }
+        limit: limitParam(20, 'Maximum results to return')
       }
     }
   }

@@ -11,11 +11,9 @@ import { parseMarkdownFile } from '../parsers/markdown.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import matter from 'gray-matter';
-
-const vaultParam = {
-  type: 'string' as const,
-  description: 'Vault name (e.g., "Platform", "Helena"). Defaults to first vault if omitted.'
-};
+import { vaultParam } from './schema-helpers.js';
+import { buildFileIndex } from '../parsers/wikilink.js';
+import { closestMatches, noteNotFoundHint, formatVaultError } from '../resolver-hints.js';
 
 const ok = (text: string): ToolResponse => ({
   content: [{ type: 'text', text }],
@@ -609,13 +607,99 @@ export const fsPromotedTools: Tool[] = [
 // ─── Handler Implementations ──────────────────────────────────────────
 
 export function createFsPromotedHandlers(config: Config) {
-  /** Resolve file path from file name or path args */
-  const resolveFile = (vault: { path: string }, args: any): string => {
-    if (args.path) return args.path;
+  /**
+   * Build a structured not-found error for an expected-existing note.
+   *
+   * The message NEVER contains an absolute filesystem path — only the note
+   * name the caller supplied. Attaches `closest_matches` (nearest note
+   * basenames by edit distance, from the vault-wide index) and `hint`
+   * ("Did you mean: X?" + generic guidance) so that callers can render it
+   * via formatVaultError() with the same structured shape that read_file /
+   * follow_link / resolve_wikilink already return.
+   */
+  const noteNotFoundError = async (
+    vaultPath: string,
+    requested: string
+  ): Promise<Error & { closest_matches: string[]; hint: string }> => {
+    const query = path.basename(requested, '.md');
+    let suggestions: string[] = [];
+    try {
+      const fileIndex = await buildFileIndex(vaultPath);
+      // index values are absolute paths; derive proper-cased basenames
+      const noteNames = Array.from(fileIndex.values()).map(p => path.basename(p, '.md'));
+      suggestions = closestMatches(query, noteNames);
+    } catch {
+      // If the index can't be built, fall back to no suggestions.
+    }
+    const error = new Error(`${query} not found`) as Error & {
+      closest_matches: string[];
+      hint: string;
+    };
+    error.closest_matches = suggestions;
+    error.hint = noteNotFoundHint(suggestions);
+    return error;
+  };
+
+  /** Resolve file path from file name or path args.
+   * When args.file has no directory component and the literal path doesn't exist
+   * in the vault root, performs a vault-wide basename search (Obsidian semantics:
+   * first match by name). Returns a vault-relative path.
+   *
+   * When `mustExist` is true (the default for read/stat/rename tools), a note
+   * that cannot be resolved anywhere in the vault throws a STRUCTURED
+   * not-found error (closest_matches + hint, no absolute path) instead of
+   * falling back to a literal path that later surfaces a raw ENOENT leak.
+   * Pass `mustExist: false` for create-capable tools (e.g. file_append) that
+   * legitimately tolerate a not-yet-existing target.
+   */
+  const resolveFile = async (
+    vault: { path: string },
+    args: any,
+    mustExist = true
+  ): Promise<string> => {
+    if (args.path) {
+      if (mustExist) {
+        try {
+          await fs.access(resolvePathInVault(vault.path, args.path));
+        } catch {
+          throw await noteNotFoundError(vault.path, args.path);
+        }
+      }
+      return args.path;
+    }
     if (args.file) {
-      // Simple name resolution — find first match
-      // For full wikilink resolution, fall back to wikilink tools
-      return args.file.endsWith('.md') ? args.file : args.file + '.md';
+      const withExt = args.file.endsWith('.md') ? args.file : args.file + '.md';
+
+      // If the caller supplied a path (contains a separator), trust it
+      if (withExt.includes('/') || withExt.includes('\\')) {
+        if (mustExist) {
+          try {
+            await fs.access(resolvePathInVault(vault.path, withExt));
+          } catch {
+            throw await noteNotFoundError(vault.path, withExt);
+          }
+        }
+        return withExt;
+      }
+
+      // Bare filename: check root first, then do a vault-wide lookup
+      try {
+        await fs.access(path.join(vault.path, withExt));
+        return withExt; // found at root
+      } catch {
+        // Not at root — search the whole vault by basename (preserves Bug-4 fix)
+        const fileIndex = await buildFileIndex(vault.path);
+        const found = fileIndex.get(withExt.toLowerCase());
+        if (found) {
+          return path.relative(vault.path, found);
+        }
+        if (mustExist) {
+          // Not found anywhere — surface a structured not-found (no abs path)
+          throw await noteNotFoundError(vault.path, withExt);
+        }
+        // Tolerant callers (create-capable) get the literal back.
+        return withExt;
+      }
     }
     throw new Error('Either file or path parameter is required');
   };
@@ -642,15 +726,24 @@ export function createFsPromotedHandlers(config: Config) {
         const dailyConfig = await readObsidianConfig(vault.path, 'daily-notes.json');
         const notePath = getDailyNotePath(vault.path, dailyConfig);
         const absPath = resolvePathInVault(vault.path, notePath);
-        // Create parent directories if needed
-        await fs.mkdir(path.dirname(absPath), { recursive: true });
         try {
-          await fs.access(absPath);
-        } catch {
-          // File doesn't exist — create it
-          await fs.writeFile(absPath, '', 'utf-8');
+          // Create parent directories if needed
+          await fs.mkdir(path.dirname(absPath), { recursive: true });
+          try {
+            await fs.access(absPath);
+          } catch {
+            // File doesn't exist — create it
+            await fs.writeFile(absPath, '', 'utf-8');
+          }
+          await fs.appendFile(absPath, '\n' + args.content, 'utf-8');
+        } catch (e: any) {
+          // Defensive: any ENOENT here would embed the absolute filesystem path
+          // in its message. Sanitize to the vault-relative note path.
+          if (e?.code === 'ENOENT') {
+            return err(`Cannot append — parent folder does not exist: ${notePath}`);
+          }
+          throw e;
         }
-        await fs.appendFile(absPath, '\n' + args.content, 'utf-8');
         return ok('Content appended to daily note.');
       } catch (e: any) {
         return err(`Error appending to daily note: ${e.message}`);
@@ -734,8 +827,11 @@ export function createFsPromotedHandlers(config: Config) {
     update_task: async (args) => {
       try {
         const vault = resolveVault(config, args.vault);
-        const filePath = args.path || (args.file ? (args.file.endsWith('.md') ? args.file : args.file + '.md') : null);
-        if (!filePath) return err('Either file or path parameter is required');
+        if (!args.path && !args.file) return err('Either file or path parameter is required');
+        // Route through the shared resolver so update_task gets the Bug-4
+        // vault-wide index lookup AND the structured no-abs-path not-found
+        // error (parity with list_aliases / property_read etc.).
+        const filePath = await resolveFile(vault, args);
 
         const content = await readVaultFile(vault.path, filePath);
         const lines = content.split('\n');
@@ -755,6 +851,7 @@ export function createFsPromotedHandlers(config: Config) {
         await writeVaultFile(vault.path, filePath, lines.join('\n'));
         return ok(`Task ${args.action === 'done' ? 'completed' : args.action === 'todo' ? 'unchecked' : 'toggled'}.`);
       } catch (e: any) {
+        if (e?.closest_matches && e?.hint) return formatVaultError(e);
         return err(`Error updating task: ${e.message}`);
       }
     },
@@ -882,13 +979,14 @@ export function createFsPromotedHandlers(config: Config) {
     property_read: async (args) => {
       try {
         const vault = resolveVault(config, args.vault);
-        const filePath = resolveFile(vault, args);
+        const filePath = await resolveFile(vault, args);
         const content = await readVaultFile(vault.path, filePath);
         const { data } = parseFrontmatter(content);
         const val = data[args.name];
         if (val === undefined) return ok('(property not set)');
         return ok(typeof val === 'object' ? JSON.stringify(val) : String(val));
       } catch (e: any) {
+        if (e?.closest_matches && e?.hint) return formatVaultError(e);
         return err(`Error reading property: ${e.message}`);
       }
     },
@@ -896,7 +994,7 @@ export function createFsPromotedHandlers(config: Config) {
     property_set: async (args) => {
       try {
         const vault = resolveVault(config, args.vault);
-        const filePath = resolveFile(vault, args);
+        const filePath = await resolveFile(vault, args);
         const rawContent = await readVaultFile(vault.path, filePath);
         const parsed = matter(rawContent);
         parsed.data[args.name] = args.value;
@@ -904,6 +1002,7 @@ export function createFsPromotedHandlers(config: Config) {
         await writeVaultFile(vault.path, filePath, newContent);
         return ok(`Property "${args.name}" set to "${args.value}".`);
       } catch (e: any) {
+        if (e?.closest_matches && e?.hint) return formatVaultError(e);
         return err(`Error setting property: ${e.message}`);
       }
     },
@@ -911,7 +1010,7 @@ export function createFsPromotedHandlers(config: Config) {
     property_remove: async (args) => {
       try {
         const vault = resolveVault(config, args.vault);
-        const filePath = resolveFile(vault, args);
+        const filePath = await resolveFile(vault, args);
         const rawContent = await readVaultFile(vault.path, filePath);
         const parsed = matter(rawContent);
         delete parsed.data[args.name];
@@ -919,6 +1018,7 @@ export function createFsPromotedHandlers(config: Config) {
         await writeVaultFile(vault.path, filePath, newContent);
         return ok(`Property "${args.name}" removed.`);
       } catch (e: any) {
+        if (e?.closest_matches && e?.hint) return formatVaultError(e);
         return err(`Error removing property: ${e.message}`);
       }
     },
@@ -927,7 +1027,7 @@ export function createFsPromotedHandlers(config: Config) {
     get_outline: async (args) => {
       try {
         const vault = resolveVault(config, args.vault);
-        const filePath = resolveFile(vault, args);
+        const filePath = await resolveFile(vault, args);
         const content = await readVaultFile(vault.path, filePath);
         const headings: string[] = [];
         for (const line of content.split('\n')) {
@@ -939,6 +1039,7 @@ export function createFsPromotedHandlers(config: Config) {
         }
         return ok(headings.length > 0 ? headings.join('\n') : 'No headings found.');
       } catch (e: any) {
+        if (e?.closest_matches && e?.hint) return formatVaultError(e);
         return err(`Error getting outline: ${e.message}`);
       }
     },
@@ -946,13 +1047,14 @@ export function createFsPromotedHandlers(config: Config) {
     word_count: async (args) => {
       try {
         const vault = resolveVault(config, args.vault);
-        const filePath = resolveFile(vault, args);
+        const filePath = await resolveFile(vault, args);
         const content = await readVaultFile(vault.path, filePath);
         const { content: body } = parseFrontmatter(content);
         const words = body.trim().split(/\s+/).filter(w => w.length > 0).length;
         const chars = body.length;
         return ok(`words\t${words}\ncharacters\t${chars}`);
       } catch (e: any) {
+        if (e?.closest_matches && e?.hint) return formatVaultError(e);
         return err(`Error counting words: ${e.message}`);
       }
     },
@@ -961,7 +1063,7 @@ export function createFsPromotedHandlers(config: Config) {
       try {
         const vault = resolveVault(config, args.vault);
         if (args.path || args.file) {
-          const filePath = resolveFile(vault, args);
+          const filePath = await resolveFile(vault, args);
           const content = await readVaultFile(vault.path, filePath);
           const { data } = parseFrontmatter(content);
           const aliases = Array.isArray(data.aliases) ? data.aliases : (data.aliases ? [data.aliases] : []);
@@ -982,6 +1084,7 @@ export function createFsPromotedHandlers(config: Config) {
         }
         return ok(results.length > 0 ? results.join('\n') : 'No aliases found.');
       } catch (e: any) {
+        if (e?.closest_matches && e?.hint) return formatVaultError(e);
         return err(`Error listing aliases: ${e.message}`);
       }
     },
@@ -990,9 +1093,21 @@ export function createFsPromotedHandlers(config: Config) {
     file_append: async (args) => {
       try {
         const vault = resolveVault(config, args.vault);
-        const filePath = resolveFile(vault, args);
+        // mustExist=false: fs.appendFile creates the file if it doesn't exist,
+        // so this tool legitimately tolerates a not-yet-existing target.
+        const filePath = await resolveFile(vault, args, false);
         const absPath = resolvePathInVault(vault.path, filePath);
-        await fs.appendFile(absPath, '\n' + args.content, 'utf-8');
+        try {
+          await fs.appendFile(absPath, '\n' + args.content, 'utf-8');
+        } catch (e: any) {
+          // A missing intermediate parent folder makes fs.appendFile throw an
+          // ENOENT whose message embeds the absolute filesystem path. Sanitize:
+          // report only the vault-relative path, never the absolute one.
+          if (e?.code === 'ENOENT') {
+            return err(`Cannot append — parent folder does not exist: ${filePath}`);
+          }
+          throw e;
+        }
         return ok('Content appended to file.');
       } catch (e: any) {
         return err(`Error appending to file: ${e.message}`);
@@ -1002,7 +1117,7 @@ export function createFsPromotedHandlers(config: Config) {
     file_prepend: async (args) => {
       try {
         const vault = resolveVault(config, args.vault);
-        const filePath = resolveFile(vault, args);
+        const filePath = await resolveFile(vault, args);
         const content = await readVaultFile(vault.path, filePath);
         const { data, content: body } = parseFrontmatter(content);
         const hasFrontmatter = Object.keys(data).length > 0;
@@ -1012,6 +1127,7 @@ export function createFsPromotedHandlers(config: Config) {
         await writeVaultFile(vault.path, filePath, newContent);
         return ok('Content prepended to file.');
       } catch (e: any) {
+        if (e?.closest_matches && e?.hint) return formatVaultError(e);
         return err(`Error prepending to file: ${e.message}`);
       }
     },
@@ -1019,7 +1135,7 @@ export function createFsPromotedHandlers(config: Config) {
     search_replace_in_file: async (args) => {
       try {
         const vault = resolveVault(config, args.vault);
-        const filePath = resolveFile(vault, args);
+        const filePath = await resolveFile(vault, args);
         const content = await readVaultFile(vault.path, filePath);
         if (!content.includes(args.search)) {
           return err('Search text not found in file. No changes made.');
@@ -1030,6 +1146,7 @@ export function createFsPromotedHandlers(config: Config) {
         await writeVaultFile(vault.path, filePath, newContent);
         return ok('Text replaced successfully.');
       } catch (e: any) {
+        if (e?.closest_matches && e?.hint) return formatVaultError(e);
         return err(`Error replacing text: ${e.message}`);
       }
     },
@@ -1037,7 +1154,7 @@ export function createFsPromotedHandlers(config: Config) {
     rename_file: async (args) => {
       try {
         const vault = resolveVault(config, args.vault);
-        const filePath = resolveFile(vault, args);
+        const filePath = await resolveFile(vault, args);
         const oldName = path.basename(filePath, '.md');
         const dir = path.dirname(filePath);
         const newName = args.name.endsWith('.md') ? args.name : args.name + '.md';
@@ -1059,6 +1176,7 @@ export function createFsPromotedHandlers(config: Config) {
         }
         return ok(`File renamed to "${args.name}".`);
       } catch (e: any) {
+        if (e?.closest_matches && e?.hint) return formatVaultError(e);
         return err(`Error renaming file: ${e.message}`);
       }
     },
@@ -1066,7 +1184,7 @@ export function createFsPromotedHandlers(config: Config) {
     move_file: async (args) => {
       try {
         const vault = resolveVault(config, args.vault);
-        const filePath = resolveFile(vault, args);
+        const filePath = await resolveFile(vault, args);
         const oldName = path.basename(filePath, '.md');
         const destPath = args.to.endsWith('.md') ? args.to : `${args.to}/${path.basename(filePath)}`;
         const absOld = resolvePathInVault(vault.path, filePath);
@@ -1076,6 +1194,7 @@ export function createFsPromotedHandlers(config: Config) {
         // Wikilinks use note names not paths, so they don't change on move (unless renamed)
         return ok(`File moved to "${args.to}".`);
       } catch (e: any) {
+        if (e?.closest_matches && e?.hint) return formatVaultError(e);
         return err(`Error moving file: ${e.message}`);
       }
     },
@@ -1084,13 +1203,14 @@ export function createFsPromotedHandlers(config: Config) {
     get_file_info: async (args) => {
       try {
         const vault = resolveVault(config, args.vault);
-        const filePath = resolveFile(vault, args);
+        const filePath = await resolveFile(vault, args);
         const absPath = resolvePathInVault(vault.path, filePath);
         const stat = await fs.stat(absPath);
         const name = path.basename(filePath, path.extname(filePath));
         const ext = path.extname(filePath).replace('.', '');
         return ok(`path\t${filePath}\nname\t${name}\nextension\t${ext}\nsize\t${stat.size}\ncreated\t${stat.birthtimeMs}\nmodified\t${stat.mtimeMs}`);
       } catch (e: any) {
+        if (e?.closest_matches && e?.hint) return formatVaultError(e);
         return err(`Error getting file info: ${e.message}`);
       }
     },
@@ -1383,7 +1503,10 @@ export function createFsPromotedHandlers(config: Config) {
             const content = await readVaultFile(vault.path, file);
             const links = content.match(/\[\[([^\]|]+)/g) || [];
             for (const link of links) {
-              linkedTo.add(link.slice(2).trim());
+              // Strip #anchor / ^block-ref and self-anchor links (empty after strip)
+              const raw = link.slice(2).trim();
+              const target = raw.split('#')[0].split('^')[0].trim();
+              if (target) linkedTo.add(target);
             }
           } catch { /* skip */ }
         }
@@ -1428,7 +1551,10 @@ export function createFsPromotedHandlers(config: Config) {
             const content = await readVaultFile(vault.path, file);
             const links = content.match(/\[\[([^\]|]+)/g) || [];
             for (const link of links) {
-              const target = link.slice(2).trim();
+              // Strip #anchor / ^block-ref; skip self-anchors (empty after strip)
+              const raw = link.slice(2).trim();
+              const target = raw.split('#')[0].split('^')[0].trim();
+              if (!target) continue;
               if (!fileNames.has(target) && !filePaths.has(target) && !filePaths.has(target + '.md')) {
                 if (args.verbose) {
                   unresolved.push(`${target}\t${file}`);
