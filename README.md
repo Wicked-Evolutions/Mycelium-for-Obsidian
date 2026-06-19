@@ -10,7 +10,7 @@ New in 1.3.0: orientation tools (`get_started`, `discover_tools`) so a client ca
 
 ### Claude Desktop — one click
 
-Download [mcp-obsidian.mcpb](https://github.com/Wicked-Evolutions/mcp-obsidian/releases/latest/download/mcp-obsidian-1.0.0.mcpb), double-click, enter your vault paths. Done.
+Download [mcp-obsidian.mcpb](https://github.com/Wicked-Evolutions/mcp-obsidian/releases/latest/download/mcp-obsidian.mcpb), double-click, enter your vault paths. Done.
 
 ### npm
 
