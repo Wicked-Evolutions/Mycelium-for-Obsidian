@@ -12,6 +12,8 @@ New in 1.3.0: orientation tools (`get_started`, `discover_tools`) so a client ca
 
 Download [mcp-obsidian.mcpb](https://github.com/Wicked-Evolutions/mcp-obsidian/releases/latest/download/mcp-obsidian.mcpb), double-click, enter your vault paths. Done.
 
+> The one-click bundle is built and tested on **macOS (Apple Silicon)** only — it ships a prebuilt native module for that platform. On Intel Mac, Windows, or Linux, install via **npm** below instead; it compiles the native module for your platform at install time. (A cross-platform bundle is tracked for a later release.)
+
 ### npm
 
 ```bash
