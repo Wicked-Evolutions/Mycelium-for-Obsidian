@@ -44,7 +44,7 @@ try {
 const server = new Server(
   {
     name: 'mcp-obsidian',
-    version: '1.2.1'
+    version: '1.3.0'
   },
   {
     capabilities: {

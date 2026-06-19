@@ -783,7 +783,7 @@ describe('list_orphans', () => {
     } finally { cleanup(dir); }
   });
 
-  test('[[Existing#Heading]] anchor link does not make target an orphan (Bug-2 fix)', async () => {
+  test('[[Existing#Heading]] anchor link does not make target an orphan (Bug-3 fix)', async () => {
     // [[Target#Section]] should count as an incoming link to "Target" — it must not be an orphan
     const { dir, h, vault } = setup({
       'linker.md': 'See [[Target#Section]] for details.',
@@ -919,7 +919,7 @@ describe('unresolved_links', () => {
     } finally { cleanup(dir); }
   });
 
-  test('does not report [[Existing#Heading]] anchor link as unresolved (Bug-2 fix)', async () => {
+  test('does not report [[Existing#Heading]] anchor link as unresolved (Bug-3 fix)', async () => {
     // [[Existing#Section]] should resolve to "Existing" — the note exists so it is NOT unresolved
     const { dir, h, vault } = setup({
       'linker.md': 'See [[Existing#Section]] for details.',
