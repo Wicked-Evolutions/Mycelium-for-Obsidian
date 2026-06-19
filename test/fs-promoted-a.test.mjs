@@ -1072,6 +1072,33 @@ describe('not-found hints (file-param tools)', () => {
     assert.ok(created.includes('hello from append'), 'append created file with content');
   });
 
+  test('file_append to a path with a missing parent folder errors WITHOUT leaking an abs path (P3a)', async () => {
+    // A missing INTERMEDIATE parent folder makes fs.appendFile throw a Node
+    // ENOENT whose raw message embeds the user's absolute filesystem path.
+    // The handler must NOT auto-create the folder (no behavior change) and must
+    // sanitize the error to the vault-relative path only — never "/Users/" or
+    // the vault root dir.
+    const res = await handlers.file_append({
+      vault: 'TestVault',
+      path: 'NoSuchFolder/DeepNote.md',
+      content: 'this should not be written',
+    });
+    // Must be a real error (ENOENT actually triggered), not a vacuous pass.
+    assertErr(res, 'file_append missing parent');
+    // No absolute path may appear in the error text.
+    assertNoAbsPath(res, 'file_append missing parent');
+    // The vault-relative path should be named so the caller knows what failed.
+    assert.ok(
+      text(res).includes('NoSuchFolder/DeepNote.md'),
+      `file_append missing parent: should name the vault-relative path, got "${text(res)}"`,
+    );
+    // No behavior change: the handler must NOT have auto-created the folder/file.
+    assert.ok(
+      !fs.existsSync(path.join(vaultDir, 'NoSuchFolder')),
+      'file_append must not auto-create the missing parent folder',
+    );
+  });
+
   // ── update_task parity (was bypassing resolveFile: leaked abs path + no Bug-4 lookup) ──
 
   test('update_task with 1-char-typo file returns closest_matches + hint (no abs path)', async () => {

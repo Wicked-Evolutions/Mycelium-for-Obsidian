@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "mcp-obsidian",
   "version": "1.3.0",
-  "display_name": "Obsidian",
+  "display_name": "Mycelium for Obsidian",
   "description": "Full AI operations toolset for Obsidian vault management — file ops, wikilinks, semantic search, frontmatter queries, daily notes, tasks, properties, templates, and more.",
   "author": {
     "name": "Wicked Evolutions",

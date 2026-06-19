@@ -726,15 +726,24 @@ export function createFsPromotedHandlers(config: Config) {
         const dailyConfig = await readObsidianConfig(vault.path, 'daily-notes.json');
         const notePath = getDailyNotePath(vault.path, dailyConfig);
         const absPath = resolvePathInVault(vault.path, notePath);
-        // Create parent directories if needed
-        await fs.mkdir(path.dirname(absPath), { recursive: true });
         try {
-          await fs.access(absPath);
-        } catch {
-          // File doesn't exist — create it
-          await fs.writeFile(absPath, '', 'utf-8');
+          // Create parent directories if needed
+          await fs.mkdir(path.dirname(absPath), { recursive: true });
+          try {
+            await fs.access(absPath);
+          } catch {
+            // File doesn't exist — create it
+            await fs.writeFile(absPath, '', 'utf-8');
+          }
+          await fs.appendFile(absPath, '\n' + args.content, 'utf-8');
+        } catch (e: any) {
+          // Defensive: any ENOENT here would embed the absolute filesystem path
+          // in its message. Sanitize to the vault-relative note path.
+          if (e?.code === 'ENOENT') {
+            return err(`Cannot append — parent folder does not exist: ${notePath}`);
+          }
+          throw e;
         }
-        await fs.appendFile(absPath, '\n' + args.content, 'utf-8');
         return ok('Content appended to daily note.');
       } catch (e: any) {
         return err(`Error appending to daily note: ${e.message}`);
@@ -1088,7 +1097,17 @@ export function createFsPromotedHandlers(config: Config) {
         // so this tool legitimately tolerates a not-yet-existing target.
         const filePath = await resolveFile(vault, args, false);
         const absPath = resolvePathInVault(vault.path, filePath);
-        await fs.appendFile(absPath, '\n' + args.content, 'utf-8');
+        try {
+          await fs.appendFile(absPath, '\n' + args.content, 'utf-8');
+        } catch (e: any) {
+          // A missing intermediate parent folder makes fs.appendFile throw an
+          // ENOENT whose message embeds the absolute filesystem path. Sanitize:
+          // report only the vault-relative path, never the absolute one.
+          if (e?.code === 'ENOENT') {
+            return err(`Cannot append — parent folder does not exist: ${filePath}`);
+          }
+          throw e;
+        }
         return ok('Content appended to file.');
       } catch (e: any) {
         return err(`Error appending to file: ${e.message}`);
