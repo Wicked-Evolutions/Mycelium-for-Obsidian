@@ -964,3 +964,166 @@ describe('list_aliases', () => {
     );
   });
 });
+
+// ---------------------------------------------------------------------------
+// Not-found hints for expected-existing notes (fs-promoted resolver parity)
+//
+// A file-param tool given a typo'd / missing note must surface a STRUCTURED
+// not-found error (closest_matches + "did you mean" hint) — matching what
+// read_file / follow_link / resolve_wikilink already return — and must NEVER
+// leak an absolute filesystem path.
+// ---------------------------------------------------------------------------
+
+describe('not-found hints (file-param tools)', () => {
+  // Helper: assert no absolute path leaked in the response text.
+  function assertNoAbsPath(res, label) {
+    const t = text(res);
+    assert.ok(
+      !t.includes('/Users/') && !t.includes(vaultDir),
+      `${label}: response must not leak an absolute path — got "${t}"`,
+    );
+  }
+
+  test('list_aliases with 1-char-typo file returns closest_matches + hint (no abs path)', async () => {
+    // "Alpha" exists at Notes/Alpha.md; "Alpla" is a 1-char typo near-miss.
+    const res = await handlers.list_aliases({ vault: 'TestVault', file: 'Alpla' });
+    assertErr(res, 'list_aliases typo');
+    const data = JSON.parse(text(res));
+    assert.ok(typeof data.error === 'string', 'error field is a string');
+    assert.ok(Array.isArray(data.closest_matches), 'closest_matches is an array');
+    assert.ok(
+      data.closest_matches.includes('Alpha'),
+      `expected "Alpha" in closest_matches, got: ${JSON.stringify(data.closest_matches)}`,
+    );
+    assert.ok(typeof data.hint === 'string' && data.hint.length > 0, 'hint is non-empty');
+    // The structured error must NOT carry an absolute filesystem path.
+    assert.ok(!data.error.includes('/Users/'), `error must not contain "/Users/", got "${data.error}"`);
+    assert.ok(!data.error.includes(vaultDir), `error must not contain vault root, got "${data.error}"`);
+    assertNoAbsPath(res, 'list_aliases typo');
+  });
+
+  test('"did you mean" prose appears in the note hint when closest_matches is non-empty', async () => {
+    const res = await handlers.list_aliases({ vault: 'TestVault', file: 'Alpla' });
+    assertErr(res, 'list_aliases did-you-mean');
+    const data = JSON.parse(text(res));
+    assert.ok(data.closest_matches.length > 0, 'precondition: closest_matches non-empty');
+    assert.ok(
+      data.hint.includes('Did you mean:'),
+      `expected "Did you mean:" in hint, got "${data.hint}"`,
+    );
+    assert.ok(
+      data.hint.includes('Alpha'),
+      `expected nearest match "Alpha" named in hint, got "${data.hint}"`,
+    );
+  });
+
+  test('explicit path that does not exist also returns structured hint (no abs path)', async () => {
+    const res = await handlers.list_aliases({ vault: 'TestVault', path: 'Notes/Nope.md' });
+    assertErr(res, 'list_aliases bad path');
+    const data = JSON.parse(text(res));
+    assert.ok(Array.isArray(data.closest_matches), 'closest_matches is an array');
+    assertNoAbsPath(res, 'list_aliases bad path');
+  });
+
+  test('get_outline / word_count / get_file_info on missing note also hint (no abs path)', async () => {
+    for (const tool of ['get_outline', 'word_count', 'get_file_info']) {
+      const res = await handlers[tool]({ vault: 'TestVault', file: 'Alpla' });
+      assertErr(res, `${tool} typo`);
+      const data = JSON.parse(text(res));
+      assert.ok(Array.isArray(data.closest_matches), `${tool}: closest_matches is an array`);
+      assertNoAbsPath(res, `${tool} typo`);
+    }
+  });
+
+  test('daily_read on a fresh vault returns graceful "does not exist", never a not-found hint', async () => {
+    // Daily notes use their own ENOENT tolerance, not resolveFile — must stay graceful.
+    // Use an isolated vault so prior daily_append/daily_prepend tests can't have
+    // created the note in the shared vault.
+    const freshDir = createTempVault({ 'Seed.md': '# Seed' });
+    try {
+      process.env.OBSIDIAN_VAULTS = JSON.stringify({ TestVault: vaultDir, Fresh: freshDir });
+      const freshHandlers = createAllHandlers(loadConfig());
+      const res = await freshHandlers.daily_read({ vault: 'Fresh' });
+      assert.equal(res.isError, false, 'daily_read missing must not be an error');
+      assert.ok(
+        text(res).includes('does not exist') || text(res).includes('empty'),
+        `daily_read: expected graceful sentinel, got "${text(res)}"`,
+      );
+      // It must NOT be a structured not-found hint.
+      assert.ok(!text(res).includes('closest_matches'), 'daily_read must not emit closest_matches');
+      assert.ok(!text(res).includes('Did you mean'), 'daily_read must not emit a "did you mean" hint');
+    } finally {
+      process.env.OBSIDIAN_VAULTS = JSON.stringify({ TestVault: vaultDir });
+      cleanup(freshDir);
+    }
+  });
+
+  test('file_append tolerates a not-yet-existing target (create-capable, no hint error)', async () => {
+    // file_append uses fs.appendFile which creates the file — must not throw a not-found hint.
+    const res = await handlers.file_append({
+      vault: 'TestVault',
+      file: 'BrandNewAppendTarget',
+      content: 'hello from append',
+    });
+    assertOk(res, 'file_append create');
+    assert.equal(res.isError, false, 'file_append to new file must succeed');
+    // Verify the file was actually created with the content.
+    const created = fs.readFileSync(path.join(vaultDir, 'BrandNewAppendTarget.md'), 'utf-8');
+    assert.ok(created.includes('hello from append'), 'append created file with content');
+  });
+
+  // ── update_task parity (was bypassing resolveFile: leaked abs path + no Bug-4 lookup) ──
+
+  test('update_task with 1-char-typo file returns closest_matches + hint (no abs path)', async () => {
+    // "Alpha" exists at Notes/Alpha.md; "Alpla" is a 1-char typo near-miss.
+    // update_task previously did naive args.file+'.md' at the vault root and
+    // leaked the raw ENOENT absolute path in its catch.
+    const res = await handlers.update_task({
+      vault: 'TestVault',
+      file: 'Alpla',
+      line: 1,
+      action: 'done',
+    });
+    assertErr(res, 'update_task typo');
+    const data = JSON.parse(text(res));
+    assert.ok(typeof data.error === 'string', 'error field is a string');
+    assert.ok(Array.isArray(data.closest_matches), 'closest_matches is an array');
+    assert.ok(
+      data.closest_matches.includes('Alpha'),
+      `expected "Alpha" in closest_matches, got: ${JSON.stringify(data.closest_matches)}`,
+    );
+    assert.ok(data.hint.includes('Did you mean:'), `expected "Did you mean:" in hint, got "${data.hint}"`);
+    // The structured error must NOT carry an absolute filesystem path.
+    assert.ok(!data.error.includes('/Users/'), `error must not contain "/Users/", got "${data.error}"`);
+    assert.ok(!data.error.includes(vaultDir), `error must not contain vault root, got "${data.error}"`);
+    assertNoAbsPath(res, 'update_task typo');
+  });
+
+  test('update_task resolves a bare basename in a subfolder (Bug-4 parity) and updates it', async () => {
+    // Isolated vault so we can write without disturbing the shared fixture.
+    // The note lives in a subfolder; update_task must find it by bare basename.
+    const subDir = createTempVault({
+      'Folder/Sub/Alpha.md': ['# Alpha', '', '- [ ] sub task'].join('\n'),
+    });
+    try {
+      process.env.OBSIDIAN_VAULTS = JSON.stringify({ Sub: subDir });
+      const subHandlers = createAllHandlers(loadConfig());
+      const res = await subHandlers.update_task({
+        vault: 'Sub',
+        file: 'Alpha', // bare basename; note is 2 folders deep
+        line: 3,
+        action: 'done',
+      });
+      assertOk(res, 'update_task bare basename');
+      assert.equal(res.isError, false, 'update_task bare basename must resolve via vault-wide index');
+      const updated = fs.readFileSync(path.join(subDir, 'Folder/Sub/Alpha.md'), 'utf-8');
+      assert.ok(
+        updated.split('\n')[2].includes('[x]'),
+        `Bug-4 parity: subfolder note's task should be marked done, got "${updated.split('\n')[2]}"`,
+      );
+    } finally {
+      process.env.OBSIDIAN_VAULTS = JSON.stringify({ TestVault: vaultDir });
+      cleanup(subDir);
+    }
+  });
+});

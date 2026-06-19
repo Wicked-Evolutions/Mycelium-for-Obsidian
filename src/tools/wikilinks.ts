@@ -17,7 +17,7 @@ import {
   getWikilinkContext
 } from '../parsers/wikilink.js';
 import { vaultParam } from './schema-helpers.js';
-import { closestMatches, NOTE_NOT_FOUND_HINT } from '../resolver-hints.js';
+import { closestMatches, noteNotFoundHint } from '../resolver-hints.js';
 
 // Per-vault file index cache
 const fileIndexCaches = new Map<string, Map<string, string>>();
@@ -154,7 +154,7 @@ export function createWikilinkHandlers(config: Config) {
                 resolved: null,
                 exists: false,
                 closest_matches: suggestions,
-                hint: NOTE_NOT_FOUND_HINT
+                hint: noteNotFoundHint(suggestions)
               }, null, 2)
             }],
             isError: false
@@ -272,7 +272,7 @@ export function createWikilinkHandlers(config: Config) {
                 found: false,
                 error: 'Link target not found',
                 closest_matches: suggestions,
-                hint: NOTE_NOT_FOUND_HINT
+                hint: noteNotFoundHint(suggestions)
               }, null, 2)
             }],
             isError: false

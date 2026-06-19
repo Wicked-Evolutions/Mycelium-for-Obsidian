@@ -209,8 +209,13 @@ test('read_file handler — missing note returns isError:true with closest_match
   assert.ok(data.error, `Expected error field, got: ${JSON.stringify(data)}`);
   assert.ok(Array.isArray(data.closest_matches),
     `Expected closest_matches array, got: ${typeof data.closest_matches}`);
-  assert.equal(data.hint, NOTE_NOT_FOUND_HINT,
-    `Expected NOTE_NOT_FOUND_HINT in hint field`);
+  // Near-miss → hint now leads with "Did you mean: ...?" then the generic guidance.
+  assert.ok(data.hint.includes(NOTE_NOT_FOUND_HINT),
+    `Expected generic guidance in hint field, got: "${data.hint}"`);
+  if (data.closest_matches.length > 0) {
+    assert.ok(data.hint.includes('Did you mean:'),
+      `Expected "Did you mean:" in hint when closest_matches non-empty, got: "${data.hint}"`);
+  }
 });
 
 test('read_file handler — near-miss suggests the correct note', async () => {
@@ -235,8 +240,12 @@ test('follow_link handler — missing note returns found:false with closest_matc
   assert.equal(data.found, false, `Expected found:false`);
   assert.ok(Array.isArray(data.closest_matches),
     `Expected closest_matches array on follow_link not-found`);
-  assert.equal(data.hint, NOTE_NOT_FOUND_HINT,
-    `Expected NOTE_NOT_FOUND_HINT in hint field`);
+  assert.ok(data.hint.includes(NOTE_NOT_FOUND_HINT),
+    `Expected generic guidance in hint field, got: "${data.hint}"`);
+  if (data.closest_matches.length > 0) {
+    assert.ok(data.hint.includes('Did you mean:'),
+      `Expected "Did you mean:" in hint when closest_matches non-empty, got: "${data.hint}"`);
+  }
 });
 
 test('follow_link handler — near-miss suggests the correct note', async () => {
@@ -259,7 +268,12 @@ test('resolve_wikilink handler — missing note returns exists:false with closes
   assert.equal(data.exists, false);
   assert.ok(Array.isArray(data.closest_matches),
     `Expected closest_matches array on resolve_wikilink not-found`);
-  assert.equal(data.hint, NOTE_NOT_FOUND_HINT);
+  assert.ok(data.hint.includes(NOTE_NOT_FOUND_HINT),
+    `Expected generic guidance in hint field, got: "${data.hint}"`);
+  if (data.closest_matches.length > 0) {
+    assert.ok(data.hint.includes('Did you mean:'),
+      `Expected "Did you mean:" in hint when closest_matches non-empty, got: "${data.hint}"`);
+  }
 });
 
 test('resolve_wikilink handler — near-miss suggests the correct note', async () => {

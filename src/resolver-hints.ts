@@ -24,6 +24,23 @@ export const NOTE_NOT_FOUND_HINT =
   'Use find_note_by_name to locate a note by title across all vaults, ' +
   'or use search_content to search by text content.';
 
+/**
+ * Build the note not-found hint string.
+ *
+ * When `suggestions` is non-empty, lead with a "Did you mean: X, Y?" clause
+ * (parity with the vault not-found hint, which already says "Did you mean: X?")
+ * followed by the generic guidance. When empty, return the generic guidance alone.
+ *
+ * This does NOT change closest_matches computation — callers still build the
+ * suggestion list with closestMatches(); this only formats the prose.
+ */
+export function noteNotFoundHint(suggestions: string[]): string {
+  if (suggestions.length > 0) {
+    return `Did you mean: ${suggestions.join(', ')}? ${NOTE_NOT_FOUND_HINT}`;
+  }
+  return NOTE_NOT_FOUND_HINT;
+}
+
 // ─── Structured error response helper ─────────────────────────────────────────
 
 /**

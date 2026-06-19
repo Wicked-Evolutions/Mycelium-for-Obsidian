@@ -16,7 +16,7 @@ import {
   extractTitle
 } from '../parsers/markdown.js';
 import { vaultParam } from './schema-helpers.js';
-import { closestMatches, NOTE_NOT_FOUND_HINT } from '../resolver-hints.js';
+import { closestMatches, noteNotFoundHint } from '../resolver-hints.js';
 
 /**
  * Tool definitions for file operations
@@ -274,7 +274,7 @@ export function createFileHandlers(config: Config) {
                 text: JSON.stringify({
                   error: `File not found: ${args.path}`,
                   closest_matches: suggestions,
-                  hint: NOTE_NOT_FOUND_HINT
+                  hint: noteNotFoundHint(suggestions)
                 }, null, 2)
               }],
               isError: true
