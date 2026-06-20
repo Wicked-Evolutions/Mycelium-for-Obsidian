@@ -171,7 +171,7 @@ export function createGraphHandlers(config: Config) {
             L2: 'p80-p95',
             L3: 'p50-p80',
             L4: '< p50',
-            L5: 'in-degree 0 (leaf floor)'
+            L5: 'post-exclusion in-degree 0 (leaf floor)'
           },
           histogram,
           nodes: detail,

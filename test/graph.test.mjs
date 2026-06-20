@@ -235,7 +235,7 @@ describe('analyze_link_hierarchy — synthetic topology (filesystem provider)', 
     const p = parse(await h.analyze_link_hierarchy({}));
     assert.equal(p.note, 'levels are structural orientation, not importance.');
     assert.equal(p.levelBands.L0, '>= p99 (top hubs)');
-    assert.equal(p.levelBands.L5, 'in-degree 0 (leaf floor)');
+    assert.equal(p.levelBands.L5, 'post-exclusion in-degree 0 (leaf floor)');
   });
 
   test('histogram counts sum to ranked + excluded', async () => {
@@ -285,5 +285,38 @@ describe('getGraphSignals hook + cache', () => {
       're-rank with a new exclusion must not reuse unpruned signals'
     );
     assert.equal(withNone.excludedCount, 0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// assignLevels — percentile path (>25 ranked nodes). Remediation for the
+// GPT-5.5 gate: every prior fixture was <25 nodes, so only the small-vault
+// fallback ran; this exercises the percentile branch and pins the corrected
+// (non-inverted) band semantics: high PageRank → LOW level number.
+// ---------------------------------------------------------------------------
+const { assignLevels } = await import('../dist/graph/levels.js');
+
+describe('assignLevels — percentile path (>25 ranked nodes)', () => {
+  const pagerank = new Map();
+  const inDegree = new Map();
+  for (let i = 0; i < 30; i++) {
+    pagerank.set(`n${i}`, i + 1); // n29 highest (30) … n0 lowest (1)
+    inDegree.set(`n${i}`, 1);     // all have inbound edges …
+  }
+  inDegree.set('n5', 0);          // … except n5 → leaf floor
+
+  const { levels, smallVault } = assignLevels(pagerank, inDegree);
+
+  test('takes the percentile path, not the small-vault fallback', () => {
+    assert.equal(smallVault, false);
+  });
+  test('top PageRank → L0 (high PR maps to LOW level; not inverted)', () => {
+    assert.equal(levels.get('n29'), 0);
+  });
+  test('lowest non-leaf PageRank → L4 (below p50)', () => {
+    assert.equal(levels.get('n0'), 4);
+  });
+  test('in-degree 0 → L5 leaf floor (overrides percentile)', () => {
+    assert.equal(levels.get('n5'), 5);
   });
 });
