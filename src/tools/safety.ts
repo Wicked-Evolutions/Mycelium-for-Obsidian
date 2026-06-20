@@ -7,7 +7,7 @@
  *     annotations with each tool's own definition file. Annotations are the
  *     single source of truth the read-only guard classifies against.
  *  2. Global read-only mode (`OBSIDIAN_READ_ONLY`) — a handler wrapper that
- *     REFUSES vault-content mutators with a structured, self-correcting message
+ *     REFUSES vault/app-state mutators with a structured, self-correcting message
  *     and STAYS LISTED (refuse-and-stay-listed, distinct from disabledTools
  *     which removes the tool entirely).
  *  3. Opt-in untrusted-content markers (`OBSIDIAN_WRAP_UNTRUSTED`, default OFF) —
@@ -40,7 +40,7 @@ export interface ToolAnnotations {
 /**
  * Derived-index writers. These WRITE state (readOnlyHint:false) but only the
  * derived SQLite/index — never vault notes — so OBSIDIAN_READ_ONLY must NOT
- * block them. This explicit set is the thing that distinguishes vault-content
+ * block them. This explicit set is the thing that distinguishes vault/app-state
  * writes (blocked) from derived-index writes (allowed); behaviour hints alone
  * cannot express the distinction.
  */
@@ -104,7 +104,7 @@ function readOnlyRefusal(toolName: string): ToolResponse {
             tool: toolName,
             message:
               `This server is running in read-only mode (OBSIDIAN_READ_ONLY is set), ` +
-              `so the vault-content mutator "${toolName}" is refused. No changes were made.`,
+              `so the vault/app-state mutator "${toolName}" is refused. No changes were made.`,
             hint:
               `To make changes, ask the operator to unset the OBSIDIAN_READ_ONLY environment ` +
               `variable and restart the MCP server. Read, search, analysis, and index tools ` +
@@ -122,7 +122,7 @@ function readOnlyRefusal(toolName: string): ToolResponse {
 
 /**
  * Wrap a single handler so that, when read-only mode is active and the tool is
- * a vault-content mutator, the call is refused WITHOUT invoking the underlying
+ * a vault/app-state mutator, the call is refused WITHOUT invoking the underlying
  * handler. The tool stays in `allTools` (refuse-and-stay-listed). Non-mutating
  * tools and derived-index tools pass straight through.
  */

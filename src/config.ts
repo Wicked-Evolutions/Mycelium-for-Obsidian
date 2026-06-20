@@ -16,7 +16,7 @@ export interface Config {
     model: string;
   };
   disabledTools: Set<string>;
-  /** Global read-only mode: refuse vault-content mutators (OBSIDIAN_READ_ONLY). */
+  /** Global read-only mode: refuse vault/app-state mutators (OBSIDIAN_READ_ONLY). */
   readOnly: boolean;
   /** Wrap reader output in untrusted-content markers (OBSIDIAN_WRAP_UNTRUSTED). Default OFF. */
   wrapUntrusted: boolean;
