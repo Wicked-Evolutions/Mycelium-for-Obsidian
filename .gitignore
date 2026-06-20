@@ -19,3 +19,4 @@ data/*.db
 
 # Local design materials / scratch — not part of the package
 prototypes/
+node_modules
