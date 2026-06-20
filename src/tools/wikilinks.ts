@@ -18,6 +18,7 @@ import {
 } from '../parsers/wikilink.js';
 import { vaultParam } from './schema-helpers.js';
 import { closestMatches, noteNotFoundHint } from '../resolver-hints.js';
+import { withAnnotations, ToolAnnotations } from './safety.js';
 
 // Per-vault file index cache
 const fileIndexCaches = new Map<string, Map<string, string>>();
@@ -25,7 +26,7 @@ const fileIndexCaches = new Map<string, Map<string, string>>();
 /**
  * Tool definitions for wikilink operations
  */
-export const wikilinkTools: Tool[] = [
+const rawWikilinkTools: Tool[] = [
   {
     name: 'resolve_wikilink',
     description: 'Resolve a [[wikilink]] to its actual file path in the vault. Returns null if not found.',
@@ -107,6 +108,21 @@ export const wikilinkTools: Tool[] = [
     }
   }
 ];
+
+/**
+ * Per-tool annotations. rebuild_link_index writes the DERIVED file index, not
+ * vault notes → readOnlyHint:false + idempotentHint:true (exempt from the
+ * read-only guard via DERIVED_INDEX_EXEMPT).
+ */
+const wikilinkAnnotations: Record<string, ToolAnnotations> = {
+  resolve_wikilink: { readOnlyHint: true },
+  get_outlinks: { readOnlyHint: true },
+  get_backlinks: { readOnlyHint: true },
+  follow_link: { readOnlyHint: true },
+  rebuild_link_index: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+};
+
+export const wikilinkTools: Tool[] = withAnnotations(rawWikilinkTools, wikilinkAnnotations);
 
 /**
  * Get or build file index for a specific vault

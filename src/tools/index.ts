@@ -8,6 +8,7 @@ import { Config, resolveVault } from '../config.js';
 import { ToolResponse } from '../types/index.js';
 import { injectVaultEnum } from './schema-helpers.js';
 import { formatVaultError } from '../resolver-hints.js';
+import { applyReadOnlyGuard, applyUntrustedWrapper } from './safety.js';
 
 // Import tool definitions and handler creators
 import { fileTools, createFileHandlers } from './files.js';
@@ -104,13 +105,21 @@ export function createAllHandlers(config: Config): Record<string, AnyHandler> {
     }
   }
 
+  // --- Track C safety wrappers (distinct region, AFTER the disabledTools filter) ---
+  // Read-only mode: refuse vault-content mutators (refuse-and-stay-listed — the
+  // tool remains in allTools, but its handler returns a structured refusal).
+  // Derived-index tools (index_vault/index_file/rebuild_link_index) are exempt.
+  let wrappedHandlers = applyReadOnlyGuard(config.readOnly, allTools, handlers);
+  // Opt-in untrusted-content markers on reader output (default OFF).
+  wrappedHandlers = applyUntrustedWrapper(config.wrapUntrusted, allTools, wrappedHandlers);
+
   // Inject the operator's actual vault names as an enum into every vault param.
   // This replaces the stale "Platform/Helena" example text with the real values
   // from the runtime config — giving the AI concrete, accurate choices.
   const vaultNames = config.vaults.map(v => v.name);
   injectVaultEnum(allTools, vaultNames);
 
-  return handlers;
+  return wrappedHandlers;
 }
 
 /**

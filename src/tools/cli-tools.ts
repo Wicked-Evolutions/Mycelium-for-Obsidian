@@ -12,6 +12,7 @@ import { Config } from '../config.js';
 import { ToolResponse } from '../types/index.js';
 import { execCli, execCliForVault, evalInObsidian, isCliAvailable } from '../cli/bridge.js';
 import { vaultParam } from './schema-helpers.js';
+import { withAnnotations, ToolAnnotations } from './safety.js';
 
 /**
  * Wrap a CLI tool handler to check availability first
@@ -31,7 +32,7 @@ function withCliCheck(handler: (...args: any[]) => Promise<ToolResponse>): (...a
 
 // ─── Tool Definitions (CLI-only) ─────────────────────────────────────
 
-export const cliTools: Tool[] = [
+const rawCliTools: Tool[] = [
   // ── Eval ──
   {
     name: 'eval_obsidian',
@@ -398,6 +399,53 @@ export const cliTools: Tool[] = [
     }
   }
 ];
+
+/**
+ * Per-tool MCP behaviour-hint annotations (co-located with the definitions).
+ * eval_obsidian + execute_command run arbitrary code → openWorldHint:true (the
+ * ONLY two tools that carry it). All state-writers are readOnlyHint:false and
+ * thus blocked under read-only mode (only the 3 derived-index tools are exempt,
+ * and none live here). Everything else is a read-only Obsidian query.
+ */
+const cliAnnotations: Record<string, ToolAnnotations> = {
+  // Arbitrary code — open world, blocked under read-only.
+  eval_obsidian: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
+  execute_command: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
+  // Readers
+  list_commands: { readOnlyHint: true },
+  query_base: { readOnlyHint: true },
+  list_base_views: { readOnlyHint: true },
+  // Base item creation — writes vault content.
+  create_base_item: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+  // Plugin / snippet / theme toggles — write .obsidian config (vault state).
+  enable_plugin: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+  disable_plugin: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+  enable_snippet: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+  disable_snippet: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+  set_theme: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+  // Sync / version readers
+  sync_status: { readOnlyHint: true },
+  sync_history: { readOnlyHint: true },
+  sync_read_version: { readOnlyHint: true },
+  list_versions: { readOnlyHint: true },
+  read_version: { readOnlyHint: true },
+  diff_versions: { readOnlyHint: true },
+  // Restore overwrites the live file with a past version — a vault-content write.
+  restore_version: { readOnlyHint: false, destructiveHint: true, idempotentHint: true },
+  list_files_with_history: { readOnlyHint: true },
+  list_recents: { readOnlyHint: true },
+  vault_search: { readOnlyHint: true },
+  list_known_vaults: { readOnlyHint: true },
+  // Template instantiation — creates a new vault file.
+  create_from_template: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+  list_templates: { readOnlyHint: true },
+  read_template: { readOnlyHint: true },
+  get_hotkey: { readOnlyHint: true },
+  list_hotkeys: { readOnlyHint: true },
+  list_enabled_snippets: { readOnlyHint: true },
+};
+
+export const cliTools: Tool[] = withAnnotations(rawCliTools, cliAnnotations);
 
 // ─── Tool Handlers (CLI-only) ────────────────────────────────────────
 

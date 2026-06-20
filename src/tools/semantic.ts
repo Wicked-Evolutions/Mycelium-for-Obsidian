@@ -17,6 +17,7 @@ import {
 } from '../embeddings/ollama.js';
 import { getSharedStorage } from '../embeddings/storage.js';
 import { vaultParam } from './schema-helpers.js';
+import { withAnnotations, ToolAnnotations } from './safety.js';
 
 /**
  * Get storage instance for a vault (shared singleton per vault path)
@@ -76,7 +77,7 @@ Alternative queries:`,
 /**
  * Tool definitions for semantic search
  */
-export const semanticTools: Tool[] = [
+const rawSemanticTools: Tool[] = [
   {
     name: 'semantic_search',
     description: 'Search vault using hybrid semantic + keyword search. Finds content by meaning and exact matches. Requires indexed vault.',
@@ -172,6 +173,21 @@ export const semanticTools: Tool[] = [
     }
   }
 ];
+
+/**
+ * Per-tool annotations. index_vault/index_file write the DERIVED semantic index
+ * (SQLite embeddings), not vault notes → readOnlyHint:false + idempotentHint:true,
+ * exempt from the read-only guard via DERIVED_INDEX_EXEMPT.
+ */
+const semanticAnnotations: Record<string, ToolAnnotations> = {
+  semantic_search: { readOnlyHint: true },
+  index_vault: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+  index_file: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+  get_similar: { readOnlyHint: true },
+  index_status: { readOnlyHint: true },
+};
+
+export const semanticTools: Tool[] = withAnnotations(rawSemanticTools, semanticAnnotations);
 
 /**
  * Handler functions for semantic tools

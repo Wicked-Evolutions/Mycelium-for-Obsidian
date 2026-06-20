@@ -23,8 +23,9 @@ import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { ToolResponse } from '../types/index.js';
 import { categorySummary, getToolCategory, CLI_TIER_LABEL } from './categories.js';
 import { limitParam } from './schema-helpers.js';
+import { withAnnotations, ToolAnnotations } from './safety.js';
 
-export const discoverToolsTools: Tool[] = [
+const rawDiscoverToolsTools: Tool[] = [
   {
     name: 'discover_tools',
     description:
@@ -42,6 +43,13 @@ export const discoverToolsTools: Tool[] = [
     },
   },
 ];
+
+/** discover_tools is a read-only inventory. */
+const discoverToolsAnnotations: Record<string, ToolAnnotations> = {
+  discover_tools: { readOnlyHint: true },
+};
+
+export const discoverToolsTools: Tool[] = withAnnotations(rawDiscoverToolsTools, discoverToolsAnnotations);
 
 /**
  * Derive the tier string for a tool based on its category.

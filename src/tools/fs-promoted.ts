@@ -14,6 +14,7 @@ import matter from 'gray-matter';
 import { vaultParam } from './schema-helpers.js';
 import { buildFileIndex } from '../parsers/wikilink.js';
 import { closestMatches, noteNotFoundHint, formatVaultError } from '../resolver-hints.js';
+import { withAnnotations, ToolAnnotations } from './safety.js';
 
 const ok = (text: string): ToolResponse => ({
   content: [{ type: 'text', text }],
@@ -125,7 +126,7 @@ function parseFrontmatter(content: string): { data: Record<string, any>; content
 
 // ─── Tool Definitions ────────────────────────────────────────────────
 
-export const fsPromotedTools: Tool[] = [
+const rawFsPromotedTools: Tool[] = [
   // ── Daily Notes ──
   {
     name: 'daily_read',
@@ -603,6 +604,67 @@ export const fsPromotedTools: Tool[] = [
     }
   }
 ];
+
+/**
+ * Per-tool MCP behaviour-hint annotations (co-located with the definitions).
+ * Mutators that write vault content carry readOnlyHint:false; everything else
+ * is a read-only inspection. add_bookmark writes vault bookmark config (a vault
+ * mutation), so it is guarded under read-only mode.
+ */
+const fsPromotedAnnotations: Record<string, ToolAnnotations> = {
+  // Daily notes
+  daily_read: { readOnlyHint: true },
+  daily_append: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+  daily_prepend: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+  daily_path: { readOnlyHint: true },
+  // Tasks
+  list_tasks: { readOnlyHint: true },
+  update_task: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+  // Tags / properties
+  list_tags: { readOnlyHint: true },
+  get_tag_info: { readOnlyHint: true },
+  list_properties: { readOnlyHint: true },
+  get_property_values: { readOnlyHint: true },
+  property_read: { readOnlyHint: true },
+  property_set: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+  property_remove: { readOnlyHint: false, destructiveHint: true, idempotentHint: true },
+  // Outline / counts / aliases
+  get_outline: { readOnlyHint: true },
+  word_count: { readOnlyHint: true },
+  list_aliases: { readOnlyHint: true },
+  // File content mutators
+  file_append: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+  file_prepend: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+  search_replace_in_file: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+  rename_file: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+  move_file: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+  // File / folder / vault info
+  get_file_info: { readOnlyHint: true },
+  get_folder_info: { readOnlyHint: true },
+  list_folders: { readOnlyHint: true },
+  get_vault_info: { readOnlyHint: true },
+  // Bookmarks
+  add_bookmark: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+  list_bookmarks: { readOnlyHint: true },
+  // Search
+  search_with_context: { readOnlyHint: true },
+  // Plugins / snippets / themes (read-only views)
+  list_plugins: { readOnlyHint: true },
+  get_plugin_info: { readOnlyHint: true },
+  list_enabled_plugins: { readOnlyHint: true },
+  list_snippets: { readOnlyHint: true },
+  list_themes: { readOnlyHint: true },
+  get_active_theme: { readOnlyHint: true },
+  // Misc readers
+  read_random: { readOnlyHint: true },
+  list_orphans: { readOnlyHint: true },
+  list_deadends: { readOnlyHint: true },
+  unresolved_links: { readOnlyHint: true },
+  get_workspace: { readOnlyHint: true },
+  list_bases: { readOnlyHint: true },
+};
+
+export const fsPromotedTools: Tool[] = withAnnotations(rawFsPromotedTools, fsPromotedAnnotations);
 
 // ─── Handler Implementations ──────────────────────────────────────────
 
