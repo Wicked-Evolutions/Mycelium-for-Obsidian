@@ -18,12 +18,30 @@ export interface ParsedFile {
 }
 
 // Wikilink structure
+//
+// `raw` and `target` are LOAD-BEARING and must stay byte-identical to their
+// historical semantics (all existing callers depend on them):
+//   - `raw`    = the full match including `![[...]]`/`[[...]]` brackets
+//   - `target` = the inner target with any cross-vault `vault:` prefix stripped,
+//                but WITH the `#heading`/`#^block` subpath retained (legacy).
+//
+// The fields below (`vault`, `path`, `subpath`, `isEmbed`, `rawTarget`) are an
+// ADDITIVE extension used by the graph layer (src/graph/*). They are optional so
+// no existing WikiLink literal breaks, and existing tools are NOT migrated to
+// them. Subpath stripping is computed locally in `path` — `resolveWikilink`
+// stays untouched.
 export interface WikiLink {
-  raw: string;            // [[folder/note|alias]]
-  target: string;         // folder/note
+  raw: string;            // [[folder/note|alias]] or ![[folder/note]]
+  target: string;         // folder/note (cross-vault prefix stripped; subpath retained)
   alias?: string;         // alias (if provided)
   resolved?: string;      // Resolved absolute path
   exists: boolean;        // Whether target file exists
+  // ── Additive graph-layer fields (optional) ──
+  rawTarget?: string;     // inner target verbatim, incl. vault prefix + subpath
+  vault?: string;         // cross-vault prefix if present (e.g. "MyVault")
+  path?: string;          // target with subpath stripped (link destination note)
+  subpath?: string;       // "#heading" or "#^block" portion (without leading #), if any
+  isEmbed?: boolean;      // true for ![[...]] embeds
 }
 
 // Backlink entry

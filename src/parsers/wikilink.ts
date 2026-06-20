@@ -15,25 +15,54 @@ const WIKILINK_REGEX = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g;
 const CROSS_VAULT_REGEX = /^([a-zA-Z][a-zA-Z0-9_-]*):(.+)$/;
 
 /**
- * Extract all wikilinks from content
+ * Extract all wikilinks from content.
+ *
+ * `raw`, `target`, `alias`, `exists` keep their historical semantics exactly
+ * (cross-vault prefix stripped from `target`; subpath retained). The additive
+ * graph-layer fields (`rawTarget`, `vault`, `path`, `subpath`, `isEmbed`) are
+ * computed alongside without disturbing the legacy ones.
  */
 export function extractWikilinks(content: string): WikiLink[] {
   const links: WikiLink[] = [];
   let match;
+
+  // Reset lastIndex so repeated calls on the (global) regex start clean.
+  WIKILINK_REGEX.lastIndex = 0;
 
   while ((match = WIKILINK_REGEX.exec(content)) !== null) {
     const raw = match[0];
     const targetWithPossibleVault = match[1].trim();
     const alias = match[2]?.trim();
 
-    // Check for cross-vault syntax
+    // Embed detection: the regex does not capture a leading "!", so peek at
+    // the character immediately before the match. `![[...]]` is an embed.
+    const isEmbed = match.index > 0 && content[match.index - 1] === '!';
+
+    // Check for cross-vault syntax (vault:target)
     const crossVaultMatch = targetWithPossibleVault.match(CROSS_VAULT_REGEX);
+    const vault = crossVaultMatch ? crossVaultMatch[1] : undefined;
+    // Legacy `target`: cross-vault prefix stripped, subpath retained.
+    const target = crossVaultMatch ? crossVaultMatch[2] : targetWithPossibleVault;
+
+    // `rawTarget`: inner target verbatim (vault prefix + subpath intact).
+    const rawTarget = targetWithPossibleVault;
+
+    // Subpath stripping is LOCAL to the additive fields. `#heading` or `#^block`.
+    const hashIdx = target.indexOf('#');
+    const linkPath = hashIdx >= 0 ? target.slice(0, hashIdx) : target;
+    const subpath = hashIdx >= 0 ? target.slice(hashIdx + 1) : undefined;
 
     links.push({
       raw,
-      target: crossVaultMatch ? crossVaultMatch[2] : targetWithPossibleVault,
+      target,
       alias,
-      exists: false // Will be resolved later
+      exists: false, // Will be resolved later
+      // ── additive graph-layer fields ──
+      rawTarget,
+      vault,
+      path: linkPath,
+      subpath,
+      isEmbed
     });
   }
 

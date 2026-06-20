@@ -14,9 +14,9 @@ import { vaultParam, limitParam } from './schema-helpers.js';
 /**
  * Supported filter operators
  */
-type FilterOp = 'equals' | 'not_equals' | 'contains' | 'not_contains' | 'in' | 'not_in' | 'exists' | 'not_exists' | 'greater_than' | 'less_than';
+export type FilterOp = 'equals' | 'not_equals' | 'contains' | 'not_contains' | 'in' | 'not_in' | 'exists' | 'not_exists' | 'greater_than' | 'less_than';
 
-interface FilterCondition {
+export interface FilterCondition {
   field: string;
   op: FilterOp;
   value?: unknown;
@@ -66,9 +66,12 @@ export const queryTools: Tool[] = [
 ];
 
 /**
- * Apply a single filter condition to a frontmatter value
+ * Apply a single filter condition to a frontmatter value.
+ *
+ * Exported so the graph exclusion layer (src/graph/exclude.ts) reuses the
+ * EXACT operator semantics of query_notes rather than re-implementing them.
  */
-function matchesCondition(frontmatter: Record<string, unknown>, condition: FilterCondition): boolean {
+export function matchesCondition(frontmatter: Record<string, unknown>, condition: FilterCondition): boolean {
   const fieldValue = frontmatter[condition.field];
 
   switch (condition.op) {
