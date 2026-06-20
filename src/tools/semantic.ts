@@ -16,6 +16,7 @@ import {
   OllamaConfig
 } from '../embeddings/ollama.js';
 import { getSharedStorage } from '../embeddings/storage.js';
+import { reciprocalRankFusion, RRF_K } from '../embeddings/rrf.js';
 import { vaultParam } from './schema-helpers.js';
 
 /**
@@ -243,11 +244,15 @@ export function createSemanticHandlers(config: Config) {
           // Generate embedding for this query variant
           const queryResult = await generateEmbedding(q, ollamaConfig);
 
-          // Semantic search
+          // Semantic search. `minSimilarity` acts ONLY as the embeddings
+          // candidate-floor here (a cosine cutoff on which docs enter fusion);
+          // it is deliberately NOT re-applied to the fused RRF totals later,
+          // which live in a much smaller numeric range (~0.016–0.033) and would
+          // be silently collapsed by any post-fusion minSimilarity gate.
           const semResults = store.search(
             queryResult.embedding,
-            limit * 2,  // Get extra for merging
-            minSimilarity * 0.7  // Lower threshold for variants
+            limit * 2,  // Get extra candidates for fusion
+            minSimilarity  // Embeddings candidate-floor (cosine cutoff)
           );
           allSemanticResults.push(...semResults);
 
@@ -256,91 +261,147 @@ export function createSemanticHandlers(config: Config) {
           allKeywordResults.push(...kwResults);
         }
 
-        // Use collected results for merging
-        const semanticResults = allSemanticResults;
-        const keywordResults = allKeywordResults;
+        // ---------------------------------------------------------------
+        // Fusion via Reciprocal Rank Fusion (RRF, k=60 const).
+        //
+        // Each candidate is keyed by `${filePath}:${blockId}`. We first collapse
+        // the (possibly multi-variant, when expand=true) raw lists into exactly
+        // ONE embeddings ranking and ONE bm25 ranking — unique docs, best signal
+        // value first — then RRF the two. This avoids double-counting a doc that
+        // appears across query variants and keeps each per-signal rank unambiguous.
+        //
+        // `similarity`/`semanticScore`/`keywordScore` keep their existing numeric
+        // meanings (the 0.7/0.3 weighted blend is reported as `similarity` for
+        // back-compat, now informational); results are ORDERED by `fusionScore`.
+        // ---------------------------------------------------------------
 
-        // Merge results with weighted scoring
-        // Semantic weight: 0.7, Keyword weight: 0.3
-        const scoreMap = new Map<string, {
+        // Per-candidate accumulators: best semantic similarity and best (max)
+        // keyword score seen across all query variants.
+        const bestSemantic = new Map<string, number>();
+        const bestKeyword = new Map<string, number>();
+        const candidate = new Map<string, {
+          filePath: string;
+          blockId: string | null;
+          metadata: Record<string, unknown>;
+        }>();
+
+        for (const r of allSemanticResults) {
+          const key = `${r.filePath}:${r.blockId || ''}`;
+          if (!candidate.has(key)) {
+            candidate.set(key, { filePath: r.filePath, blockId: r.blockId, metadata: r.metadata });
+          }
+          const prev = bestSemantic.get(key);
+          if (prev === undefined || r.similarity > prev) bestSemantic.set(key, r.similarity);
+        }
+
+        for (const r of allKeywordResults) {
+          const key = `${r.filePath}:${r.blockId || ''}`;
+          if (!candidate.has(key)) {
+            candidate.set(key, { filePath: r.filePath, blockId: r.blockId, metadata: {} });
+          }
+          const prev = bestKeyword.get(key);
+          if (prev === undefined || r.score > prev) bestKeyword.set(key, r.score);
+        }
+
+        // Normalize keyword (BM25) scores to 0-1 for the informational keywordScore.
+        const maxKeywordScore = Math.max(...bestKeyword.values(), 1);
+
+        // Build the two single rankings (best value first → 1-based rank order).
+        const embeddingsRanking = Array.from(bestSemantic.entries())
+          .sort((a, b) => b[1] - a[1])
+          .map(([key]) => key);
+        const bm25Ranking = Array.from(bestKeyword.entries())
+          .sort((a, b) => b[1] - a[1])
+          .map(([key]) => key);
+
+        const fused = reciprocalRankFusion([
+          { name: 'bm25', ranked: bm25Ranking },
+          { name: 'embeddings', ranked: embeddingsRanking },
+        ]);
+
+        // Map fused rows back to enriched candidates. fusionScore order is the
+        // canonical ordering; minSimilarity is NOT re-applied here (it was the
+        // embeddings candidate-floor in store.search above). Dedup by file,
+        // keeping the first (highest-fusionScore) occurrence, then slice to limit.
+        const seen = new Set<string>();
+        const results: Array<{
           filePath: string;
           blockId: string | null;
           semanticScore: number;
           keywordScore: number;
           combinedScore: number;
+          fusionScore: number;
+          perSignal: Record<string, { rank: number | null; term: number }>;
           metadata: Record<string, unknown>;
-        }>();
+        }> = [];
 
-        // Normalize keyword scores (BM25 scores vary widely)
-        const maxKeywordScore = Math.max(...keywordResults.map(r => r.score), 1);
+        for (const row of fused) {
+          const c = candidate.get(row.id);
+          if (!c) continue;
+          if (seen.has(c.filePath)) continue;
+          seen.add(c.filePath);
 
-        // Add semantic results
-        for (const r of semanticResults) {
-          const key = `${r.filePath}:${r.blockId || ''}`;
-          scoreMap.set(key, {
-            filePath: r.filePath,
-            blockId: r.blockId,
-            semanticScore: r.similarity,
-            keywordScore: 0,
-            combinedScore: r.similarity * 0.7,
-            metadata: r.metadata
+          const semanticScore = bestSemantic.get(row.id) ?? 0;
+          const rawKeyword = bestKeyword.get(row.id) ?? 0;
+          const keywordScore = rawKeyword / maxKeywordScore; // 0-1, informational
+          const combinedScore = semanticScore * 0.7 + keywordScore * 0.3; // legacy blend
+
+          results.push({
+            filePath: c.filePath,
+            blockId: c.blockId,
+            semanticScore,
+            keywordScore,
+            combinedScore,
+            fusionScore: row.fusionScore,
+            perSignal: row.perSignal,
+            metadata: c.metadata,
           });
+
+          if (results.length >= limit) break;
         }
 
-        // Merge keyword results
-        for (const r of keywordResults) {
-          const key = `${r.filePath}:${r.blockId || ''}`;
-          const normalizedScore = r.score / maxKeywordScore;  // Normalize to 0-1
-          const existing = scoreMap.get(key);
-
-          if (existing) {
-            existing.keywordScore = normalizedScore;
-            existing.combinedScore = existing.semanticScore * 0.7 + normalizedScore * 0.3;
-          } else {
-            // Keyword-only result - still include if score is good
-            scoreMap.set(key, {
-              filePath: r.filePath,
-              blockId: r.blockId,
-              semanticScore: 0,
-              keywordScore: normalizedScore,
-              combinedScore: normalizedScore * 0.3,
-              metadata: {}
-            });
-          }
-        }
-
-        // Sort by combined score, filter by threshold, deduplicate by file
-        const sortedResults = Array.from(scoreMap.values())
-          .filter(r => r.combinedScore >= minSimilarity * 0.7 || r.semanticScore >= minSimilarity)
-          .sort((a, b) => b.combinedScore - a.combinedScore);
-
-        // Deduplicate by file path, keeping highest combined score
-        const seen = new Set<string>();
-        const results = sortedResults.filter(r => {
-          if (seen.has(r.filePath)) return false;
-          seen.add(r.filePath);
-          return true;
-        }).slice(0, limit);
-
-        // Enrich results with file titles
+        // Enrich results with file titles.
+        // Response contract: `similarity`/`semanticScore`/`keywordScore` keep their
+        // existing numeric meanings (back-compat). Additive fusion fields:
+        //   fusionScore     — RRF total (results are ordered by this)
+        //   fusionMethod    — "rrf"
+        //   per_signal      — {bm25, embeddings} 1-based ranks (null if absent)
+        //   rrf_term        — per-signal 1/(k+rank) contributions + k (reconstructs fusionScore)
+        //   reranker_score  — null (clean hook; cross-encoder reranker not built)
+        const round3 = (n: number) => Math.round(n * 1000) / 1000;
         const enrichedResults = await Promise.all(results.map(async r => {
+          const bm25 = r.perSignal.bm25 ?? { rank: null, term: 0 };
+          const embeddings = r.perSignal.embeddings ?? { rank: null, term: 0 };
+          const fusionFields = {
+            similarity: round3(r.combinedScore),
+            semanticScore: round3(r.semanticScore),
+            keywordScore: round3(r.keywordScore),
+            fusionScore: r.fusionScore,
+            fusionMethod: 'rrf' as const,
+            per_signal: {
+              bm25: { rank: bm25.rank },
+              embeddings: { rank: embeddings.rank },
+            },
+            rrf_term: {
+              k: RRF_K,
+              bm25: bm25.term,
+              embeddings: embeddings.term,
+            },
+            reranker_score: null,
+          };
           try {
             const parsed = await parseMarkdownFile(r.filePath, vault.path);
             return {
               path: r.filePath,
               title: extractTitle(parsed),
-              similarity: Math.round(r.combinedScore * 1000) / 1000,
-              semanticScore: Math.round(r.semanticScore * 1000) / 1000,
-              keywordScore: Math.round(r.keywordScore * 1000) / 1000,
+              ...fusionFields,
               preview: parsed.content.slice(0, 200) + (parsed.content.length > 200 ? '...' : '')
             };
           } catch {
             return {
               path: r.filePath,
               title: path.basename(r.filePath, '.md'),
-              similarity: Math.round(r.combinedScore * 1000) / 1000,
-              semanticScore: Math.round(r.semanticScore * 1000) / 1000,
-              keywordScore: Math.round(r.keywordScore * 1000) / 1000,
+              ...fusionFields,
               preview: ''
             };
           }
