@@ -1,0 +1,4884 @@
+{
+  "version": "1.0.0",
+  "project": {
+    "name": "@wickedevolutions/mcp-obsidian",
+    "languages": [
+      "typescript",
+      "javascript",
+      "json",
+      "markdown",
+      "yaml",
+      "shell"
+    ],
+    "frameworks": [
+      "Express",
+      "GitHub Actions"
+    ],
+    "description": "Multi-vault Obsidian MCP server — full AI operations toolset (file management, wikilinks, semantic search, frontmatter queries, daily notes, tasks, properties, templates) across two tiers: 74 filesystem tools (Obsidian closed) + 28 Obsidian CLI tools (app running). Local-first; optional semantic search via local Ollama.",
+    "analyzedAt": "2026-06-21T06:28:30Z",
+    "gitCommitHash": "c00582c00b8aa0a2262728b8fb82d223f7caf1c2"
+  },
+  "nodes": [
+    {
+      "id": "file:test/analytics.test.mjs",
+      "type": "file",
+      "name": "analytics.test.mjs",
+      "filePath": "test/analytics.test.mjs",
+      "summary": "Integration tests for the analytics tool handlers, exercising vault statistics and aggregation against a temporary on-disk vault.",
+      "tags": [
+        "test",
+        "integration-test",
+        "analytics",
+        "node-test-runner"
+      ],
+      "complexity": "complex",
+      "languageNotes": "Uses node:test (describe/test/before/after) with strict assert; builds an ephemeral vault via the shared helpers module."
+    },
+    {
+      "id": "file:test/cli-tools.test.mjs",
+      "type": "file",
+      "name": "cli-tools.test.mjs",
+      "filePath": "test/cli-tools.test.mjs",
+      "summary": "Tests the Obsidian CLI-tier tool handlers and their bridge to the Obsidian CLI, mocking child-process execution and resetting mock state between cases.",
+      "tags": [
+        "test",
+        "integration-test",
+        "cli",
+        "mocking"
+      ],
+      "complexity": "complex",
+      "languageNotes": "Uses dynamic await import() to load compiled handlers and a conditional bridge module; mocks node:child_process/util for CLI invocation."
+    },
+    {
+      "id": "file:test/config.test.mjs",
+      "type": "file",
+      "name": "config.test.mjs",
+      "filePath": "test/config.test.mjs",
+      "summary": "Unit tests for configuration loading and vault/path resolution, including environment-variable driven config with a withEnv sandbox helper.",
+      "tags": [
+        "test",
+        "unit-test",
+        "configuration",
+        "validation"
+      ],
+      "complexity": "complex",
+      "languageNotes": "withEnv saves and restores process.env around each scenario to isolate env-driven config parsing."
+    },
+    {
+      "id": "file:test/crossvault.test.mjs",
+      "type": "file",
+      "name": "crossvault.test.mjs",
+      "filePath": "test/crossvault.test.mjs",
+      "summary": "Integration tests for cross-vault search and link tools, gated on optional Ollama availability for semantic features.",
+      "tags": [
+        "test",
+        "integration-test",
+        "cross-vault",
+        "search"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:test/discover-tools.test.mjs",
+      "type": "file",
+      "name": "discover-tools.test.mjs",
+      "filePath": "test/discover-tools.test.mjs",
+      "summary": "Tests the discover_tools handler that lists and describes the available MCP tool surface, asserting non-error JSON responses.",
+      "tags": [
+        "test",
+        "integration-test",
+        "tool-discovery",
+        "mcp"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:test/files.test.mjs",
+      "type": "file",
+      "name": "files.test.mjs",
+      "filePath": "test/files.test.mjs",
+      "summary": "Integration tests for the filesystem-tier file handlers (read/write/list/move), constructing handlers over a temporary vault and asserting ok/error outcomes.",
+      "tags": [
+        "test",
+        "integration-test",
+        "filesystem",
+        "crud"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:test/fs-promoted-a.test.mjs",
+      "type": "file",
+      "name": "fs-promoted-a.test.mjs",
+      "filePath": "test/fs-promoted-a.test.mjs",
+      "summary": "First half of the filesystem-promoted tool test suite, validating promoted handlers via the aggregate handler factory including absolute-path leak guards.",
+      "tags": [
+        "test",
+        "integration-test",
+        "filesystem",
+        "security"
+      ],
+      "complexity": "complex",
+      "languageNotes": "Includes assertNoAbsPath checks ensuring responses never leak absolute filesystem paths."
+    },
+    {
+      "id": "file:test/fs-promoted-b.test.mjs",
+      "type": "file",
+      "name": "fs-promoted-b.test.mjs",
+      "filePath": "test/fs-promoted-b.test.mjs",
+      "summary": "Second half of the filesystem-promoted tool test suite, exercising createFsPromotedHandlers over fixture vaults built by a per-test setup helper.",
+      "tags": [
+        "test",
+        "integration-test",
+        "filesystem",
+        "fixtures"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:test/get-started.test.mjs",
+      "type": "file",
+      "name": "get-started.test.mjs",
+      "filePath": "test/get-started.test.mjs",
+      "summary": "Tests the get_started onboarding handler that returns introductory guidance for the MCP server, wired through the aggregate handler factory.",
+      "tags": [
+        "test",
+        "integration-test",
+        "onboarding",
+        "documentation"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:test/handler-smoke.test.mjs",
+      "type": "file",
+      "name": "handler-smoke.test.mjs",
+      "filePath": "test/handler-smoke.test.mjs",
+      "summary": "Smoke test that instantiates every handler via createAllHandlers and asserts each produces a well-formed non-error response.",
+      "tags": [
+        "test",
+        "smoke-test",
+        "integration-test",
+        "regression"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:test/helpers.mjs",
+      "type": "file",
+      "name": "helpers.mjs",
+      "filePath": "test/helpers.mjs",
+      "summary": "Shared test utility module providing createTempVault and cleanup to build and tear down ephemeral on-disk Obsidian vaults from file maps.",
+      "tags": [
+        "test",
+        "utility",
+        "fixtures",
+        "test-harness"
+      ],
+      "complexity": "simple",
+      "languageNotes": "Uses fs.mkdtempSync under os.tmpdir to create isolated vault directories seeded from a path-to-content map."
+    },
+    {
+      "id": "file:test/markdown.test.mjs",
+      "type": "file",
+      "name": "markdown.test.mjs",
+      "filePath": "test/markdown.test.mjs",
+      "summary": "Tests markdown parsing/handling behavior against temporary vault fixtures, depending only on the shared test helpers and Node builtins.",
+      "tags": [
+        "test",
+        "unit-test",
+        "markdown",
+        "parsing"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:test/resolver-hints.test.mjs",
+      "type": "file",
+      "name": "resolver-hints.test.mjs",
+      "filePath": "test/resolver-hints.test.mjs",
+      "summary": "Tests the resolver-hints utilities (closest-match suggestions, edit distance, not-found hint messages) plus vault resolution behavior.",
+      "tags": [
+        "test",
+        "unit-test",
+        "resolver",
+        "fuzzy-matching"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:test/sections-query.test.mjs",
+      "type": "file",
+      "name": "sections-query.test.mjs",
+      "filePath": "test/sections-query.test.mjs",
+      "summary": "Integration tests for section-mutation handlers (append/prepend/update_section) and query_notes, verifying on-disk results against fixture notes.",
+      "tags": [
+        "test",
+        "integration-test",
+        "sections",
+        "query"
+      ],
+      "complexity": "complex",
+      "languageNotes": "makeSectionNote builds a multi-heading markdown fixture and readVaultFile re-reads the file to assert post-mutation contents."
+    },
+    {
+      "id": "file:test/semantic.test.mjs",
+      "type": "file",
+      "name": "semantic.test.mjs",
+      "filePath": "test/semantic.test.mjs",
+      "summary": "Tests the semantic search handlers and embedding storage, gated on Ollama availability for the local embedding backend.",
+      "tags": [
+        "test",
+        "integration-test",
+        "semantic-search",
+        "embeddings"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:test/tool-surface.test.mjs",
+      "type": "file",
+      "name": "tool-surface.test.mjs",
+      "filePath": "test/tool-surface.test.mjs",
+      "summary": "Contract/snapshot tests over the entire exported tool surface, asserting tool naming, schemas, handler coverage, and OBSIDIAN_DISABLED_TOOLS filtering against builtin snapshots.",
+      "tags": [
+        "test",
+        "contract-test",
+        "snapshot",
+        "tool-surface"
+      ],
+      "complexity": "complex",
+      "languageNotes": "Validates that createAllHandlers exposes exactly the declared tools and that every tool has a non-empty name, description, and inputSchema."
+    },
+    {
+      "id": "file:test/wikilink.test.mjs",
+      "type": "file",
+      "name": "wikilink.test.mjs",
+      "filePath": "test/wikilink.test.mjs",
+      "summary": "Tests the wikilink resolution handlers, building handlers over a temporary vault and asserting parsed payloads for link targets.",
+      "tags": [
+        "test",
+        "integration-test",
+        "wikilinks",
+        "link-resolution"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:test/helpers.mjs:createTempVault",
+      "type": "function",
+      "name": "createTempVault",
+      "filePath": "test/helpers.mjs",
+      "lineRange": [
+        10,
+        18
+      ],
+      "summary": "Creates an isolated temporary vault directory under the OS temp dir and seeds it with files from a relative-path-to-content map.",
+      "tags": [
+        "test",
+        "utility",
+        "fixtures",
+        "filesystem"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:test/helpers.mjs:cleanup",
+      "type": "function",
+      "name": "cleanup",
+      "filePath": "test/helpers.mjs",
+      "lineRange": [
+        24,
+        26
+      ],
+      "summary": "Recursively removes a temporary vault directory created by createTempVault to tear down test fixtures.",
+      "tags": [
+        "test",
+        "utility",
+        "teardown",
+        "filesystem"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:test/config.test.mjs:withEnv",
+      "type": "function",
+      "name": "withEnv",
+      "filePath": "test/config.test.mjs",
+      "lineRange": [
+        13,
+        35
+      ],
+      "summary": "Runs a function with a set of environment variables temporarily applied, restoring the prior process.env state afterward to isolate env-driven config tests.",
+      "tags": [
+        "test",
+        "utility",
+        "environment",
+        "sandbox"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:test/sections-query.test.mjs:makeSectionNote",
+      "type": "function",
+      "name": "makeSectionNote",
+      "filePath": "test/sections-query.test.mjs",
+      "lineRange": [
+        89,
+        110
+      ],
+      "summary": "Builds a multi-heading markdown note fixture (intro, log, sub, footer sections) used as input for section-mutation tests.",
+      "tags": [
+        "test",
+        "fixtures",
+        "markdown",
+        "factory"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:test/sections-query.test.mjs:makeHandlers",
+      "type": "function",
+      "name": "makeHandlers",
+      "filePath": "test/sections-query.test.mjs",
+      "lineRange": [
+        146,
+        163
+      ],
+      "summary": "Loads config for a temporary vault and constructs the full handler set via createAllHandlers for use across the section and query test cases.",
+      "tags": [
+        "test",
+        "factory",
+        "test-harness",
+        "setup"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:test/crossvault.test.mjs:payload",
+      "type": "function",
+      "name": "payload",
+      "filePath": "test/crossvault.test.mjs",
+      "lineRange": [
+        127,
+        139
+      ],
+      "summary": "Asserts a handler response is a well-formed non-error MCP result and returns its parsed JSON payload for further assertions.",
+      "tags": [
+        "test",
+        "utility",
+        "assertion",
+        "serialization"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:test/analytics.test.mjs:assertNonError",
+      "type": "function",
+      "name": "assertNonError",
+      "filePath": "test/analytics.test.mjs",
+      "lineRange": [
+        98,
+        108
+      ],
+      "summary": "Asserts that an analytics handler response is a structurally valid, non-error MCP result before tests inspect its contents.",
+      "tags": [
+        "test",
+        "utility",
+        "assertion",
+        "validation"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:test/handler-smoke.test.mjs:assertNonError",
+      "type": "function",
+      "name": "assertNonError",
+      "filePath": "test/handler-smoke.test.mjs",
+      "lineRange": [
+        74,
+        84
+      ],
+      "summary": "Asserts that a handler smoke-test response is a structurally valid, non-error MCP result with the expected content shape.",
+      "tags": [
+        "test",
+        "utility",
+        "assertion",
+        "validation"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "pipeline:.github/workflows/add-to-project.yml",
+      "type": "pipeline",
+      "name": "add-to-project.yml",
+      "filePath": ".github/workflows/add-to-project.yml",
+      "summary": "GitHub Actions workflow that automatically adds newly opened issues and pull requests to the Wicked-Evolutions Product Suite organization project board.",
+      "tags": [
+        "ci-cd",
+        "automation",
+        "project-management",
+        "github-actions"
+      ],
+      "complexity": "simple",
+      "languageNotes": "Uses the official actions/add-to-project@v1 action with a project URL and a PAT stored in repository secrets (ADD_TO_PROJECT_PAT)."
+    },
+    {
+      "id": "step:.github/workflows/add-to-project.yml:add-to-project",
+      "type": "pipeline",
+      "name": "add-to-project",
+      "filePath": ".github/workflows/add-to-project.yml",
+      "summary": "Single job running on ubuntu-latest that invokes actions/add-to-project to link the triggering issue or PR to organization project #4.",
+      "tags": [
+        "ci-cd",
+        "job",
+        "automation",
+        "github-actions"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:.env.example",
+      "type": "config",
+      "name": ".env.example",
+      "filePath": ".env.example",
+      "summary": "Template environment file documenting the server's runtime configuration: single-vault path/name, multi-vault JSON mapping, Ollama host and embedding model for semantic search, and optional HTTP server mode.",
+      "tags": [
+        "configuration",
+        "environment",
+        "template",
+        "semantic-search",
+        "vault"
+      ],
+      "complexity": "simple",
+      "languageNotes": "Commented-out OBSIDIAN_VAULTS and HTTP_MODE lines act as inline documentation for optional modes rather than active defaults."
+    },
+    {
+      "id": "document:CHANGELOG.md",
+      "type": "document",
+      "name": "CHANGELOG.md",
+      "filePath": "CHANGELOG.md",
+      "summary": "Keep-a-Changelog style release history tracking versions from the 1.0.0 public release through 1.3.0, including a pre-1.0 development history section and per-release Added/Changed/Bug Fixes/Security notes.",
+      "tags": [
+        "documentation",
+        "changelog",
+        "release-notes",
+        "versioning"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "document:CONTRIBUTING.md",
+      "type": "document",
+      "name": "CONTRIBUTING.md",
+      "filePath": "CONTRIBUTING.md",
+      "summary": "Contributor guide covering how the project works, bug reporting, feature suggestions, pull request expectations, code style, and security disclosure pointers.",
+      "tags": [
+        "documentation",
+        "development",
+        "contributing",
+        "guidelines"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "document:README.md",
+      "type": "document",
+      "name": "README.md",
+      "filePath": "README.md",
+      "summary": "Primary project documentation covering installation (Claude Desktop one-click .mcpb, npm, from source), MCP server configuration for single and multiple vaults, environment variables, the full catalog of 102 tools, the two-tier (always-available vs CLI-only) architecture, optional Ollama semantic search, and HTTP server mode.",
+      "tags": [
+        "documentation",
+        "entry-point",
+        "overview",
+        "installation",
+        "reference"
+      ],
+      "complexity": "complex",
+      "languageNotes": "Tool catalog is organized into 'Always Available (74)' and 'CLI-Only (28, Obsidian 1.12+)' tiers, mirroring the server's two-tier capability gating."
+    },
+    {
+      "id": "document:SECURITY.md",
+      "type": "document",
+      "name": "SECURITY.md",
+      "filePath": "SECURITY.md",
+      "summary": "Security policy describing how to privately report vulnerabilities, the disclosure scope of the MCP server, and which versions receive security support.",
+      "tags": [
+        "documentation",
+        "security",
+        "policy",
+        "disclosure"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:manifest.json",
+      "type": "config",
+      "name": "manifest.json",
+      "filePath": "manifest.json",
+      "summary": "Claude Desktop .mcpb bundle manifest (manifest_version 0.3) declaring the 'Mycelium for Obsidian' extension: Node entry point dist/index.js, the mcp_config launch command and env wiring, and a required user_config 'vaults' field for one-click install.",
+      "tags": [
+        "configuration",
+        "mcpb",
+        "deployment",
+        "claude",
+        "bundle"
+      ],
+      "complexity": "simple",
+      "languageNotes": "user_config.vaults is interpolated into the OBSIDIAN_VAULTS env var via ${user_config.vaults}, letting Claude Desktop prompt the user for vault paths at install time."
+    },
+    {
+      "id": "config:package.json",
+      "type": "config",
+      "name": "package.json",
+      "filePath": "package.json",
+      "summary": "npm package manifest for @wickedevolutions/mcp-obsidian v1.3.0 defining the ESM module entry (dist/index.js), the mcp-obsidian bin, build/dev/test scripts, runtime dependencies (MCP SDK, better-sqlite3, dotenv, express, gray-matter), and Node >=18 engine requirement.",
+      "tags": [
+        "configuration",
+        "npm",
+        "build-system",
+        "package-manifest",
+        "dependencies"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "type: module marks the package as ESM; test script uses node --experimental-test-module-mocks with the built-in node:test runner against test/*.test.mjs."
+    },
+    {
+      "id": "config:tsconfig.json",
+      "type": "config",
+      "name": "tsconfig.json",
+      "filePath": "tsconfig.json",
+      "summary": "TypeScript compiler configuration targeting ES2022 with Node16 module resolution, strict mode, declaration output, and resolveJsonModule, compiling src/** into the dist/ output directory.",
+      "tags": [
+        "configuration",
+        "typescript",
+        "build-system",
+        "compiler"
+      ],
+      "complexity": "simple",
+      "languageNotes": "Node16 module + moduleResolution pairs with package.json type: module to emit native ESM matching the runtime."
+    },
+    {
+      "id": "file:src/parsers/wikilink.ts",
+      "type": "file",
+      "name": "wikilink.ts",
+      "filePath": "src/parsers/wikilink.ts",
+      "summary": "Wikilink parser and resolver: extracts [[links]], resolves them to vault files (including cross-vault and fuzzy matches), builds file indexes, and reports link line numbers and context.",
+      "tags": [
+        "parser",
+        "wikilink",
+        "resolution",
+        "utility"
+      ],
+      "complexity": "complex",
+      "languageNotes": "Resolves links against a prebuilt basename index with a recursive directory fallback for unindexed notes."
+    },
+    {
+      "id": "function:src/parsers/wikilink.ts:extractWikilinks",
+      "type": "function",
+      "name": "extractWikilinks",
+      "filePath": "src/parsers/wikilink.ts",
+      "lineRange": [
+        20,
+        41
+      ],
+      "summary": "Scans markdown content and returns all [[wikilink]] references with their targets, aliases, and headings.",
+      "tags": [
+        "parser",
+        "wikilink",
+        "extraction"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/parsers/wikilink.ts:parseCrossVaultLink",
+      "type": "function",
+      "name": "parseCrossVaultLink",
+      "filePath": "src/parsers/wikilink.ts",
+      "lineRange": [
+        46,
+        52
+      ],
+      "summary": "Parses an obsidian:// cross-vault URL into its vault and file components.",
+      "tags": [
+        "parser",
+        "wikilink",
+        "cross-vault"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:src/parsers/wikilink.ts:resolveWikilink",
+      "type": "function",
+      "name": "resolveWikilink",
+      "filePath": "src/parsers/wikilink.ts",
+      "lineRange": [
+        61,
+        121
+      ],
+      "summary": "Resolves a wikilink target to an absolute vault path using the file index, with cross-vault, relative, and recursive-search fallbacks.",
+      "tags": [
+        "wikilink",
+        "resolution",
+        "path-resolution"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:src/parsers/wikilink.ts:searchVaultForFile",
+      "type": "function",
+      "name": "searchVaultForFile",
+      "filePath": "src/parsers/wikilink.ts",
+      "lineRange": [
+        126,
+        155
+      ],
+      "summary": "Recursively walks a vault directory to find a note whose name matches the target, used as a resolution fallback.",
+      "tags": [
+        "wikilink",
+        "search",
+        "filesystem"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/parsers/wikilink.ts:buildFileIndex",
+      "type": "function",
+      "name": "buildFileIndex",
+      "filePath": "src/parsers/wikilink.ts",
+      "lineRange": [
+        161,
+        191
+      ],
+      "summary": "Builds a basename-to-path index of all markdown files in a vault for fast wikilink resolution.",
+      "tags": [
+        "wikilink",
+        "indexing",
+        "filesystem"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/parsers/wikilink.ts:buildMultiFileIndex",
+      "type": "function",
+      "name": "buildMultiFileIndex",
+      "filePath": "src/parsers/wikilink.ts",
+      "lineRange": [
+        201,
+        232
+      ],
+      "summary": "Builds an index mapping each note basename to all matching paths, supporting disambiguation of duplicate names.",
+      "tags": [
+        "wikilink",
+        "indexing",
+        "filesystem"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/parsers/wikilink.ts:resolveAllWikilinks",
+      "type": "function",
+      "name": "resolveAllWikilinks",
+      "filePath": "src/parsers/wikilink.ts",
+      "lineRange": [
+        237,
+        253
+      ],
+      "summary": "Extracts and resolves every wikilink in a piece of content against the file index, returning resolved targets.",
+      "tags": [
+        "wikilink",
+        "resolution",
+        "batch"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/parsers/wikilink.ts:getWikilinkContext",
+      "type": "function",
+      "name": "getWikilinkContext",
+      "filePath": "src/parsers/wikilink.ts",
+      "lineRange": [
+        271,
+        288
+      ],
+      "summary": "Returns surrounding text context for a wikilink occurrence, used to display backlink snippets.",
+      "tags": [
+        "wikilink",
+        "context",
+        "utility"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:src/resolver-hints.ts",
+      "type": "file",
+      "name": "resolver-hints.ts",
+      "filePath": "src/resolver-hints.ts",
+      "summary": "Fuzzy-match and error-formatting helpers that turn vault/note lookup failures into actionable hints with closest-match suggestions via Levenshtein edit distance.",
+      "tags": [
+        "utility",
+        "error-handling",
+        "validation",
+        "fuzzy-match",
+        "tested"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/resolver-hints.ts:formatVaultError",
+      "type": "function",
+      "name": "formatVaultError",
+      "filePath": "src/resolver-hints.ts",
+      "lineRange": [
+        53,
+        76
+      ],
+      "summary": "Normalizes a thrown vault-resolution error into a structured JSON error payload with hint and closest-match fields.",
+      "tags": [
+        "error-handling",
+        "serialization",
+        "utility"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/resolver-hints.ts:editDistance",
+      "type": "function",
+      "name": "editDistance",
+      "filePath": "src/resolver-hints.ts",
+      "lineRange": [
+        84,
+        103
+      ],
+      "summary": "Computes the Levenshtein edit distance between two strings for ranking fuzzy match suggestions.",
+      "tags": [
+        "fuzzy-match",
+        "algorithm",
+        "utility"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/resolver-hints.ts:closestMatches",
+      "type": "function",
+      "name": "closestMatches",
+      "filePath": "src/resolver-hints.ts",
+      "lineRange": [
+        119,
+        138
+      ],
+      "summary": "Ranks candidate names by edit distance to a query and returns the closest within a distance threshold.",
+      "tags": [
+        "fuzzy-match",
+        "ranking",
+        "utility"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:src/tools/analytics.ts",
+      "type": "file",
+      "name": "analytics.ts",
+      "filePath": "src/tools/analytics.ts",
+      "summary": "Defines vault-analytics MCP tools (backlinks, orphans, broken links, link graph) and their handlers, building a backlink index across the vault from wikilinks.",
+      "tags": [
+        "api-handler",
+        "service",
+        "analytics",
+        "wikilink",
+        "tested"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:src/tools/analytics.ts:buildBacklinkIndex",
+      "type": "function",
+      "name": "buildBacklinkIndex",
+      "filePath": "src/tools/analytics.ts",
+      "lineRange": [
+        125,
+        182
+      ],
+      "summary": "Walks all notes in a vault, resolving wikilinks to build a reverse index of which notes link to each target.",
+      "tags": [
+        "analytics",
+        "wikilink",
+        "indexing"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:src/tools/analytics.ts:createAnalyticsHandlers",
+      "type": "function",
+      "name": "createAnalyticsHandlers",
+      "filePath": "src/tools/analytics.ts",
+      "lineRange": [
+        195,
+        419
+      ],
+      "summary": "Factory returning the handler map for analytics tools (backlinks, orphans, broken links, stats) bound to the given config.",
+      "tags": [
+        "api-handler",
+        "factory",
+        "analytics"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:src/tools/categories.ts",
+      "type": "file",
+      "name": "categories.ts",
+      "filePath": "src/tools/categories.ts",
+      "summary": "Maps each MCP tool to a category and builds the category summaries used by get-started and discover-tools to present the toolset by purpose and tier.",
+      "tags": [
+        "utility",
+        "tool-registry",
+        "categorization",
+        "metadata"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/tools/categories.ts:getToolCategory",
+      "type": "function",
+      "name": "getToolCategory",
+      "filePath": "src/tools/categories.ts",
+      "lineRange": [
+        78,
+        82
+      ],
+      "summary": "Returns the category label for a given tool name from the prebuilt module index.",
+      "tags": [
+        "tool-registry",
+        "categorization",
+        "utility"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:src/tools/categories.ts:categorize",
+      "type": "function",
+      "name": "categorize",
+      "filePath": "src/tools/categories.ts",
+      "lineRange": [
+        90,
+        100
+      ],
+      "summary": "Groups a list of tools into their categories for structured presentation.",
+      "tags": [
+        "tool-registry",
+        "categorization",
+        "utility"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/tools/categories.ts:categorySummary",
+      "type": "function",
+      "name": "categorySummary",
+      "filePath": "src/tools/categories.ts",
+      "lineRange": [
+        106,
+        112
+      ],
+      "summary": "Produces a per-category count summary of the available tools for discovery output.",
+      "tags": [
+        "tool-registry",
+        "categorization",
+        "utility"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:src/tools/cli-tools.ts",
+      "type": "file",
+      "name": "cli-tools.ts",
+      "filePath": "src/tools/cli-tools.ts",
+      "summary": "Defines tier-2 Obsidian-CLI-backed MCP tools (live-app operations: bases, plugins, themes, commands, sync) and their handlers, each gated on CLI availability.",
+      "tags": [
+        "api-handler",
+        "service",
+        "cli",
+        "integration",
+        "tested"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:src/tools/cli-tools.ts:withCliCheck",
+      "type": "function",
+      "name": "withCliCheck",
+      "filePath": "src/tools/cli-tools.ts",
+      "lineRange": [
+        19,
+        30
+      ],
+      "summary": "Wraps a CLI tool handler to short-circuit with a clear error when the Obsidian CLI is unavailable.",
+      "tags": [
+        "cli",
+        "middleware",
+        "guard"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/tools/cli-tools.ts:createCliHandlers",
+      "type": "function",
+      "name": "createCliHandlers",
+      "filePath": "src/tools/cli-tools.ts",
+      "lineRange": [
+        404,
+        616
+      ],
+      "summary": "Factory returning the handler map for all tier-2 CLI tools, bound to config and guarded by CLI availability checks.",
+      "tags": [
+        "api-handler",
+        "factory",
+        "cli"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:src/tools/crossvault.ts",
+      "type": "file",
+      "name": "crossvault.ts",
+      "filePath": "src/tools/crossvault.ts",
+      "summary": "Defines cross-vault MCP tools (search all vaults, find notes by name, semantic search, ecosystem stats, broken cross-vault links) and their handlers spanning every configured vault.",
+      "tags": [
+        "api-handler",
+        "service",
+        "cross-vault",
+        "search",
+        "tested"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:src/tools/crossvault.ts:createCrossVaultHandlers",
+      "type": "function",
+      "name": "createCrossVaultHandlers",
+      "filePath": "src/tools/crossvault.ts",
+      "lineRange": [
+        125,
+        432
+      ],
+      "summary": "Factory returning handlers for cross-vault search, name lookup, semantic search, stats, and link analysis across all vaults.",
+      "tags": [
+        "api-handler",
+        "factory",
+        "cross-vault"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:src/tools/crossvault.ts:searchVault",
+      "type": "function",
+      "name": "searchVault",
+      "filePath": "src/tools/crossvault.ts",
+      "lineRange": [
+        437,
+        472
+      ],
+      "summary": "Recursively searches a single vault's markdown files for regex matches, accumulating results up to a cap.",
+      "tags": [
+        "cross-vault",
+        "search",
+        "filesystem"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/tools/crossvault.ts:findNotesByName",
+      "type": "function",
+      "name": "findNotesByName",
+      "filePath": "src/tools/crossvault.ts",
+      "lineRange": [
+        504,
+        549
+      ],
+      "summary": "Recursively finds notes in a vault whose name matches a search term, supporting exact or partial matching.",
+      "tags": [
+        "cross-vault",
+        "search",
+        "filesystem"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/tools/crossvault.ts:buildNoteIndex",
+      "type": "function",
+      "name": "buildNoteIndex",
+      "filePath": "src/tools/crossvault.ts",
+      "lineRange": [
+        579,
+        604
+      ],
+      "summary": "Builds an index of all notes in a vault keyed by name for cross-vault link resolution.",
+      "tags": [
+        "cross-vault",
+        "indexing",
+        "filesystem"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/tools/crossvault.ts:findUnresolvedLinks",
+      "type": "function",
+      "name": "findUnresolvedLinks",
+      "filePath": "src/tools/crossvault.ts",
+      "lineRange": [
+        609,
+        656
+      ],
+      "summary": "Scans a vault for wikilinks that do not resolve to any indexed note, reporting broken links.",
+      "tags": [
+        "cross-vault",
+        "analytics",
+        "wikilink"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:src/tools/discover-tools.ts",
+      "type": "file",
+      "name": "discover-tools.ts",
+      "filePath": "src/tools/discover-tools.ts",
+      "summary": "Defines the discover_tools MCP tool that lists the server's available tools grouped by category and tier, for runtime self-description.",
+      "tags": [
+        "api-handler",
+        "tool-registry",
+        "discovery",
+        "metadata",
+        "tested"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/tools/discover-tools.ts:createDiscoverToolsHandlers",
+      "type": "function",
+      "name": "createDiscoverToolsHandlers",
+      "filePath": "src/tools/discover-tools.ts",
+      "lineRange": [
+        59,
+        101
+      ],
+      "summary": "Factory returning the discover_tools handler, which builds a categorized, tiered listing of the currently enabled tools.",
+      "tags": [
+        "api-handler",
+        "factory",
+        "discovery"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:src/tools/files.ts",
+      "type": "file",
+      "name": "files.ts",
+      "filePath": "src/tools/files.ts",
+      "summary": "Defines core filesystem MCP tools (read, write, list, search, create, rename, delete notes) and their handlers, including vault-wide wikilink updates on rename.",
+      "tags": [
+        "api-handler",
+        "service",
+        "filesystem",
+        "crud",
+        "tested"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:src/tools/files.ts:createFileHandlers",
+      "type": "function",
+      "name": "createFileHandlers",
+      "filePath": "src/tools/files.ts",
+      "lineRange": [
+        211,
+        557
+      ],
+      "summary": "Factory returning handlers for all file tools (read, write, list, search, create, rename, delete) bound to config.",
+      "tags": [
+        "api-handler",
+        "factory",
+        "filesystem",
+        "crud"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:src/tools/files.ts:updateWikilinksInVault",
+      "type": "function",
+      "name": "updateWikilinksInVault",
+      "filePath": "src/tools/files.ts",
+      "lineRange": [
+        598,
+        633
+      ],
+      "summary": "Recursively rewrites wikilinks across a vault when a note is renamed so backlinks stay intact.",
+      "tags": [
+        "filesystem",
+        "wikilink",
+        "refactor"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/tools/files.ts:listDirectory",
+      "type": "function",
+      "name": "listDirectory",
+      "filePath": "src/tools/files.ts",
+      "lineRange": [
+        645,
+        675
+      ],
+      "summary": "Lists files in a vault directory, optionally recursing, returning relative paths and metadata.",
+      "tags": [
+        "filesystem",
+        "listing",
+        "utility"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/tools/files.ts:searchFiles",
+      "type": "function",
+      "name": "searchFiles",
+      "filePath": "src/tools/files.ts",
+      "lineRange": [
+        680,
+        716
+      ],
+      "summary": "Recursively searches a vault for content matching a regex, collecting matches up to a maximum.",
+      "tags": [
+        "filesystem",
+        "search",
+        "utility"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:src/tools/fs-promoted.ts",
+      "type": "file",
+      "name": "fs-promoted.ts",
+      "filePath": "src/tools/fs-promoted.ts",
+      "summary": "Large suite of tier-1 filesystem-backed MCP tools that emulate Obsidian features (daily notes, bookmarks, templates, tags, properties, outlines, tasks) directly from vault files and .obsidian config.",
+      "tags": [
+        "api-handler",
+        "service",
+        "filesystem",
+        "obsidian-emulation",
+        "tested"
+      ],
+      "complexity": "complex",
+      "languageNotes": "Reads and writes .obsidian/*.json config to replicate plugin behavior without the Obsidian app running."
+    },
+    {
+      "id": "function:src/tools/fs-promoted.ts:createFsPromotedHandlers",
+      "type": "function",
+      "name": "createFsPromotedHandlers",
+      "filePath": "src/tools/fs-promoted.ts",
+      "lineRange": [
+        609,
+        1635
+      ],
+      "summary": "Factory building the handler map for the full set of promoted filesystem tools, each operating on vault files and .obsidian config bound to the given config.",
+      "tags": [
+        "api-handler",
+        "factory",
+        "filesystem"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:src/tools/fs-promoted.ts:getDailyNotePath",
+      "type": "function",
+      "name": "getDailyNotePath",
+      "filePath": "src/tools/fs-promoted.ts",
+      "lineRange": [
+        48,
+        54
+      ],
+      "summary": "Computes the daily-note file path for a vault from its daily-notes plugin config and date format.",
+      "tags": [
+        "filesystem",
+        "daily-notes",
+        "utility"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:src/tools/fs-promoted.ts:formatDate",
+      "type": "function",
+      "name": "formatDate",
+      "filePath": "src/tools/fs-promoted.ts",
+      "lineRange": [
+        57,
+        67
+      ],
+      "summary": "Formats a Date into Obsidian's moment-style date pattern for daily-note file naming.",
+      "tags": [
+        "filesystem",
+        "date",
+        "formatting"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/tools/fs-promoted.ts:listMarkdownFiles",
+      "type": "function",
+      "name": "listMarkdownFiles",
+      "filePath": "src/tools/fs-promoted.ts",
+      "lineRange": [
+        70,
+        85
+      ],
+      "summary": "Recursively lists all markdown files under a directory as vault-relative paths.",
+      "tags": [
+        "filesystem",
+        "listing",
+        "utility"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/tools/fs-promoted.ts:listAllFolders",
+      "type": "function",
+      "name": "listAllFolders",
+      "filePath": "src/tools/fs-promoted.ts",
+      "lineRange": [
+        88,
+        102
+      ],
+      "summary": "Recursively lists all subfolders under a directory as vault-relative paths.",
+      "tags": [
+        "filesystem",
+        "listing",
+        "utility"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:src/tools/get-started.ts",
+      "type": "file",
+      "name": "get-started.ts",
+      "filePath": "src/tools/get-started.ts",
+      "summary": "Defines the get_started MCP tool that returns onboarding guidance plus a categorized overview of the available tools and tiers for new clients.",
+      "tags": [
+        "api-handler",
+        "documentation",
+        "onboarding",
+        "tool-registry",
+        "tested"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:src/tools/get-started.ts:createGetStartedHandlers",
+      "type": "function",
+      "name": "createGetStartedHandlers",
+      "filePath": "src/tools/get-started.ts",
+      "lineRange": [
+        66,
+        90
+      ],
+      "summary": "Factory returning the get_started handler, which combines static guidance with a live category summary of enabled tools.",
+      "tags": [
+        "api-handler",
+        "factory",
+        "onboarding"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:src/tools/index.ts",
+      "type": "file",
+      "name": "index.ts",
+      "filePath": "src/tools/index.ts",
+      "summary": "Central tool aggregator that merges every tool module's definitions and handler factories, applies OBSIDIAN_DISABLED_TOOLS filtering, and wraps handlers with vault-error guards.",
+      "tags": [
+        "barrel",
+        "tool-registry",
+        "aggregator",
+        "middleware",
+        "tested"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/tools/index.ts:withVaultGuard",
+      "type": "function",
+      "name": "withVaultGuard",
+      "filePath": "src/tools/index.ts",
+      "lineRange": [
+        57,
+        68
+      ],
+      "summary": "Wraps a handler so unknown-vault errors return a structured JSON error with closest-match hints instead of propagating.",
+      "tags": [
+        "middleware",
+        "error-handling",
+        "guard"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/tools/index.ts:createAllHandlers",
+      "type": "function",
+      "name": "createAllHandlers",
+      "filePath": "src/tools/index.ts",
+      "lineRange": [
+        84,
+        114
+      ],
+      "summary": "Composes the complete handler map from all tool modules' factories, applying the vault guard across the registry.",
+      "tags": [
+        "tool-registry",
+        "factory",
+        "aggregator"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/tools/index.ts:getToolByName",
+      "type": "function",
+      "name": "getToolByName",
+      "filePath": "src/tools/index.ts",
+      "lineRange": [
+        119,
+        121
+      ],
+      "summary": "Looks up a tool definition by its name from the aggregated tool list.",
+      "tags": [
+        "tool-registry",
+        "lookup",
+        "utility"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:src/tools/query.ts",
+      "type": "file",
+      "name": "query.ts",
+      "filePath": "src/tools/query.ts",
+      "summary": "Defines the query_notes MCP tool that filters notes by frontmatter conditions and projects selected fields, with handlers and frontmatter matching logic.",
+      "tags": [
+        "api-handler",
+        "service",
+        "query",
+        "frontmatter",
+        "tested"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:src/tools/query.ts:matchesCondition",
+      "type": "function",
+      "name": "matchesCondition",
+      "filePath": "src/tools/query.ts",
+      "lineRange": [
+        71,
+        135
+      ],
+      "summary": "Evaluates a single frontmatter filter condition (equality, comparison, contains, existence) against a note's metadata.",
+      "tags": [
+        "query",
+        "frontmatter",
+        "validation"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:src/tools/query.ts:createQueryHandlers",
+      "type": "function",
+      "name": "createQueryHandlers",
+      "filePath": "src/tools/query.ts",
+      "lineRange": [
+        157,
+        241
+      ],
+      "summary": "Factory returning the query_notes handler that scans vault notes, applies frontmatter conditions, and projects requested fields.",
+      "tags": [
+        "api-handler",
+        "factory",
+        "query"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:src/tools/query.ts:collectMarkdownFiles",
+      "type": "function",
+      "name": "collectMarkdownFiles",
+      "filePath": "src/tools/query.ts",
+      "lineRange": [
+        246,
+        270
+      ],
+      "summary": "Recursively gathers all markdown file paths in a vault for querying.",
+      "tags": [
+        "query",
+        "filesystem",
+        "utility"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "config:.github/ISSUE_TEMPLATE/bug-report.yml",
+      "type": "config",
+      "name": "bug-report.yml",
+      "filePath": ".github/ISSUE_TEMPLATE/bug-report.yml",
+      "summary": "GitHub issue form template for bug reports, defining structured fields (description, reproduction steps, environment) auto-labeled 'bug'.",
+      "tags": [
+        "configuration",
+        "github",
+        "issue-template",
+        "documentation"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:.github/ISSUE_TEMPLATE/feature-request.yml",
+      "type": "config",
+      "name": "feature-request.yml",
+      "filePath": ".github/ISSUE_TEMPLATE/feature-request.yml",
+      "summary": "GitHub issue form template for feature requests, capturing the proposed enhancement and its motivation, auto-labeled 'enhancement'.",
+      "tags": [
+        "configuration",
+        "github",
+        "issue-template",
+        "documentation"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "document:.github/PULL_REQUEST_TEMPLATE.md",
+      "type": "document",
+      "name": "PULL_REQUEST_TEMPLATE.md",
+      "filePath": ".github/PULL_REQUEST_TEMPLATE.md",
+      "summary": "Pull request template prompting contributors for a summary, change type checklist, testing performed, and the authoring agent.",
+      "tags": [
+        "documentation",
+        "github",
+        "pull-request",
+        "development"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:.npmignore",
+      "type": "file",
+      "name": ".npmignore",
+      "filePath": ".npmignore",
+      "summary": "Specifies files excluded from the published npm package, omitting source, CI config, env files, logs, and the local data/ directory so only the compiled dist ships.",
+      "tags": [
+        "configuration",
+        "build-system",
+        "npm",
+        "packaging"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:scripts/build-mcpb.sh",
+      "type": "file",
+      "name": "build-mcpb.sh",
+      "filePath": "scripts/build-mcpb.sh",
+      "summary": "Build script that compiles TypeScript, assembles dist plus manifest/package/LICENSE/README, installs production-only dependencies, and zips them into a versioned .mcpb bundle for Claude Desktop one-click install.",
+      "tags": [
+        "build-system",
+        "script",
+        "packaging",
+        "deployment"
+      ],
+      "complexity": "simple",
+      "languageNotes": "Reads the package version via inline node -e and uses set -e for fail-fast bundling."
+    },
+    {
+      "id": "file:src/cli/bridge.ts",
+      "type": "file",
+      "name": "bridge.ts",
+      "filePath": "src/cli/bridge.ts",
+      "summary": "Tier-2 bridge that shells out to the Obsidian CLI (obs), translating vault paths to CLI vault names, executing commands per vault, and exposing eval-in-Obsidian for live-app operations.",
+      "tags": [
+        "service",
+        "cli",
+        "integration",
+        "bridge",
+        "tested"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "Wraps Node's execFile in a Promise and parses CLI stdout/stderr to surface OBSIDIAN_API_ERROR results."
+    },
+    {
+      "id": "function:src/cli/bridge.ts:execCli",
+      "type": "function",
+      "name": "execCli",
+      "filePath": "src/cli/bridge.ts",
+      "lineRange": [
+        42,
+        75
+      ],
+      "summary": "Runs the Obsidian CLI binary with the given args, applies a timeout, strips noise lines from stdout, and rejects on error markers.",
+      "tags": [
+        "cli",
+        "process-exec",
+        "utility"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/cli/bridge.ts:execCliForVault",
+      "type": "function",
+      "name": "execCliForVault",
+      "filePath": "src/cli/bridge.ts",
+      "lineRange": [
+        80,
+        106
+      ],
+      "summary": "Resolves an MCP vault name to its CLI vault name and invokes execCli with the per-vault command, falling back to the sole vault when unambiguous.",
+      "tags": [
+        "cli",
+        "vault-resolution",
+        "utility"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/cli/bridge.ts:evalInObsidian",
+      "type": "function",
+      "name": "evalInObsidian",
+      "filePath": "src/cli/bridge.ts",
+      "lineRange": [
+        111,
+        123
+      ],
+      "summary": "Executes arbitrary JavaScript inside the running Obsidian app for a given vault via the CLI eval command and returns the result.",
+      "tags": [
+        "cli",
+        "eval",
+        "integration"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:src/cli/bridge.ts:isCliAvailable",
+      "type": "function",
+      "name": "isCliAvailable",
+      "filePath": "src/cli/bridge.ts",
+      "lineRange": [
+        128,
+        135
+      ],
+      "summary": "Probes whether the Obsidian CLI is installed and reachable, used to gate tier-2 tool availability.",
+      "tags": [
+        "cli",
+        "availability-check",
+        "utility"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:src/config.ts",
+      "type": "file",
+      "name": "config.ts",
+      "filePath": "src/config.ts",
+      "summary": "Loads multi-vault configuration from environment variables and provides vault resolution plus the security-critical path resolver that confines all file access within vault boundaries.",
+      "tags": [
+        "config",
+        "vault-resolution",
+        "security",
+        "validation",
+        "tested"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "resolvePathInVault uses fs.realpathSync to defend against symlink escapes outside the vault root."
+    },
+    {
+      "id": "function:src/config.ts:loadConfig",
+      "type": "function",
+      "name": "loadConfig",
+      "filePath": "src/config.ts",
+      "lineRange": [
+        21,
+        77
+      ],
+      "summary": "Parses OBSIDIAN_VAULTS and related env vars into a Config object listing each vault, the operating mode, and the disabled-tools set.",
+      "tags": [
+        "config",
+        "environment",
+        "initialization"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/config.ts:getPrimaryVault",
+      "type": "function",
+      "name": "getPrimaryVault",
+      "filePath": "src/config.ts",
+      "lineRange": [
+        80,
+        82
+      ],
+      "summary": "Returns the first configured vault, used as the default when no vault is specified.",
+      "tags": [
+        "config",
+        "vault-resolution",
+        "utility"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:src/config.ts:getVaultByName",
+      "type": "function",
+      "name": "getVaultByName",
+      "filePath": "src/config.ts",
+      "lineRange": [
+        85,
+        87
+      ],
+      "summary": "Looks up a vault by case-insensitive name match against the configured vaults.",
+      "tags": [
+        "config",
+        "vault-resolution",
+        "utility"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:src/config.ts:resolveVault",
+      "type": "function",
+      "name": "resolveVault",
+      "filePath": "src/config.ts",
+      "lineRange": [
+        90,
+        107
+      ],
+      "summary": "Resolves a requested vault name to its VaultConfig, throwing a hint-rich error with closest-match suggestions when the name is unknown.",
+      "tags": [
+        "config",
+        "vault-resolution",
+        "error-handling"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/config.ts:resolvePathInVault",
+      "type": "function",
+      "name": "resolvePathInVault",
+      "filePath": "src/config.ts",
+      "lineRange": [
+        118,
+        174
+      ],
+      "summary": "Resolves a user-supplied path against a vault root and verifies the resolved real path stays inside the vault, blocking traversal and symlink-escape attacks.",
+      "tags": [
+        "security",
+        "path-resolution",
+        "validation"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:src/config.ts:verifyPathAfterOpen",
+      "type": "function",
+      "name": "verifyPathAfterOpen",
+      "filePath": "src/config.ts",
+      "lineRange": [
+        185,
+        198
+      ],
+      "summary": "Re-checks an already-opened file descriptor's real path against the vault root to close TOCTOU gaps after the file is opened.",
+      "tags": [
+        "security",
+        "path-resolution",
+        "validation"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:src/embeddings/ollama.ts",
+      "type": "file",
+      "name": "ollama.ts",
+      "filePath": "src/embeddings/ollama.ts",
+      "summary": "Ollama embedding client that generates single and batched embeddings, checks model availability, and computes cosine similarity for the semantic-search tier.",
+      "tags": [
+        "service",
+        "embeddings",
+        "semantic-search",
+        "ml"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/embeddings/ollama.ts:generateEmbedding",
+      "type": "function",
+      "name": "generateEmbedding",
+      "filePath": "src/embeddings/ollama.ts",
+      "lineRange": [
+        19,
+        45
+      ],
+      "summary": "Calls the local Ollama embeddings API for a single text and returns the resulting vector, throwing on HTTP errors.",
+      "tags": [
+        "embeddings",
+        "http-client",
+        "ml"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/embeddings/ollama.ts:generateEmbeddings",
+      "type": "function",
+      "name": "generateEmbeddings",
+      "filePath": "src/embeddings/ollama.ts",
+      "lineRange": [
+        50,
+        67
+      ],
+      "summary": "Generates embeddings for an array of texts sequentially, reporting progress via an optional callback.",
+      "tags": [
+        "embeddings",
+        "batch",
+        "ml"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/embeddings/ollama.ts:checkOllamaAvailability",
+      "type": "function",
+      "name": "checkOllamaAvailability",
+      "filePath": "src/embeddings/ollama.ts",
+      "lineRange": [
+        72,
+        101
+      ],
+      "summary": "Probes the Ollama server and verifies the configured embedding model is installed, gating semantic-search features.",
+      "tags": [
+        "embeddings",
+        "availability-check",
+        "ml"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/embeddings/ollama.ts:cosineSimilarity",
+      "type": "function",
+      "name": "cosineSimilarity",
+      "filePath": "src/embeddings/ollama.ts",
+      "lineRange": [
+        106,
+        123
+      ],
+      "summary": "Computes cosine similarity between two embedding vectors for ranking semantic-search results.",
+      "tags": [
+        "embeddings",
+        "math",
+        "similarity"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:src/embeddings/storage.ts",
+      "type": "file",
+      "name": "storage.ts",
+      "filePath": "src/embeddings/storage.ts",
+      "summary": "SQLite-backed embedding store providing per-vault shared instances, vector and FTS keyword search, staleness tracking, and an embeddings/content_fts schema.",
+      "tags": [
+        "service",
+        "embeddings",
+        "database",
+        "serialization",
+        "tested"
+      ],
+      "complexity": "complex",
+      "languageNotes": "Uses better-sqlite3 with WAL pragma, a unique file/block index, and an FTS5 content_fts table for BM25 keyword search."
+    },
+    {
+      "id": "function:src/embeddings/storage.ts:getSharedStorage",
+      "type": "function",
+      "name": "getSharedStorage",
+      "filePath": "src/embeddings/storage.ts",
+      "lineRange": [
+        36,
+        42
+      ],
+      "summary": "Returns a process-wide singleton EmbeddingStorage for a vault path, creating it on first access.",
+      "tags": [
+        "embeddings",
+        "singleton",
+        "factory"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:src/embeddings/storage.ts:EmbeddingStorage",
+      "type": "class",
+      "name": "EmbeddingStorage",
+      "filePath": "src/embeddings/storage.ts",
+      "lineRange": [
+        44,
+        395
+      ],
+      "summary": "Manages the SQLite embeddings database: initializes schema, stores/retrieves vectors, runs cosine and BM25 keyword search, prunes stale entries, and reports stats.",
+      "tags": [
+        "embeddings",
+        "database",
+        "data-model",
+        "service"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:src/embeddings/watcher.ts",
+      "type": "file",
+      "name": "watcher.ts",
+      "filePath": "src/embeddings/watcher.ts",
+      "summary": "File-system watcher that debounces vault markdown changes and incrementally re-indexes embeddings, skipping unchanged content by content hash.",
+      "tags": [
+        "service",
+        "embeddings",
+        "event-handler",
+        "indexing"
+      ],
+      "complexity": "complex",
+      "languageNotes": "Uses fs.watch with debounced batching and md5 content hashing to avoid redundant embedding regeneration."
+    },
+    {
+      "id": "class:src/embeddings/watcher.ts:VaultWatcher",
+      "type": "class",
+      "name": "VaultWatcher",
+      "filePath": "src/embeddings/watcher.ts",
+      "lineRange": [
+        33,
+        236
+      ],
+      "summary": "Watches vault directories for markdown changes, queues and debounces them, then re-embeds changed sections into shared storage when Ollama is available.",
+      "tags": [
+        "embeddings",
+        "event-handler",
+        "indexing",
+        "service"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:src/embeddings/watcher.ts:createVaultWatcher",
+      "type": "function",
+      "name": "createVaultWatcher",
+      "filePath": "src/embeddings/watcher.ts",
+      "lineRange": [
+        241,
+        245
+      ],
+      "summary": "Factory that constructs a VaultWatcher from config and starts it, returning the running instance.",
+      "tags": [
+        "embeddings",
+        "factory",
+        "initialization"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:src/http-server.ts",
+      "type": "file",
+      "name": "http-server.ts",
+      "filePath": "src/http-server.ts",
+      "summary": "Optional Express HTTP server exposing the MCP tools over REST with bearer-token auth and CORS, plus dedicated endpoints for semantic_search, read_file, and index_status.",
+      "tags": [
+        "service",
+        "api-handler",
+        "middleware",
+        "http"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "Uses crypto.timingSafeEqual for constant-time bearer-token comparison and a generated token when none is configured."
+    },
+    {
+      "id": "function:src/http-server.ts:createHttpServer",
+      "type": "function",
+      "name": "createHttpServer",
+      "filePath": "src/http-server.ts",
+      "lineRange": [
+        25,
+        185
+      ],
+      "summary": "Builds and returns the Express app: wires CORS and auth middleware, mounts the tools registry, and registers health, tool-call, and convenience routes.",
+      "tags": [
+        "api-handler",
+        "factory",
+        "middleware",
+        "http"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:src/index.ts",
+      "type": "file",
+      "name": "index.ts",
+      "filePath": "src/index.ts",
+      "summary": "Entry point that loads config, constructs the MCP server over stdio, registers all tool handlers, starts the optional HTTP server and vault watcher, and wires graceful shutdown.",
+      "tags": [
+        "entry-point",
+        "service",
+        "initialization",
+        "mcp"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/index.ts:main",
+      "type": "function",
+      "name": "main",
+      "filePath": "src/index.ts",
+      "lineRange": [
+        130,
+        152
+      ],
+      "summary": "Bootstraps the server: optionally launches the HTTP server, connects the stdio transport, and registers stdin-based shutdown triggers.",
+      "tags": [
+        "entry-point",
+        "initialization",
+        "lifecycle"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:src/parsers/markdown.ts",
+      "type": "file",
+      "name": "markdown.ts",
+      "filePath": "src/parsers/markdown.ts",
+      "summary": "Markdown parsing and editing utilities: frontmatter read/write, title extraction, atomic section append/prepend/replace, file creation, and heading-based section extraction.",
+      "tags": [
+        "utility",
+        "serialization",
+        "markdown",
+        "parser"
+      ],
+      "complexity": "complex",
+      "languageNotes": "Section edits write atomically via a temp-file rename to avoid partial-write corruption."
+    },
+    {
+      "id": "function:src/parsers/markdown.ts:parseMarkdownFile",
+      "type": "function",
+      "name": "parseMarkdownFile",
+      "filePath": "src/parsers/markdown.ts",
+      "lineRange": [
+        31,
+        53
+      ],
+      "summary": "Reads a markdown file within a vault, enforcing a size cap, and returns its parsed frontmatter and body content.",
+      "tags": [
+        "parser",
+        "markdown",
+        "frontmatter"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/parsers/markdown.ts:extractTitle",
+      "type": "function",
+      "name": "extractTitle",
+      "filePath": "src/parsers/markdown.ts",
+      "lineRange": [
+        59,
+        73
+      ],
+      "summary": "Derives a note title from frontmatter, first H1 heading, or filename fallback.",
+      "tags": [
+        "parser",
+        "markdown",
+        "utility"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:src/parsers/markdown.ts:updateFrontmatter",
+      "type": "function",
+      "name": "updateFrontmatter",
+      "filePath": "src/parsers/markdown.ts",
+      "lineRange": [
+        78,
+        100
+      ],
+      "summary": "Merges the given updates into a note's YAML frontmatter and writes the file back atomically.",
+      "tags": [
+        "markdown",
+        "frontmatter",
+        "serialization"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/parsers/markdown.ts:createMarkdownFile",
+      "type": "function",
+      "name": "createMarkdownFile",
+      "filePath": "src/parsers/markdown.ts",
+      "lineRange": [
+        105,
+        140
+      ],
+      "summary": "Creates a new markdown file in a vault with optional frontmatter, refusing to overwrite an existing file.",
+      "tags": [
+        "markdown",
+        "file-creation",
+        "serialization"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/parsers/markdown.ts:fileExists",
+      "type": "function",
+      "name": "fileExists",
+      "filePath": "src/parsers/markdown.ts",
+      "lineRange": [
+        145,
+        156
+      ],
+      "summary": "Checks whether a file path resolves to an existing file inside the given vault.",
+      "tags": [
+        "markdown",
+        "utility",
+        "validation"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:src/parsers/markdown.ts:findSectionByHeading",
+      "type": "function",
+      "name": "findSectionByHeading",
+      "filePath": "src/parsers/markdown.ts",
+      "lineRange": [
+        180,
+        228
+      ],
+      "summary": "Locates a section's line range by matching a heading and its content up to the next same-or-higher-level heading.",
+      "tags": [
+        "markdown",
+        "parser",
+        "section"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/parsers/markdown.ts:appendToSection",
+      "type": "function",
+      "name": "appendToSection",
+      "filePath": "src/parsers/markdown.ts",
+      "lineRange": [
+        243,
+        272
+      ],
+      "summary": "Appends new content to the end of a heading's section and writes the file atomically.",
+      "tags": [
+        "markdown",
+        "section",
+        "serialization"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/parsers/markdown.ts:prependToSection",
+      "type": "function",
+      "name": "prependToSection",
+      "filePath": "src/parsers/markdown.ts",
+      "lineRange": [
+        277,
+        307
+      ],
+      "summary": "Inserts new content at the start of a heading's section, immediately after the heading line, and writes atomically.",
+      "tags": [
+        "markdown",
+        "section",
+        "serialization"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/parsers/markdown.ts:replaceSection",
+      "type": "function",
+      "name": "replaceSection",
+      "filePath": "src/parsers/markdown.ts",
+      "lineRange": [
+        312,
+        341
+      ],
+      "summary": "Replaces the entire body of a heading's section with new content, preserving the heading, and writes atomically.",
+      "tags": [
+        "markdown",
+        "section",
+        "serialization"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/parsers/markdown.ts:extractSections",
+      "type": "function",
+      "name": "extractSections",
+      "filePath": "src/parsers/markdown.ts",
+      "lineRange": [
+        370,
+        458
+      ],
+      "summary": "Splits markdown into heading-delimited section blocks with ids and content, used to chunk notes for embedding.",
+      "tags": [
+        "markdown",
+        "parser",
+        "section",
+        "chunking"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:src/tools/schema-helpers.ts",
+      "type": "file",
+      "name": "schema-helpers.ts",
+      "filePath": "src/tools/schema-helpers.ts",
+      "summary": "Shared JSON-schema fragment builders for MCP tool input definitions, exporting the canonical vaultParam/limitParam singletons plus helpers to inject a dynamic vault-name enum into tool schemas.",
+      "tags": [
+        "utility",
+        "schema-definition",
+        "factory",
+        "validation",
+        "tested"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "Centralizes repeated JSON-schema literals so every tool reuses one canonical vault/limit parameter shape; functions return fresh objects to avoid mutating the shared singleton."
+    },
+    {
+      "id": "function:src/tools/schema-helpers.ts:vaultParamWithEnum",
+      "type": "function",
+      "name": "vaultParamWithEnum",
+      "filePath": "src/tools/schema-helpers.ts",
+      "lineRange": [
+        36,
+        47
+      ],
+      "summary": "Builds a fresh vault-parameter schema fragment whose enum is constrained to the supplied configured vault names, with a description listing them.",
+      "tags": [
+        "factory",
+        "schema-definition",
+        "utility"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:src/tools/schema-helpers.ts:injectVaultEnum",
+      "type": "function",
+      "name": "injectVaultEnum",
+      "filePath": "src/tools/schema-helpers.ts",
+      "lineRange": [
+        59,
+        71
+      ],
+      "summary": "Mutates a list of MCP tools in place, replacing each tool's vault property with an enum-constrained variant for the provided vault names while leaving tools without a vault property untouched.",
+      "tags": [
+        "utility",
+        "schema-definition",
+        "mutation"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:src/tools/schema-helpers.ts:limitParam",
+      "type": "function",
+      "name": "limitParam",
+      "filePath": "src/tools/schema-helpers.ts",
+      "lineRange": [
+        80,
+        89
+      ],
+      "summary": "Returns a fresh numeric limit-parameter schema fragment with a configurable default value and optional description override.",
+      "tags": [
+        "factory",
+        "schema-definition",
+        "utility"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:src/tools/sections.ts",
+      "type": "file",
+      "name": "sections.ts",
+      "filePath": "src/tools/sections.ts",
+      "summary": "Defines the section-editing MCP tool surface (append/prepend/replace within a markdown heading) via the sectionTools schema array and a createSectionHandlers factory that wires each tool to the markdown parser.",
+      "tags": [
+        "api-handler",
+        "factory",
+        "service",
+        "serialization",
+        "tested"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/tools/sections.ts:createSectionHandlers",
+      "type": "function",
+      "name": "createSectionHandlers",
+      "filePath": "src/tools/sections.ts",
+      "lineRange": [
+        97,
+        225
+      ],
+      "summary": "Factory that produces the append/prepend/replace section handlers, each resolving the target vault and delegating to the markdown parser's section-mutation helpers, returning JSON ToolResponse payloads.",
+      "tags": [
+        "factory",
+        "api-handler",
+        "event-handler"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:src/tools/semantic.ts",
+      "type": "file",
+      "name": "semantic.ts",
+      "filePath": "src/tools/semantic.ts",
+      "summary": "Implements the semantic-search tool suite — embedding-backed search with keyword fusion, vault indexing, single-file reindex, similar-note lookup, and index status — exporting semanticTools schemas and a createSemanticHandlers factory backed by Ollama embeddings and a shared vector store.",
+      "tags": [
+        "service",
+        "api-handler",
+        "factory",
+        "data-pipeline",
+        "tested"
+      ],
+      "complexity": "complex",
+      "languageNotes": "Hybrid retrieval: combines cosine-similarity semantic results with keyword search via a score map, hashes content (md5) to skip up-to-date embeddings, and optionally expands queries through an Ollama chat model."
+    },
+    {
+      "id": "function:src/tools/semantic.ts:expandQuery",
+      "type": "function",
+      "name": "expandQuery",
+      "filePath": "src/tools/semantic.ts",
+      "lineRange": [
+        39,
+        74
+      ],
+      "summary": "Expands a search query into related phrasings by calling an Ollama chat endpoint and parsing the response into a bounded list of variant queries, returning the original query on failure.",
+      "tags": [
+        "service",
+        "data-pipeline",
+        "validation"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/tools/semantic.ts:createSemanticHandlers",
+      "type": "function",
+      "name": "createSemanticHandlers",
+      "filePath": "src/tools/semantic.ts",
+      "lineRange": [
+        179,
+        737
+      ],
+      "summary": "Factory producing all semantic-search tool handlers (search, index, reindex-file, find-similar, status), orchestrating Ollama availability checks, embedding generation, hybrid semantic+keyword ranking, and persistence through the shared vector store.",
+      "tags": [
+        "factory",
+        "api-handler",
+        "service",
+        "data-pipeline"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:src/tools/semantic.ts:collectMarkdownFiles",
+      "type": "function",
+      "name": "collectMarkdownFiles",
+      "filePath": "src/tools/semantic.ts",
+      "lineRange": [
+        742,
+        763
+      ],
+      "summary": "Recursively walks a directory collecting vault-relative paths of all markdown files while skipping dotfiles and hidden directories.",
+      "tags": [
+        "utility",
+        "recursion",
+        "filesystem"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:src/tools/wikilinks.ts",
+      "type": "file",
+      "name": "wikilinks.ts",
+      "filePath": "src/tools/wikilinks.ts",
+      "summary": "Implements the wikilink tool suite — resolve a wikilink to a path, list a note's outgoing links, find backlinks, and refresh the file index — exporting wikilinkTools schemas and a createWikilinkHandlers factory with a per-vault file-index cache.",
+      "tags": [
+        "api-handler",
+        "factory",
+        "service",
+        "event-handler",
+        "tested"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:src/tools/wikilinks.ts:createWikilinkHandlers",
+      "type": "function",
+      "name": "createWikilinkHandlers",
+      "filePath": "src/tools/wikilinks.ts",
+      "lineRange": [
+        124,
+        336
+      ],
+      "summary": "Factory producing the wikilink handlers (resolve, get-outgoing-links, get-backlinks, rebuild-index), resolving links against a cached per-vault file index and emitting closest-match hints when a note is not found.",
+      "tags": [
+        "factory",
+        "api-handler",
+        "event-handler"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:src/tools/wikilinks.ts:searchForBacklinks",
+      "type": "function",
+      "name": "searchForBacklinks",
+      "filePath": "src/tools/wikilinks.ts",
+      "lineRange": [
+        341,
+        398
+      ],
+      "summary": "Recursively scans a vault directory for markdown files whose wikilinks target a given note, collecting backlink entries with optional surrounding context and line numbers.",
+      "tags": [
+        "utility",
+        "recursion",
+        "filesystem",
+        "validation"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:src/types/index.ts",
+      "type": "file",
+      "name": "index.ts",
+      "filePath": "src/types/index.ts",
+      "summary": "Central TypeScript type definitions for the Obsidian MCP server, declaring interfaces for vault config, parsed files, wikilinks, backlinks, search results, semantic results, vault graphs, and the ToolResponse wrapper shared across tools.",
+      "tags": [
+        "type-definition",
+        "data-model",
+        "barrel"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "Pure interface module with no runtime code; serves as the shared contract imported by config, parsers, and every tool handler."
+    },
+    {
+      "id": "file:test/schema-helpers.test.mjs",
+      "type": "file",
+      "name": "schema-helpers.test.mjs",
+      "filePath": "test/schema-helpers.test.mjs",
+      "summary": "node:test suite for the compiled schema-helpers module, asserting the exact shapes of vaultParam/limitParam, call purity, enum injection behaviour, and non-mutation of the shared vaultParam singleton.",
+      "tags": [
+        "test",
+        "validation",
+        "schema-definition"
+      ],
+      "complexity": "moderate"
+    }
+  ],
+  "edges": [
+    {
+      "source": "file:test/helpers.mjs",
+      "target": "function:test/helpers.mjs:createTempVault",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:test/helpers.mjs",
+      "target": "function:test/helpers.mjs:cleanup",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:test/helpers.mjs",
+      "target": "function:test/helpers.mjs:createTempVault",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:test/helpers.mjs",
+      "target": "function:test/helpers.mjs:cleanup",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:test/config.test.mjs",
+      "target": "function:test/config.test.mjs:withEnv",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:test/sections-query.test.mjs",
+      "target": "function:test/sections-query.test.mjs:makeSectionNote",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:test/sections-query.test.mjs",
+      "target": "function:test/sections-query.test.mjs:makeHandlers",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:test/crossvault.test.mjs",
+      "target": "function:test/crossvault.test.mjs:payload",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:test/analytics.test.mjs",
+      "target": "function:test/analytics.test.mjs:assertNonError",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:test/handler-smoke.test.mjs",
+      "target": "function:test/handler-smoke.test.mjs:assertNonError",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:test/analytics.test.mjs",
+      "target": "file:test/helpers.mjs",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:test/analytics.test.mjs",
+      "target": "file:src/config.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:test/analytics.test.mjs",
+      "target": "file:src/tools/analytics.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/analytics.ts",
+      "target": "file:test/analytics.test.mjs",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5,
+      "description": "Direction corrected (was test → production)"
+    },
+    {
+      "source": "file:test/cli-tools.test.mjs",
+      "target": "file:test/helpers.mjs",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:test/cli-tools.test.mjs",
+      "target": "file:src/tools/cli-tools.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:test/cli-tools.test.mjs",
+      "target": "file:src/config.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:test/cli-tools.test.mjs",
+      "target": "file:src/cli/bridge.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/cli-tools.ts",
+      "target": "file:test/cli-tools.test.mjs",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5,
+      "description": "Direction corrected (was test → production)"
+    },
+    {
+      "source": "file:src/cli/bridge.ts",
+      "target": "file:test/cli-tools.test.mjs",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5,
+      "description": "Direction corrected (was test → production)"
+    },
+    {
+      "source": "file:test/config.test.mjs",
+      "target": "file:src/config.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:test/config.test.mjs",
+      "target": "file:test/helpers.mjs",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/config.ts",
+      "target": "file:test/config.test.mjs",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5,
+      "description": "Direction corrected (was test → production)"
+    },
+    {
+      "source": "file:test/crossvault.test.mjs",
+      "target": "file:test/helpers.mjs",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:test/crossvault.test.mjs",
+      "target": "file:src/config.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:test/crossvault.test.mjs",
+      "target": "file:src/tools/crossvault.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:test/crossvault.test.mjs",
+      "target": "file:src/embeddings/ollama.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/crossvault.ts",
+      "target": "file:test/crossvault.test.mjs",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5,
+      "description": "Direction corrected (was test → production)"
+    },
+    {
+      "source": "file:test/discover-tools.test.mjs",
+      "target": "file:test/helpers.mjs",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:test/discover-tools.test.mjs",
+      "target": "file:src/config.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:test/discover-tools.test.mjs",
+      "target": "file:src/tools/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/discover-tools.ts",
+      "target": "file:test/discover-tools.test.mjs",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5,
+      "description": "Direction corrected (was test → production)"
+    },
+    {
+      "source": "file:test/files.test.mjs",
+      "target": "file:test/helpers.mjs",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:test/files.test.mjs",
+      "target": "file:src/config.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:test/files.test.mjs",
+      "target": "file:src/tools/files.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/files.ts",
+      "target": "file:test/files.test.mjs",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5,
+      "description": "Direction corrected (was test → production)"
+    },
+    {
+      "source": "file:test/fs-promoted-a.test.mjs",
+      "target": "file:test/helpers.mjs",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:test/fs-promoted-a.test.mjs",
+      "target": "file:src/config.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:test/fs-promoted-a.test.mjs",
+      "target": "file:src/tools/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/fs-promoted.ts",
+      "target": "file:test/fs-promoted-a.test.mjs",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5,
+      "description": "Direction corrected (was test → production)"
+    },
+    {
+      "source": "file:test/fs-promoted-b.test.mjs",
+      "target": "file:test/helpers.mjs",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:test/fs-promoted-b.test.mjs",
+      "target": "file:src/config.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:test/fs-promoted-b.test.mjs",
+      "target": "file:src/tools/fs-promoted.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/fs-promoted.ts",
+      "target": "file:test/fs-promoted-b.test.mjs",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5,
+      "description": "Direction corrected (was test → production)"
+    },
+    {
+      "source": "file:test/get-started.test.mjs",
+      "target": "file:test/helpers.mjs",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:test/get-started.test.mjs",
+      "target": "file:src/config.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:test/get-started.test.mjs",
+      "target": "file:src/tools/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/get-started.ts",
+      "target": "file:test/get-started.test.mjs",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5,
+      "description": "Direction corrected (was test → production)"
+    },
+    {
+      "source": "file:test/handler-smoke.test.mjs",
+      "target": "file:test/helpers.mjs",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:test/handler-smoke.test.mjs",
+      "target": "file:src/config.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:test/handler-smoke.test.mjs",
+      "target": "file:src/tools/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/index.ts",
+      "target": "file:test/handler-smoke.test.mjs",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5,
+      "description": "Direction corrected (was test → production)"
+    },
+    {
+      "source": "file:test/markdown.test.mjs",
+      "target": "file:test/helpers.mjs",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:test/resolver-hints.test.mjs",
+      "target": "file:test/helpers.mjs",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:test/resolver-hints.test.mjs",
+      "target": "file:src/config.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:test/resolver-hints.test.mjs",
+      "target": "file:src/resolver-hints.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:test/resolver-hints.test.mjs",
+      "target": "file:src/tools/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/resolver-hints.ts",
+      "target": "file:test/resolver-hints.test.mjs",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5,
+      "description": "Direction corrected (was test → production)"
+    },
+    {
+      "source": "file:test/sections-query.test.mjs",
+      "target": "file:test/helpers.mjs",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:test/sections-query.test.mjs",
+      "target": "file:src/config.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:test/sections-query.test.mjs",
+      "target": "file:src/tools/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/sections.ts",
+      "target": "file:test/sections-query.test.mjs",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5,
+      "description": "Direction corrected (was test → production)"
+    },
+    {
+      "source": "file:src/tools/query.ts",
+      "target": "file:test/sections-query.test.mjs",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5,
+      "description": "Direction corrected (was test → production)"
+    },
+    {
+      "source": "file:test/semantic.test.mjs",
+      "target": "file:test/helpers.mjs",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:test/semantic.test.mjs",
+      "target": "file:src/config.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:test/semantic.test.mjs",
+      "target": "file:src/tools/semantic.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:test/semantic.test.mjs",
+      "target": "file:src/embeddings/ollama.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:test/semantic.test.mjs",
+      "target": "file:src/embeddings/storage.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/semantic.ts",
+      "target": "file:test/semantic.test.mjs",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5,
+      "description": "Direction corrected (was test → production)"
+    },
+    {
+      "source": "file:src/embeddings/storage.ts",
+      "target": "file:test/semantic.test.mjs",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5,
+      "description": "Direction corrected (was test → production)"
+    },
+    {
+      "source": "file:test/tool-surface.test.mjs",
+      "target": "file:test/helpers.mjs",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:test/tool-surface.test.mjs",
+      "target": "file:src/config.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:test/tool-surface.test.mjs",
+      "target": "file:src/tools/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/index.ts",
+      "target": "file:test/tool-surface.test.mjs",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5,
+      "description": "Direction corrected (was test → production)"
+    },
+    {
+      "source": "file:test/wikilink.test.mjs",
+      "target": "file:test/helpers.mjs",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:test/wikilink.test.mjs",
+      "target": "file:src/tools/wikilinks.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/wikilinks.ts",
+      "target": "file:test/wikilink.test.mjs",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5,
+      "description": "Direction corrected (was test → production)"
+    },
+    {
+      "source": "pipeline:.github/workflows/add-to-project.yml",
+      "target": "step:.github/workflows/add-to-project.yml:add-to-project",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "config:package.json",
+      "target": "file:src/index.ts",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:tsconfig.json",
+      "target": "file:src/index.ts",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:manifest.json",
+      "target": "file:src/index.ts",
+      "type": "deploys",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "config:.env.example",
+      "target": "file:src/index.ts",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:.env.example",
+      "target": "file:src/config.ts",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "document:README.md",
+      "target": "file:src/index.ts",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:README.md",
+      "target": "config:manifest.json",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:README.md",
+      "target": "config:.env.example",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:CHANGELOG.md",
+      "target": "config:package.json",
+      "type": "related",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:CONTRIBUTING.md",
+      "target": "document:SECURITY.md",
+      "type": "related",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/parsers/wikilink.ts",
+      "target": "function:src/parsers/wikilink.ts:extractWikilinks",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/parsers/wikilink.ts",
+      "target": "function:src/parsers/wikilink.ts:parseCrossVaultLink",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/parsers/wikilink.ts",
+      "target": "function:src/parsers/wikilink.ts:resolveWikilink",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/parsers/wikilink.ts",
+      "target": "function:src/parsers/wikilink.ts:searchVaultForFile",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/parsers/wikilink.ts",
+      "target": "function:src/parsers/wikilink.ts:buildFileIndex",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/parsers/wikilink.ts",
+      "target": "function:src/parsers/wikilink.ts:buildMultiFileIndex",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/parsers/wikilink.ts",
+      "target": "function:src/parsers/wikilink.ts:resolveAllWikilinks",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/parsers/wikilink.ts",
+      "target": "function:src/parsers/wikilink.ts:getWikilinkContext",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/parsers/wikilink.ts",
+      "target": "function:src/parsers/wikilink.ts:extractWikilinks",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/parsers/wikilink.ts",
+      "target": "function:src/parsers/wikilink.ts:parseCrossVaultLink",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/parsers/wikilink.ts",
+      "target": "function:src/parsers/wikilink.ts:resolveWikilink",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/parsers/wikilink.ts",
+      "target": "function:src/parsers/wikilink.ts:buildFileIndex",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/parsers/wikilink.ts",
+      "target": "function:src/parsers/wikilink.ts:buildMultiFileIndex",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/parsers/wikilink.ts",
+      "target": "function:src/parsers/wikilink.ts:resolveAllWikilinks",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/parsers/wikilink.ts",
+      "target": "function:src/parsers/wikilink.ts:getWikilinkContext",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/parsers/wikilink.ts",
+      "target": "file:src/types/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/parsers/wikilink.ts",
+      "target": "file:src/config.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/resolver-hints.ts",
+      "target": "function:src/resolver-hints.ts:formatVaultError",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/resolver-hints.ts",
+      "target": "function:src/resolver-hints.ts:editDistance",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/resolver-hints.ts",
+      "target": "function:src/resolver-hints.ts:closestMatches",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/resolver-hints.ts",
+      "target": "function:src/resolver-hints.ts:formatVaultError",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/resolver-hints.ts",
+      "target": "function:src/resolver-hints.ts:editDistance",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/resolver-hints.ts",
+      "target": "function:src/resolver-hints.ts:closestMatches",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/tools/analytics.ts",
+      "target": "function:src/tools/analytics.ts:buildBacklinkIndex",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/tools/analytics.ts",
+      "target": "function:src/tools/analytics.ts:createAnalyticsHandlers",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/tools/analytics.ts",
+      "target": "function:src/tools/analytics.ts:createAnalyticsHandlers",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/tools/analytics.ts",
+      "target": "file:src/config.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/analytics.ts",
+      "target": "file:src/types/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/analytics.ts",
+      "target": "file:src/parsers/markdown.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/analytics.ts",
+      "target": "file:src/parsers/wikilink.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/analytics.ts",
+      "target": "file:src/tools/schema-helpers.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/categories.ts",
+      "target": "function:src/tools/categories.ts:getToolCategory",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/tools/categories.ts",
+      "target": "function:src/tools/categories.ts:categorize",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/tools/categories.ts",
+      "target": "function:src/tools/categories.ts:categorySummary",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/tools/categories.ts",
+      "target": "function:src/tools/categories.ts:getToolCategory",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/tools/categories.ts",
+      "target": "function:src/tools/categories.ts:categorize",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/tools/categories.ts",
+      "target": "function:src/tools/categories.ts:categorySummary",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/tools/categories.ts",
+      "target": "file:src/tools/files.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/categories.ts",
+      "target": "file:src/tools/wikilinks.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/categories.ts",
+      "target": "file:src/tools/semantic.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/categories.ts",
+      "target": "file:src/tools/crossvault.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/categories.ts",
+      "target": "file:src/tools/sections.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/categories.ts",
+      "target": "file:src/tools/query.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/categories.ts",
+      "target": "file:src/tools/analytics.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/categories.ts",
+      "target": "file:src/tools/fs-promoted.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/categories.ts",
+      "target": "file:src/tools/cli-tools.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/cli-tools.ts",
+      "target": "function:src/tools/cli-tools.ts:withCliCheck",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/tools/cli-tools.ts",
+      "target": "function:src/tools/cli-tools.ts:createCliHandlers",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/tools/cli-tools.ts",
+      "target": "function:src/tools/cli-tools.ts:createCliHandlers",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/tools/cli-tools.ts",
+      "target": "file:src/config.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/cli-tools.ts",
+      "target": "file:src/types/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/cli-tools.ts",
+      "target": "file:src/cli/bridge.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/cli-tools.ts",
+      "target": "file:src/tools/schema-helpers.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/crossvault.ts",
+      "target": "function:src/tools/crossvault.ts:createCrossVaultHandlers",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/tools/crossvault.ts",
+      "target": "function:src/tools/crossvault.ts:searchVault",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/tools/crossvault.ts",
+      "target": "function:src/tools/crossvault.ts:findNotesByName",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/tools/crossvault.ts",
+      "target": "function:src/tools/crossvault.ts:buildNoteIndex",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/tools/crossvault.ts",
+      "target": "function:src/tools/crossvault.ts:findUnresolvedLinks",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/tools/crossvault.ts",
+      "target": "function:src/tools/crossvault.ts:createCrossVaultHandlers",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/tools/crossvault.ts",
+      "target": "file:src/config.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/crossvault.ts",
+      "target": "file:src/types/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/crossvault.ts",
+      "target": "file:src/parsers/markdown.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/crossvault.ts",
+      "target": "file:src/parsers/wikilink.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/crossvault.ts",
+      "target": "file:src/embeddings/ollama.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/crossvault.ts",
+      "target": "file:src/embeddings/storage.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/discover-tools.ts",
+      "target": "function:src/tools/discover-tools.ts:createDiscoverToolsHandlers",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/tools/discover-tools.ts",
+      "target": "function:src/tools/discover-tools.ts:createDiscoverToolsHandlers",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/tools/discover-tools.ts",
+      "target": "file:src/types/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/discover-tools.ts",
+      "target": "file:src/tools/categories.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/discover-tools.ts",
+      "target": "file:src/tools/schema-helpers.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/files.ts",
+      "target": "function:src/tools/files.ts:createFileHandlers",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/tools/files.ts",
+      "target": "function:src/tools/files.ts:updateWikilinksInVault",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/tools/files.ts",
+      "target": "function:src/tools/files.ts:listDirectory",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/tools/files.ts",
+      "target": "function:src/tools/files.ts:searchFiles",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/tools/files.ts",
+      "target": "function:src/tools/files.ts:createFileHandlers",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/tools/files.ts",
+      "target": "file:src/config.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/files.ts",
+      "target": "file:src/types/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/files.ts",
+      "target": "file:src/parsers/markdown.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/files.ts",
+      "target": "file:src/tools/schema-helpers.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/files.ts",
+      "target": "file:src/resolver-hints.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/fs-promoted.ts",
+      "target": "function:src/tools/fs-promoted.ts:createFsPromotedHandlers",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/tools/fs-promoted.ts",
+      "target": "function:src/tools/fs-promoted.ts:getDailyNotePath",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/tools/fs-promoted.ts",
+      "target": "function:src/tools/fs-promoted.ts:formatDate",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/tools/fs-promoted.ts",
+      "target": "function:src/tools/fs-promoted.ts:listMarkdownFiles",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/tools/fs-promoted.ts",
+      "target": "function:src/tools/fs-promoted.ts:listAllFolders",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/tools/fs-promoted.ts",
+      "target": "function:src/tools/fs-promoted.ts:createFsPromotedHandlers",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/tools/fs-promoted.ts",
+      "target": "file:src/config.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/fs-promoted.ts",
+      "target": "file:src/types/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/fs-promoted.ts",
+      "target": "file:src/parsers/markdown.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/fs-promoted.ts",
+      "target": "file:src/tools/schema-helpers.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/fs-promoted.ts",
+      "target": "file:src/parsers/wikilink.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/fs-promoted.ts",
+      "target": "file:src/resolver-hints.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/get-started.ts",
+      "target": "function:src/tools/get-started.ts:createGetStartedHandlers",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/tools/get-started.ts",
+      "target": "function:src/tools/get-started.ts:createGetStartedHandlers",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/tools/get-started.ts",
+      "target": "file:src/config.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/get-started.ts",
+      "target": "file:src/types/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/get-started.ts",
+      "target": "file:src/tools/categories.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/index.ts",
+      "target": "function:src/tools/index.ts:withVaultGuard",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/tools/index.ts",
+      "target": "function:src/tools/index.ts:createAllHandlers",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/tools/index.ts",
+      "target": "function:src/tools/index.ts:getToolByName",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/tools/index.ts",
+      "target": "function:src/tools/index.ts:createAllHandlers",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/tools/index.ts",
+      "target": "function:src/tools/index.ts:getToolByName",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/tools/index.ts",
+      "target": "file:src/config.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/index.ts",
+      "target": "file:src/types/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/index.ts",
+      "target": "file:src/tools/schema-helpers.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/index.ts",
+      "target": "file:src/resolver-hints.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/index.ts",
+      "target": "file:src/tools/files.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/index.ts",
+      "target": "file:src/tools/wikilinks.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/index.ts",
+      "target": "file:src/tools/semantic.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/index.ts",
+      "target": "file:src/tools/crossvault.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/index.ts",
+      "target": "file:src/tools/sections.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/index.ts",
+      "target": "file:src/tools/query.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/index.ts",
+      "target": "file:src/tools/analytics.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/index.ts",
+      "target": "file:src/tools/fs-promoted.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/index.ts",
+      "target": "file:src/tools/cli-tools.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/index.ts",
+      "target": "file:src/tools/get-started.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/index.ts",
+      "target": "file:src/tools/discover-tools.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/query.ts",
+      "target": "function:src/tools/query.ts:matchesCondition",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/tools/query.ts",
+      "target": "function:src/tools/query.ts:createQueryHandlers",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/tools/query.ts",
+      "target": "function:src/tools/query.ts:collectMarkdownFiles",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/tools/query.ts",
+      "target": "function:src/tools/query.ts:createQueryHandlers",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/tools/query.ts",
+      "target": "file:src/config.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/query.ts",
+      "target": "file:src/types/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/query.ts",
+      "target": "file:src/parsers/markdown.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/query.ts",
+      "target": "file:src/tools/schema-helpers.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/cli/bridge.ts",
+      "target": "function:src/cli/bridge.ts:execCli",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/cli/bridge.ts",
+      "target": "function:src/cli/bridge.ts:execCliForVault",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/cli/bridge.ts",
+      "target": "function:src/cli/bridge.ts:evalInObsidian",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/cli/bridge.ts",
+      "target": "function:src/cli/bridge.ts:isCliAvailable",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/cli/bridge.ts",
+      "target": "function:src/cli/bridge.ts:execCli",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/cli/bridge.ts",
+      "target": "function:src/cli/bridge.ts:execCliForVault",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/cli/bridge.ts",
+      "target": "function:src/cli/bridge.ts:evalInObsidian",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/cli/bridge.ts",
+      "target": "function:src/cli/bridge.ts:isCliAvailable",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/cli/bridge.ts",
+      "target": "file:src/config.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/config.ts",
+      "target": "function:src/config.ts:loadConfig",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/config.ts",
+      "target": "function:src/config.ts:getPrimaryVault",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/config.ts",
+      "target": "function:src/config.ts:getVaultByName",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/config.ts",
+      "target": "function:src/config.ts:resolveVault",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/config.ts",
+      "target": "function:src/config.ts:resolvePathInVault",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/config.ts",
+      "target": "function:src/config.ts:verifyPathAfterOpen",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/config.ts",
+      "target": "function:src/config.ts:loadConfig",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/config.ts",
+      "target": "function:src/config.ts:getPrimaryVault",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/config.ts",
+      "target": "function:src/config.ts:getVaultByName",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/config.ts",
+      "target": "function:src/config.ts:resolveVault",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/config.ts",
+      "target": "function:src/config.ts:resolvePathInVault",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/config.ts",
+      "target": "function:src/config.ts:verifyPathAfterOpen",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/config.ts",
+      "target": "file:src/types/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/config.ts",
+      "target": "file:src/resolver-hints.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/embeddings/ollama.ts",
+      "target": "function:src/embeddings/ollama.ts:generateEmbedding",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/embeddings/ollama.ts",
+      "target": "function:src/embeddings/ollama.ts:generateEmbeddings",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/embeddings/ollama.ts",
+      "target": "function:src/embeddings/ollama.ts:checkOllamaAvailability",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/embeddings/ollama.ts",
+      "target": "function:src/embeddings/ollama.ts:cosineSimilarity",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/embeddings/ollama.ts",
+      "target": "function:src/embeddings/ollama.ts:generateEmbedding",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/embeddings/ollama.ts",
+      "target": "function:src/embeddings/ollama.ts:generateEmbeddings",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/embeddings/ollama.ts",
+      "target": "function:src/embeddings/ollama.ts:checkOllamaAvailability",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/embeddings/ollama.ts",
+      "target": "function:src/embeddings/ollama.ts:cosineSimilarity",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/embeddings/storage.ts",
+      "target": "function:src/embeddings/storage.ts:getSharedStorage",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/embeddings/storage.ts",
+      "target": "class:src/embeddings/storage.ts:EmbeddingStorage",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/embeddings/storage.ts",
+      "target": "function:src/embeddings/storage.ts:getSharedStorage",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/embeddings/storage.ts",
+      "target": "class:src/embeddings/storage.ts:EmbeddingStorage",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/embeddings/storage.ts",
+      "target": "file:src/embeddings/ollama.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/embeddings/watcher.ts",
+      "target": "class:src/embeddings/watcher.ts:VaultWatcher",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/embeddings/watcher.ts",
+      "target": "function:src/embeddings/watcher.ts:createVaultWatcher",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/embeddings/watcher.ts",
+      "target": "class:src/embeddings/watcher.ts:VaultWatcher",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/embeddings/watcher.ts",
+      "target": "function:src/embeddings/watcher.ts:createVaultWatcher",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/embeddings/watcher.ts",
+      "target": "file:src/types/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/embeddings/watcher.ts",
+      "target": "file:src/embeddings/storage.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/embeddings/watcher.ts",
+      "target": "file:src/embeddings/ollama.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/embeddings/watcher.ts",
+      "target": "file:src/parsers/markdown.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/http-server.ts",
+      "target": "function:src/http-server.ts:createHttpServer",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/http-server.ts",
+      "target": "function:src/http-server.ts:createHttpServer",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/http-server.ts",
+      "target": "file:src/config.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/http-server.ts",
+      "target": "file:src/tools/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/index.ts",
+      "target": "function:src/index.ts:main",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/index.ts",
+      "target": "file:src/config.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/index.ts",
+      "target": "file:src/tools/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/index.ts",
+      "target": "file:src/embeddings/watcher.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/index.ts",
+      "target": "file:src/http-server.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/parsers/markdown.ts",
+      "target": "function:src/parsers/markdown.ts:parseMarkdownFile",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/parsers/markdown.ts",
+      "target": "function:src/parsers/markdown.ts:extractTitle",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/parsers/markdown.ts",
+      "target": "function:src/parsers/markdown.ts:updateFrontmatter",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/parsers/markdown.ts",
+      "target": "function:src/parsers/markdown.ts:createMarkdownFile",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/parsers/markdown.ts",
+      "target": "function:src/parsers/markdown.ts:fileExists",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/parsers/markdown.ts",
+      "target": "function:src/parsers/markdown.ts:findSectionByHeading",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/parsers/markdown.ts",
+      "target": "function:src/parsers/markdown.ts:appendToSection",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/parsers/markdown.ts",
+      "target": "function:src/parsers/markdown.ts:prependToSection",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/parsers/markdown.ts",
+      "target": "function:src/parsers/markdown.ts:replaceSection",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/parsers/markdown.ts",
+      "target": "function:src/parsers/markdown.ts:extractSections",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/parsers/markdown.ts",
+      "target": "function:src/parsers/markdown.ts:parseMarkdownFile",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/parsers/markdown.ts",
+      "target": "function:src/parsers/markdown.ts:extractTitle",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/parsers/markdown.ts",
+      "target": "function:src/parsers/markdown.ts:updateFrontmatter",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/parsers/markdown.ts",
+      "target": "function:src/parsers/markdown.ts:createMarkdownFile",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/parsers/markdown.ts",
+      "target": "function:src/parsers/markdown.ts:fileExists",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/parsers/markdown.ts",
+      "target": "function:src/parsers/markdown.ts:findSectionByHeading",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/parsers/markdown.ts",
+      "target": "function:src/parsers/markdown.ts:appendToSection",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/parsers/markdown.ts",
+      "target": "function:src/parsers/markdown.ts:prependToSection",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/parsers/markdown.ts",
+      "target": "function:src/parsers/markdown.ts:replaceSection",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/parsers/markdown.ts",
+      "target": "function:src/parsers/markdown.ts:extractSections",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/parsers/markdown.ts",
+      "target": "file:src/types/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/parsers/markdown.ts",
+      "target": "file:src/config.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/schema-helpers.ts",
+      "target": "function:src/tools/schema-helpers.ts:vaultParamWithEnum",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/tools/schema-helpers.ts",
+      "target": "function:src/tools/schema-helpers.ts:injectVaultEnum",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/tools/schema-helpers.ts",
+      "target": "function:src/tools/schema-helpers.ts:limitParam",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/tools/schema-helpers.ts",
+      "target": "function:src/tools/schema-helpers.ts:vaultParamWithEnum",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/tools/schema-helpers.ts",
+      "target": "function:src/tools/schema-helpers.ts:injectVaultEnum",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/tools/schema-helpers.ts",
+      "target": "function:src/tools/schema-helpers.ts:limitParam",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/tools/sections.ts",
+      "target": "function:src/tools/sections.ts:createSectionHandlers",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/tools/sections.ts",
+      "target": "function:src/tools/sections.ts:createSectionHandlers",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/tools/sections.ts",
+      "target": "file:src/config.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/sections.ts",
+      "target": "file:src/types/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/sections.ts",
+      "target": "file:src/parsers/markdown.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/sections.ts",
+      "target": "file:src/tools/schema-helpers.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/semantic.ts",
+      "target": "function:src/tools/semantic.ts:expandQuery",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/tools/semantic.ts",
+      "target": "function:src/tools/semantic.ts:createSemanticHandlers",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/tools/semantic.ts",
+      "target": "function:src/tools/semantic.ts:collectMarkdownFiles",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/tools/semantic.ts",
+      "target": "function:src/tools/semantic.ts:createSemanticHandlers",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/tools/semantic.ts",
+      "target": "file:src/config.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/semantic.ts",
+      "target": "file:src/types/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/semantic.ts",
+      "target": "file:src/parsers/markdown.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/semantic.ts",
+      "target": "file:src/embeddings/ollama.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/semantic.ts",
+      "target": "file:src/embeddings/storage.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/semantic.ts",
+      "target": "file:src/tools/schema-helpers.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/wikilinks.ts",
+      "target": "function:src/tools/wikilinks.ts:createWikilinkHandlers",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/tools/wikilinks.ts",
+      "target": "function:src/tools/wikilinks.ts:searchForBacklinks",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/tools/wikilinks.ts",
+      "target": "function:src/tools/wikilinks.ts:createWikilinkHandlers",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/tools/wikilinks.ts",
+      "target": "file:src/config.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/wikilinks.ts",
+      "target": "file:src/types/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/wikilinks.ts",
+      "target": "file:src/parsers/markdown.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/wikilinks.ts",
+      "target": "file:src/parsers/wikilink.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/wikilinks.ts",
+      "target": "file:src/tools/schema-helpers.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/wikilinks.ts",
+      "target": "file:src/resolver-hints.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/tools/schema-helpers.ts",
+      "target": "file:test/schema-helpers.test.mjs",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    }
+  ],
+  "layers": [
+    {
+      "id": "layer:server",
+      "name": "Server & Transport",
+      "description": "MCP server bootstrap (src/index.ts) and the Express-based HTTP transport (src/http-server.ts) that expose the tool registry to MCP clients.",
+      "nodeIds": [
+        "file:src/index.ts",
+        "file:src/http-server.ts"
+      ]
+    },
+    {
+      "id": "layer:tools",
+      "name": "MCP Tool Surface",
+      "description": "The full catalog of MCP tools and their handler factories — filesystem CRUD, sections, wikilinks, analytics, query, cross-vault, semantic, CLI, schema helpers, categories — aggregated and tier-gated by src/tools/index.ts.",
+      "nodeIds": [
+        "file:src/tools/analytics.ts",
+        "file:src/tools/categories.ts",
+        "file:src/tools/cli-tools.ts",
+        "file:src/tools/crossvault.ts",
+        "file:src/tools/discover-tools.ts",
+        "file:src/tools/files.ts",
+        "file:src/tools/fs-promoted.ts",
+        "file:src/tools/get-started.ts",
+        "file:src/tools/index.ts",
+        "file:src/tools/query.ts",
+        "file:src/tools/schema-helpers.ts",
+        "file:src/tools/sections.ts",
+        "file:src/tools/semantic.ts",
+        "file:src/tools/wikilinks.ts"
+      ]
+    },
+    {
+      "id": "layer:cli-bridge",
+      "name": "Obsidian CLI Bridge (Tier 2)",
+      "description": "The Tier-2 bridge that shells out to the Obsidian CLI to drive the running app (bases, plugins, themes, commands, sync) and gates those tools on CLI availability.",
+      "nodeIds": [
+        "file:src/cli/bridge.ts"
+      ]
+    },
+    {
+      "id": "layer:semantic-search",
+      "name": "Semantic Search",
+      "description": "Optional local semantic-search subsystem: the Ollama embedding client, the better-sqlite3 vector/FTS storage, and the debounced filesystem watcher that incrementally re-indexes vaults.",
+      "nodeIds": [
+        "file:src/embeddings/ollama.ts",
+        "file:src/embeddings/storage.ts",
+        "file:src/embeddings/watcher.ts"
+      ]
+    },
+    {
+      "id": "layer:core",
+      "name": "Core & Shared Foundations",
+      "description": "The shared foundation every other module imports: vault config and the path-security resolver (src/config.ts), the shared types hub, markdown/wikilink parsers, and fuzzy-match resolver hints.",
+      "nodeIds": [
+        "file:src/config.ts",
+        "file:src/types/index.ts",
+        "file:src/parsers/markdown.ts",
+        "file:src/parsers/wikilink.ts",
+        "file:src/resolver-hints.ts"
+      ]
+    },
+    {
+      "id": "layer:test",
+      "name": "Tests",
+      "description": "Node test-runner suites and shared fixtures (createTempVault helpers) that exercise every handler tier against ephemeral on-disk vaults, including tool-surface contract and absolute-path-leak guards.",
+      "nodeIds": [
+        "file:test/analytics.test.mjs",
+        "file:test/cli-tools.test.mjs",
+        "file:test/config.test.mjs",
+        "file:test/crossvault.test.mjs",
+        "file:test/discover-tools.test.mjs",
+        "file:test/files.test.mjs",
+        "file:test/fs-promoted-a.test.mjs",
+        "file:test/fs-promoted-b.test.mjs",
+        "file:test/get-started.test.mjs",
+        "file:test/handler-smoke.test.mjs",
+        "file:test/helpers.mjs",
+        "file:test/markdown.test.mjs",
+        "file:test/resolver-hints.test.mjs",
+        "file:test/sections-query.test.mjs",
+        "file:test/semantic.test.mjs",
+        "file:test/tool-surface.test.mjs",
+        "file:test/wikilink.test.mjs",
+        "file:test/schema-helpers.test.mjs"
+      ]
+    },
+    {
+      "id": "layer:tooling",
+      "name": "Build, Config & CI Tooling",
+      "description": "Project configuration and packaging (package.json, tsconfig.json, manifest.json, .env.example, .npmignore), the .mcpb build script, and GitHub Actions plus issue templates that automate CI and project intake.",
+      "nodeIds": [
+        "config:package.json",
+        "config:tsconfig.json",
+        "config:manifest.json",
+        "config:.env.example",
+        "file:.npmignore",
+        "file:scripts/build-mcpb.sh",
+        "pipeline:.github/workflows/add-to-project.yml",
+        "config:.github/ISSUE_TEMPLATE/bug-report.yml",
+        "config:.github/ISSUE_TEMPLATE/feature-request.yml",
+        "step:.github/workflows/add-to-project.yml:add-to-project"
+      ]
+    },
+    {
+      "id": "layer:documentation",
+      "name": "Documentation",
+      "description": "Project-facing prose: the README (install, tool catalog, two-tier architecture), changelog, contributing and security policies, and the pull-request template.",
+      "nodeIds": [
+        "document:README.md",
+        "document:CHANGELOG.md",
+        "document:CONTRIBUTING.md",
+        "document:SECURITY.md",
+        "document:.github/PULL_REQUEST_TEMPLATE.md"
+      ]
+    }
+  ],
+  "tour": [
+    {
+      "order": 1,
+      "title": "Project Overview",
+      "description": "Start with the README to understand what this project is: a single MCP server that gives an AI a full operations toolset over many Obsidian vaults, with notes living as plain markdown on disk. It lays out the headline idea the rest of the tour makes concrete — a two-tier architecture of 74 always-available filesystem tools plus 28 tools that drive the running Obsidian app — along with installation paths and optional local Ollama semantic search. Read this first as the roadmap for everything that follows.",
+      "nodeIds": [
+        "document:README.md"
+      ]
+    },
+    {
+      "order": 2,
+      "title": "Server Bootstrap & Entry Point",
+      "description": "src/index.ts is where the program actually begins. It loads vault configuration, constructs the MCP server over stdio, registers every tool handler, optionally starts the Express HTTP server and the vault file-watcher, and wires graceful shutdown. This file is your bird's-eye view of the runtime: follow its imports and you reach almost everything else in the codebase.",
+      "nodeIds": [
+        "file:src/index.ts",
+        "file:src/http-server.ts"
+      ],
+      "languageLesson": "This is an ESM TypeScript project (package.json sets \"type\": \"module\"), so imports use explicit .js extensions even though the source is .ts — a Node16 module-resolution requirement compiled by tsconfig."
+    },
+    {
+      "order": 3,
+      "title": "The Tool Registry",
+      "description": "src/tools/index.ts is the aggregator that the entry point calls into. It merges every tool module's schema definitions and handler factories into one registry, applies OBSIDIAN_DISABLED_TOOLS filtering, and wraps each handler with a vault-error guard. This single hub is what the README's \"102 tools\" claim resolves to in code; the two tiers it pulls together — always-available filesystem tools and the CLI-gated tools you will meet in Step 9 — are introduced in the steps that follow.",
+      "nodeIds": [
+        "file:src/tools/index.ts"
+      ]
+    },
+    {
+      "order": 4,
+      "title": "Core Foundations: Config & Path Security",
+      "description": "src/config.ts is the most depended-upon file in the entire project (31 modules import it). It loads the multi-vault mapping from environment variables and, most importantly, provides the security-critical path resolver that confines every file operation inside its vault's boundary. Every tool that touches disk routes through this resolver — it is the trust boundary that prevents an AI request from reaching files outside the configured vaults.",
+      "nodeIds": [
+        "file:src/config.ts",
+        "config:.env.example"
+      ],
+      "languageLesson": "The path resolver is a classic security boundary: it normalizes the requested path and verifies the result still starts with the vault root, defeating ../ traversal escapes. Centralizing this in one resolver means every tool inherits the guarantee instead of re-checking ad hoc."
+    },
+    {
+      "order": 5,
+      "title": "The Shared Types Hub",
+      "description": "src/types/index.ts is the second-most imported module (16 importers). It declares the vocabulary the whole codebase speaks: vault config, parsed files, wikilinks, backlinks, search and semantic results, vault graphs, and the ToolResponse wrapper every handler returns. Building on the config from Step 4, these interfaces form the contract between the parsers, the tool handlers, and the server.",
+      "nodeIds": [
+        "file:src/types/index.ts"
+      ],
+      "languageLesson": "A central types module acts as the project's shared interface layer: tools depend on the type shapes, not on each other's implementations, which keeps the 14 tool modules decoupled and lets the compiler enforce the ToolResponse contract everywhere."
+    },
+    {
+      "order": 6,
+      "title": "Parsing Markdown & Wikilinks",
+      "description": "These two parsers turn raw markdown on disk into the structured data the tools operate on. src/parsers/markdown.ts handles frontmatter, title extraction, and atomic section append/prepend/replace and creation; src/parsers/wikilink.ts extracts [[links]], resolves them to vault files (including cross-vault and fuzzy matches), and reports link line numbers and context. Together with config and types from Steps 4-5, they are the shared foundation that the filesystem tier in the next steps is built on.",
+      "nodeIds": [
+        "file:src/parsers/markdown.ts",
+        "file:src/parsers/wikilink.ts"
+      ]
+    },
+    {
+      "order": 7,
+      "title": "Tier 1: Filesystem Tools",
+      "description": "This is the larger of the two tiers — the tools that work with Obsidian closed because they read and write markdown directly. src/tools/files.ts provides the core CRUD surface (read, write, list, search, create, rename, delete, with vault-wide wikilink updates on rename), while src/tools/fs-promoted.ts emulates higher-level Obsidian features — daily notes, bookmarks, templates, tags, properties, outlines, tasks — purely from vault files and the .obsidian config. Both build directly on the config, types, and parsers from Steps 4-6.",
+      "nodeIds": [
+        "file:src/tools/files.ts",
+        "file:src/tools/fs-promoted.ts",
+        "file:src/tools/sections.ts"
+      ]
+    },
+    {
+      "order": 8,
+      "title": "Wikilinks, Analytics, Query & Cross-Vault",
+      "description": "These filesystem-tier modules build link-aware and cross-vault capabilities on top of the wikilink parser. src/tools/wikilinks.ts resolves links and finds backlinks with a per-vault index cache; src/tools/analytics.ts builds a backlink index to surface orphans, broken links, and the link graph; src/tools/query.ts filters notes by frontmatter conditions; and src/tools/crossvault.ts spans every configured vault at once — the README's \"a single server spans many vaults\" promise made concrete.",
+      "nodeIds": [
+        "file:src/tools/wikilinks.ts",
+        "file:src/tools/analytics.ts",
+        "file:src/tools/query.ts",
+        "file:src/tools/crossvault.ts"
+      ]
+    },
+    {
+      "order": 9,
+      "title": "Tier 2: The Obsidian CLI Bridge",
+      "description": "The second tier is the part that requires the Obsidian app to be running. src/cli/bridge.ts shells out to the Obsidian CLI (obs), translating vault paths to CLI vault names and exposing eval-in-Obsidian for live-app operations, while src/tools/cli-tools.ts defines the tier-2 tools (bases, plugins, themes, commands, sync) and gates each one on CLI availability. Contrast this with Tier 1 from Steps 7-8: filesystem tools manipulate files; these tools drive the live application's runtime API.",
+      "nodeIds": [
+        "file:src/cli/bridge.ts",
+        "file:src/tools/cli-tools.ts"
+      ],
+      "languageLesson": "Shelling out via child_process is how a Node server reaches an external runtime it can't import. The bridge must sanitize vault names and command arguments because it crosses a process boundary into the live app — untrusted input here would be a command-injection risk."
+    },
+    {
+      "order": 10,
+      "title": "Optional Semantic Search",
+      "description": "An entirely optional, local-first subsystem that adds meaning-based search without sending data off the machine. src/embeddings/ollama.ts generates embeddings via a local Ollama model and computes cosine similarity; src/embeddings/storage.ts persists vectors in better-sqlite3 with FTS keyword search and staleness tracking; src/embeddings/watcher.ts debounces file changes and incrementally re-indexes by content hash; and src/tools/semantic.ts ties them into the search/index/similar tool surface. Because it is optional, every tool here degrades gracefully when Ollama is absent.",
+      "nodeIds": [
+        "file:src/tools/semantic.ts",
+        "file:src/embeddings/ollama.ts",
+        "file:src/embeddings/storage.ts",
+        "file:src/embeddings/watcher.ts"
+      ],
+      "languageLesson": "Embeddings turn text into vectors so that semantic closeness becomes geometric distance (cosine similarity). Pairing vector search with SQLite FTS keyword search — \"fusion\" — recovers exact-term matches that pure embeddings can miss, and content-hash skipping keeps re-indexing incremental."
+    },
+    {
+      "order": 11,
+      "title": "Orientation & Self-Correction (v1.3.0)",
+      "description": "The 1.3.0 additions make the large tool surface legible to the AI client. src/tools/categories.ts maps every tool to a category and tier; src/tools/get-started.ts and src/tools/discover-tools.ts expose that as runtime onboarding and self-description; src/resolver-hints.ts turns a wrong vault or note name into a closest-match suggestion via Levenshtein distance instead of a bare error; and src/tools/schema-helpers.ts injects the configured vault names as an enum into every tool's input schema. Together these implement the README's \"schema legibility\" and \"self-correcting resolution\" features.",
+      "nodeIds": [
+        "file:src/tools/get-started.ts",
+        "file:src/tools/discover-tools.ts",
+        "file:src/tools/categories.ts",
+        "file:src/resolver-hints.ts",
+        "file:src/tools/schema-helpers.ts"
+      ]
+    },
+    {
+      "order": 12,
+      "title": "Tests: Verifying Every Tier",
+      "description": "The test suite exercises each tier against ephemeral on-disk vaults rather than mocks. test/helpers.mjs builds and tears down temporary vaults from file maps (16 suites depend on it); test/handler-smoke.test.mjs instantiates every handler and asserts a well-formed response; and test/tool-surface.test.mjs is a contract snapshot over the entire exported tool surface, asserting naming, schemas, handler coverage, and OBSIDIAN_DISABLED_TOOLS filtering — the guardrail that keeps the registry from Step 3 honest.",
+      "nodeIds": [
+        "file:test/helpers.mjs",
+        "file:test/handler-smoke.test.mjs",
+        "file:test/tool-surface.test.mjs",
+        "file:test/config.test.mjs"
+      ]
+    },
+    {
+      "order": 13,
+      "title": "Build, Packaging & CI",
+      "description": "Finally, the project's packaging and automation. package.json defines the npm module, bin, dependencies and Node engine; tsconfig.json compiles src into dist; manifest.json declares the Claude Desktop .mcpb one-click bundle; scripts/build-mcpb.sh compiles and zips that bundle with production-only dependencies; and the GitHub Actions workflow auto-files new issues and PRs onto the project board. This closes the loop from the source you just toured to the artifacts users actually install.",
+      "nodeIds": [
+        "config:package.json",
+        "config:tsconfig.json",
+        "config:manifest.json",
+        "file:scripts/build-mcpb.sh",
+        "pipeline:.github/workflows/add-to-project.yml"
+      ],
+      "languageLesson": "Two packaging targets ship from one codebase: npm (cross-platform, source-of-truth manifest in package.json) and an .mcpb bundle for Claude Desktop one-click install (manifest.json). The build script installs production-only dependencies before zipping so the bundle stays lean."
+    }
+  ]
+}
