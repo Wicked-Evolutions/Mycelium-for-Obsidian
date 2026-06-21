@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mycelium for Obsidian — Toolset</title>
+<meta name="description" content="The full Mycelium for Obsidian toolset: 102 tools across 17 categories, split into the filesystem tier (74, always available) and the CLI tier (28, inside the running Obsidian app). Search and browse." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,600;1,6..96,400;1,6..96,500&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="mycelium.css" />
+<script>try{if(localStorage.getItem('myc-theme')==='woad')document.documentElement.setAttribute('data-theme','woad');}catch(e){}</script>
+</head>
+<body>
+
+  <template id="__bundler_thumbnail" data-bg-color="#28324f">
+    <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+      <rect width="1200" height="800" fill="#28324f" />
+      <g fill="none" stroke="#9db4e6" stroke-width="6" opacity="0.9">
+        <rect x="430" y="300" width="150" height="60" rx="6" /><rect x="620" y="300" width="150" height="60" rx="6" />
+        <rect x="430" y="380" width="150" height="60" rx="6" /><rect x="620" y="380" width="150" height="60" rx="6" />
+        <rect x="430" y="460" width="150" height="60" rx="6" /><rect x="620" y="460" width="150" height="60" rx="6" />
+      </g>
+    </svg>
+  </template>
+
+  <svg width="0" height="0" style="position:absolute;">
+    <filter id="wc"><feTurbulence type="fractalNoise" baseFrequency="0.012" numOctaves="3" seed="11" result="n" /><feDisplacementMap in="SourceGraphic" in2="n" scale="28" xChannelSelector="R" yChannelSelector="G" /></filter>
+  </svg>
+
+  <div class="topbar">
+    <span class="brand label"><span class="dot"></span>Mycelium&nbsp;·&nbsp;for&nbsp;Obsidian</span>
+    <span class="grow"></span>
+    <nav class="label">
+      <a href="index.html">Overview</a>
+      <a href="architecture.html">Architecture</a>
+      <a href="toolset.html" class="active">Toolset</a>
+      <a href="install.html">Install</a>
+      <a href="understand/">Understand</a>
+      <a href="https://github.com/Wicked-Evolutions/Mycelium-for-Obsidian">GitHub&nbsp;↗</a>
+    </nav>
+    <span class="grow"></span>
+    <span class="ship label">v1.3.0&nbsp;·&nbsp;MIT</span>
+    <button class="themetog" type="button" aria-label="Toggle background"><span class="glyph"></span><span class="txt">Woad</span></button>
+  </div>
+
+  <!-- HERO -->
+  <header class="hero">
+    <div class="haze"><span class="a"></span><span class="b"></span></div>
+    <img class="geo" src="assets/network-woad.png" alt="" />
+    <div class="wrap inner">
+      <div class="kick">
+        <span class="label b">Toolset</span>
+        <span class="label">102 tools · 17 categories</span>
+        <span class="label accent">Exact repo names</span>
+      </div>
+      <h1 class="display">Browse by what<br />you want the AI<br />to <em>do.</em></h1>
+      <p class="sub">
+        The exact tool names from the repo, organized into approachable categories. <b>Filesystem tools work without
+        Obsidian open</b> <span class="label accent" style="letter-spacing:0;text-transform:none;">— shown in woad</span>;
+        <b>app tools need Obsidian 1.12+ running</b> <span class="label" style="letter-spacing:0;text-transform:none;color:var(--accent);">— shown in ochre</span>.
+        The 102 tools are the proof, <b>not the pitch</b> — the pitch is that your assistant can orient, retrieve, link, edit and audit through the same boundaries you use.
+      </p>
+    </div>
+  </header>
+
+  <!-- TOOL BROWSER -->
+  <section class="std" style="padding-top:clamp(28px,4vh,52px);">
+    <div class="wrap">
+      <div class="tb">
+        <div class="tb-top">
+          <input class="tb-search" id="toolSearch" type="search" placeholder="Search tools or descriptions — e.g. backlinks, template, daily, restore" />
+          <div class="tb-toggles" aria-label="Tool tier filter">
+            <button class="tb-toggle active" data-tier="all">All</button>
+            <button class="tb-toggle" data-tier="filesystem">Always available</button>
+            <button class="tb-toggle" data-tier="cli">Uses the app</button>
+          </div>
+        </div>
+        <div class="tb-layout">
+          <div class="tb-cats" id="categoryList" aria-label="Tool categories"></div>
+          <div class="tb-panel">
+            <div class="tb-phead">
+              <div>
+                <h3 id="panelTitle">All tools</h3>
+                <p id="panelDesc">Every tool exposed by Mycelium for Obsidian.</p>
+              </div>
+              <div class="chips" id="panelBadges"></div>
+            </div>
+            <div class="tb-grid" id="toolGrid"></div>
+          </div>
+        </div>
+      </div>
+      <p class="lede" style="margin-top:22px;">
+        <b>Two tools warrant care:</b> <code style="font-family:var(--mono);background:var(--wash);border:1px solid var(--rule);border-radius:2px;padding:1px 6px;">update_file</code>
+        replaces the whole body; <code style="font-family:var(--mono);background:var(--wash);border:1px solid var(--rule);border-radius:2px;padding:1px 6px;">update_section</code>
+        on an H1 extends to end of file. Both are documented and can be disabled with <code style="font-family:var(--mono);background:var(--wash);border:1px solid var(--rule);border-radius:2px;padding:1px 6px;">OBSIDIAN_DISABLED_TOOLS</code>.
+      </p>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="foot">
+    <div class="wrap">
+      <div class="grid">
+        <div class="lockup">One MCP.<br /><em>Every</em> vault.</div>
+        <div class="links">
+          <a href="install.html">Install · two minutes →</a>
+          <a href="architecture.html">How the tiers work →</a>
+          <a href="https://github.com/Wicked-Evolutions/Mycelium-for-Obsidian">github.com/Wicked-Evolutions/Mycelium-for-Obsidian ↗</a>
+          <a href="index.html">← Overview</a>
+        </div>
+      </div>
+      <div class="base">
+        <span class="label">Mycelium · for Obsidian · @wickedevolutions/mcp-obsidian v1.3.0</span>
+        <span class="label">102 tools · 74 filesystem · 28 CLI</span>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+  const categories = [
+    {id:"orientation",label:"Start & orient",tier:"filesystem",desc:"Help the AI understand the configured vaults, available capabilities, and safest next steps before it starts working.",tools:[
+      ["get_started","Orientation guide with configured vaults, tool categories, and tier guidance."],
+      ["discover_tools","Compact inventory of all tools with category and tier."]]},
+    {id:"files",label:"Read, write & move notes",tier:"filesystem",desc:"Work with markdown files on disk: list, read, create, update, delete, move, and inspect frontmatter.",tools:[
+      ["list_files","List markdown files in a vault."],
+      ["read_file","Read a file with its frontmatter."],
+      ["create_file","Create a note with optional frontmatter."],
+      ["update_file","Replace file contents while preserving frontmatter when omitted."],
+      ["delete_file","Delete a file."],
+      ["get_frontmatter","Read only a note's metadata."],
+      ["update_frontmatter","Merge updates into frontmatter."],
+      ["search_content","Search file contents with regex."],
+      ["move_note","Move a note and update wikilinks pointing to it."]]},
+    {id:"wikilinks",label:"Follow the note graph",tier:"filesystem",desc:"Resolve Obsidian wikilinks and read the relationships between notes.",tools:[
+      ["resolve_wikilink","Resolve a wikilink to a file path."],
+      ["get_outlinks","List links that leave a note."],
+      ["get_backlinks","List notes that point to a target note."],
+      ["follow_link","Resolve a wikilink and read the target."],
+      ["rebuild_link_index","Rebuild the wikilink resolution index."]]},
+    {id:"semantic",label:"Search by meaning",tier:"filesystem",desc:"Optional local embedding tools for finding similar ideas, not only matching words. Requires Ollama for full use.",tools:[
+      ["semantic_search","Find similar content using embeddings."],
+      ["index_vault","Index a vault for semantic search."],
+      ["index_file","Index a single file."],
+      ["get_similar","Find notes similar to a given note."],
+      ["index_status","Check embedding index status and stats."]]},
+    {id:"query",label:"Query properties",tier:"filesystem",desc:"Turn frontmatter into a structured view over notes, with filters, selected fields, sorting, and limits.",tools:[
+      ["query_notes","Dataview-like query engine for frontmatter fields."]]},
+    {id:"health",label:"Audit vault health",tier:"filesystem",desc:"Find where a vault is losing coherence: stale notes, broken links, orphan notes, dead-ends, and unresolved references.",tools:[
+      ["get_vault_health","Composite health report."],
+      ["get_orphan_notes","Find notes with zero inbound wikilinks."],
+      ["get_broken_links","Find wikilinks pointing to missing notes."],
+      ["get_stale_notes","Find notes not modified within a chosen number of days."],
+      ["list_orphans","Files with no incoming links."],
+      ["list_deadends","Files with no outgoing links."],
+      ["unresolved_links","Broken or unresolved wikilinks across the vault."]]},
+    {id:"sections",label:"Edit sections safely",tier:"filesystem",desc:"Edit one part of a markdown file — a single section — while the rest stays untouched.",tools:[
+      ["append_to_section","Add content to the end of a section."],
+      ["prepend_to_section","Add content to the beginning of a section."],
+      ["update_section","Replace content inside a section while preserving the heading."]]},
+    {id:"crossvault",label:"Work across vaults",tier:"filesystem",desc:"One MCP can span many vaults, so the AI can search and trace links across a whole knowledge ecosystem.",tools:[
+      ["search_all_vaults","Search across all configured vaults."],
+      ["semantic_search_all","Semantic search across all configured vaults."],
+      ["find_note_by_name","Find a note by name across vaults."],
+      ["get_cross_vault_links","Find wikilinks between vaults."],
+      ["get_ecosystem_stats","Stats across the entire configured ecosystem."]]},
+    {id:"daily",label:"Daily notes & tasks",tier:"filesystem",desc:"Small operational tools for daily notes and markdown tasks.",tools:[
+      ["daily_read","Read today's daily note."],
+      ["daily_append","Append content to the daily note."],
+      ["daily_prepend","Prepend content to the daily note."],
+      ["daily_path","Get the configured daily note path."],
+      ["list_tasks","List tasks with status, file, and line number."],
+      ["update_task","Toggle, complete, or uncomplete a task by file and line."]]},
+    {id:"properties",label:"Tags & properties",tier:"filesystem",desc:"Inventory and edit the metadata layer that makes markdown queryable.",tools:[
+      ["list_tags","List all tags with occurrence counts."],
+      ["get_tag_info","Show tag details and file list."],
+      ["list_properties","List all frontmatter properties with counts."],
+      ["get_property_values","List unique values for a property."],
+      ["property_read","Read a single property from a file."],
+      ["property_set","Set a single frontmatter property."],
+      ["property_remove","Remove a single frontmatter property."]]},
+    {id:"targeted",label:"Targeted text edits",tier:"filesystem",desc:"Direct edits for appending, prepending, and replacing matched text inside files.",tools:[
+      ["file_append","Append content to the end of a file."],
+      ["file_prepend","Prepend content after frontmatter."],
+      ["search_replace_in_file","Find and replace only matched text."]]},
+    {id:"metadata",label:"Navigate & inspect",tier:"filesystem",desc:"Small utilities for understanding the shape, size, and location of files and folders.",tools:[
+      ["list_aliases","List aliases in a vault or file."],
+      ["get_file_info","File metadata: name, path, size, created and modified dates."],
+      ["get_folder_info","Folder metadata: file count, folder count, and size."],
+      ["list_folders","List folders, optionally under a parent."],
+      ["read_random","Read a random note."],
+      ["get_outline","Heading tree for a file."],
+      ["word_count","Word and character count."]]},
+    {id:"management",label:"File management & bookmarks",tier:"filesystem",desc:"Rename, move, and bookmark while preserving Obsidian link integrity where supported.",tools:[
+      ["rename_file","Rename a file and update wikilinks."],
+      ["move_file","Move a file and update wikilinks."],
+      ["add_bookmark","Bookmark a file, folder, search query, or URL."],
+      ["list_bookmarks","List all bookmarks."]]},
+    {id:"vault",label:"Vault & workspace",tier:"filesystem",desc:"Vault-level information, workspace layout, Bases files, plugins, snippets, and themes (read).",tools:[
+      ["search_with_context","Search with matching line context."],
+      ["list_plugins","List installed plugins."],
+      ["get_plugin_info","Get detailed info about a plugin."],
+      ["list_enabled_plugins","List enabled plugins."],
+      ["list_snippets","List installed CSS snippets."],
+      ["list_themes","List installed themes."],
+      ["get_active_theme","Get the active theme."],
+      ["get_vault_info","Vault metadata, path, file count, folder count, and size."],
+      ["get_workspace","Workspace tree with open panes and layout."],
+      ["list_bases","List .base files in the vault."]]},
+    {id:"app-commands",label:"Run Obsidian itself",tier:"cli",desc:"Use the running Obsidian app: commands, Obsidian search, recent files, vault list, and hotkeys.",tools:[
+      ["list_commands","List available Obsidian commands."],
+      ["execute_command","Run an Obsidian command by ID."],
+      ["vault_search","Search using Obsidian's own search engine."],
+      ["list_recents","List recently opened files."],
+      ["list_known_vaults","List vaults known to Obsidian."],
+      ["get_hotkey","Get the hotkey for a command."],
+      ["list_hotkeys","List hotkey bindings."]]},
+    {id:"app-templates",label:"Templates, Bases & history",tier:"cli",desc:"Obsidian features that live in the app: templates, Bases views, version history, and sync history.",tools:[
+      ["list_templates","List available templates."],
+      ["read_template","Read template content with optional variables resolved."],
+      ["create_from_template","Create a new file from a template."],
+      ["list_versions","List file version history."],
+      ["read_version","Read a historical version."],
+      ["diff_versions","Diff between versions."],
+      ["restore_version","Restore a previous version."],
+      ["list_files_with_history","List files with version history."],
+      ["sync_status","Show Obsidian Sync status."],
+      ["sync_history","Sync version history for a file."],
+      ["sync_read_version","Read a specific sync version."],
+      ["query_base","Query a Base view as JSON, CSV, TSV, markdown, or paths."],
+      ["create_base_item","Create a new item in a Base."],
+      ["list_base_views","List views in a Base file."]]},
+    {id:"app-state",label:"Advanced app control",tier:"cli",desc:"Read and change runtime state in Obsidian — plugins, snippets, themes — plus the eval_obsidian power hatch for experienced operators.",tools:[
+      ["enable_plugin","Enable an installed plugin."],
+      ["disable_plugin","Disable a plugin."],
+      ["list_enabled_snippets","List enabled CSS snippets."],
+      ["enable_snippet","Enable a CSS snippet."],
+      ["disable_snippet","Disable a CSS snippet."],
+      ["set_theme","Set the active theme."],
+      ["eval_obsidian","Execute JavaScript inside Obsidian's process with access to the app runtime. Advanced operator tool."]]}
+  ];
+
+  var activeCategory="all", activeTier="all", query="";
+  var categoryList=document.getElementById("categoryList");
+  var toolGrid=document.getElementById("toolGrid");
+  var panelTitle=document.getElementById("panelTitle");
+  var panelDesc=document.getElementById("panelDesc");
+  var panelBadges=document.getElementById("panelBadges");
+  var searchInput=document.getElementById("toolSearch");
+
+  function tierOK(cat){ return activeTier==="all" || cat.tier===activeTier; }
+  function matchTools(cat){
+    if(!query) return cat.tools;
+    var q=query.toLowerCase();
+    return cat.tools.filter(function(t){ return t[0].toLowerCase().indexOf(q)>-1 || t[1].toLowerCase().indexOf(q)>-1; });
+  }
+
+  function renderCategories(){
+    categoryList.innerHTML="";
+    var total=categories.reduce(function(s,c){ return s + (tierOK(c)?matchTools(c).length:0); },0);
+    var all=document.createElement("button");
+    all.className="cat-btn"+(activeCategory==="all"?" active":"");
+    all.innerHTML="<strong>All tools</strong><span>"+total+" shown</span>";
+    all.addEventListener("click",function(){ activeCategory="all"; render(); });
+    categoryList.appendChild(all);
+    categories.forEach(function(cat){
+      if(!tierOK(cat)) return;
+      var n=matchTools(cat).length;
+      if(query && n===0) return;
+      var b=document.createElement("button");
+      b.className="cat-btn"+(activeCategory===cat.id?" active":"");
+      b.innerHTML="<strong>"+cat.label+"</strong><span>"+n+(cat.tier==="cli"?" · app":"")+"</span>";
+      b.addEventListener("click",function(){ activeCategory=cat.id; render(); });
+      categoryList.appendChild(b);
+    });
+  }
+
+  function renderPanel(){
+    var shown=[];
+    var heading="All tools", desc="Every tool exposed by Mycelium for Obsidian.", badges="";
+    if(activeCategory==="all"){
+      categories.forEach(function(cat){ if(tierOK(cat)) matchTools(cat).forEach(function(t){ shown.push([t[0],t[1],cat.tier]); }); });
+    } else {
+      var cat=categories.find(function(c){ return c.id===activeCategory; });
+      if(cat && tierOK(cat)){
+        heading=cat.label; desc=cat.desc;
+        matchTools(cat).forEach(function(t){ shown.push([t[0],t[1],cat.tier]); });
+        badges = cat.tier==="cli"
+          ? '<span class="chip app">Uses the Obsidian app</span>'
+          : '<span class="chip ok">Always available</span>';
+      }
+    }
+    panelTitle.textContent=heading;
+    panelDesc.textContent=desc;
+    panelBadges.innerHTML=badges;
+    if(!shown.length){
+      toolGrid.innerHTML='<div class="tb-empty">No tools match — try a different term or tier.</div>';
+      return;
+    }
+    toolGrid.innerHTML=shown.map(function(t){
+      return '<div class="tb-tool'+(t[2]==="cli"?" cli":"")+'"><div class="tn">'+t[0]+'</div><div class="td">'+t[1]+'</div></div>';
+    }).join("");
+  }
+
+  function render(){ renderCategories(); renderPanel(); }
+
+  document.querySelectorAll(".tb-toggle").forEach(function(btn){
+    btn.addEventListener("click",function(){
+      document.querySelectorAll(".tb-toggle").forEach(function(b){ b.classList.remove("active"); });
+      btn.classList.add("active");
+      activeTier=btn.getAttribute("data-tier");
+      activeCategory="all";
+      render();
+    });
+  });
+  searchInput.addEventListener("input",function(){ query=searchInput.value.trim(); activeCategory="all"; render(); });
+  render();
+
+  (function(){var KEY='myc-theme',root=document.documentElement;
+    function sync(){var dark=root.getAttribute('data-theme')==='woad';
+      document.querySelectorAll('.themetog .txt').forEach(function(t){t.textContent=dark?'Paper':'Woad';});}
+    sync();
+    document.querySelectorAll('.themetog').forEach(function(b){b.addEventListener('click',function(){
+      var dark=root.getAttribute('data-theme')==='woad';
+      if(dark){root.removeAttribute('data-theme');}else{root.setAttribute('data-theme','woad');}
+      try{localStorage.setItem(KEY,dark?'paper':'woad');}catch(e){}
+      sync();});});
+  })();
+  </script>
+</body>
+</html>

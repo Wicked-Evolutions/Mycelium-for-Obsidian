@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mycelium for Obsidian — Architecture</title>
+<meta name="description" content="How Mycelium for Obsidian works: two tiers (filesystem sovereignty + CLI aliveness), the eval_obsidian power hatch, four ways into the vault, the resolver-first workflow, and what's coming next." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,600;1,6..96,400;1,6..96,500&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="mycelium.css" />
+<script>try{if(localStorage.getItem('myc-theme')==='woad')document.documentElement.setAttribute('data-theme','woad');}catch(e){}</script>
+</head>
+<body>
+
+  <template id="__bundler_thumbnail" data-bg-color="#28324f">
+    <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+      <rect width="1200" height="800" fill="#28324f" />
+      <g fill="none" stroke="#9db4e6" stroke-width="6" opacity="0.9">
+        <rect x="360" y="280" width="220" height="240" rx="6" /><rect x="620" y="280" width="220" height="240" rx="6" />
+      </g>
+    </svg>
+  </template>
+
+  <svg width="0" height="0" style="position:absolute;">
+    <filter id="wc"><feTurbulence type="fractalNoise" baseFrequency="0.012" numOctaves="3" seed="11" result="n" /><feDisplacementMap in="SourceGraphic" in2="n" scale="28" xChannelSelector="R" yChannelSelector="G" /></filter>
+  </svg>
+
+  <div class="topbar">
+    <span class="brand label"><span class="dot"></span>Mycelium&nbsp;·&nbsp;for&nbsp;Obsidian</span>
+    <span class="grow"></span>
+    <nav class="label">
+      <a href="index.html">Overview</a>
+      <a href="architecture.html" class="active">Architecture</a>
+      <a href="toolset.html">Toolset</a>
+      <a href="install.html">Install</a>
+      <a href="understand/">Understand</a>
+      <a href="https://github.com/Wicked-Evolutions/Mycelium-for-Obsidian">GitHub&nbsp;↗</a>
+    </nav>
+    <span class="grow"></span>
+    <span class="ship label">v1.3.0&nbsp;·&nbsp;MIT</span>
+    <button class="themetog" type="button" aria-label="Toggle background"><span class="glyph"></span><span class="txt">Woad</span></button>
+  </div>
+
+  <!-- HERO -->
+  <header class="hero">
+    <div class="haze"><span class="a"></span><span class="b"></span></div>
+    <img class="geo" src="assets/geo-mycelium.svg" alt="" />
+    <div class="wrap inner">
+      <div class="kick">
+        <span class="label b">Architecture</span>
+        <span class="label">Two tiers · one surface</span>
+        <span class="label accent">For builders</span>
+      </div>
+      <h1 class="display">Sovereignty,<br />and <em>aliveness.</em></h1>
+      <p class="sub">
+        Mycelium ships in two tiers. <b>Filesystem tools give sovereignty and reliability</b> — markdown on disk,
+        available even when Obsidian is closed. <b>CLI tools give aliveness</b> — the AI reaches inside the running
+        app. Everything below ships in v1.3.0; anything still in design is labelled <em>Coming Next</em>.
+      </p>
+    </div>
+  </header>
+
+  <!-- 01 · TWO TIERS -->
+  <section class="std">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="ix">01 — Tiers</span>
+        <div>
+          <h2>Two tiers. <em>One reaches the disk, one reaches the app.</em></h2>
+          <p class="note">102 tools, split by what they depend on. The filesystem tier is the dependable substrate; the CLI tier is the living application. <b>If the app is closed, the 74 keep working.</b></p>
+        </div>
+      </div>
+      <div class="diagram">
+        <div class="tiers">
+          <div class="tier fs">
+            <span class="tlabel">Filesystem tier</span>
+            <div class="tnum">74</div>
+            <div class="tsub">Sovereignty &amp; reliability — work when Obsidian is closed.</div>
+            <ul>
+              <li>Read / write markdown</li>
+              <li>Search · cross-vault search</li>
+              <li>Frontmatter queries</li>
+              <li>Link inspection</li>
+              <li>Section editing</li>
+              <li>Health reports · maintenance</li>
+              <li>Properties · tags · tasks · dailies</li>
+            </ul>
+            <span class="avail">Always available</span>
+          </div>
+          <div class="tier cli">
+            <span class="tlabel">CLI tier</span>
+            <div class="tnum">28</div>
+            <div class="tsub">Aliveness — inside the running Obsidian app.</div>
+            <ul>
+              <li>Command palette</li>
+              <li>Obsidian&rsquo;s own search engine</li>
+              <li>Bases · templates</li>
+              <li>Version &amp; sync history</li>
+              <li>Recents · hotkeys</li>
+              <li>Plugins · snippets · themes</li>
+              <li>Runtime app APIs</li>
+            </ul>
+            <span class="avail">Needs Obsidian 1.12+</span>
+          </div>
+        </div>
+        <p class="dgm-cap"><b>Filesystem = sovereignty &amp; reliability.</b> &nbsp;·&nbsp; <b>CLI = aliveness, inside the running Obsidian app.</b></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 02 · INSIDE OBSIDIAN -->
+  <section class="std tint-a">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="ix">02 — Operator</span>
+        <div>
+          <h2>Inside Obsidian <em>itself.</em></h2>
+          <p class="note">When the app is running, the CLI tier becomes a full <b>Obsidian operator</b> — using Obsidian&rsquo;s own search, your templates, Bases, history and commands.</p>
+        </div>
+      </div>
+      <div class="opcard">
+        <span class="ph">The power hatch · advanced operators</span>
+        <h3><span class="mono">eval_obsidian</span> runs JavaScript inside Obsidian&rsquo;s runtime.</h3>
+        <p>
+          It can inspect internal app state, use Obsidian APIs, bridge plugin APIs, and prototype operations that
+          aren&rsquo;t yet formal tools. <b>This is power that comes with ownership</b> — you own the vault, you choose which
+          tools are exposed, and you can disable advanced tools per deployment.
+        </p>
+        <div class="ogrid">
+          <div class="oi"><strong>Deep inspection</strong><span>Ask the live app what it knows — not only what files contain.</span></div>
+          <div class="oi"><strong>Plugin bridges</strong><span>Explore APIs exposed by installed plugins.</span></div>
+          <div class="oi"><strong>Custom operations</strong><span>Precise runtime work before it deserves a dedicated tool.</span></div>
+          <div class="oi"><strong>Off by default</strong><span>Enable eval_obsidian deliberately; disable any tool with OBSIDIAN_DISABLED_TOOLS.</span></div>
+        </div>
+        <div class="resp"><b>Off unless you turn it on.</b> <code style="font-family:var(--mono);">eval_obsidian</code> is an advanced operator tool — enable it deliberately, and disable any tool with <code style="font-family:var(--mono);">OBSIDIAN_DISABLED_TOOLS</code>. Local ownership means you decide.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 03 · FOUR WAYS IN -->
+  <section class="std">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="ix">03 — Ways in</span>
+        <div>
+          <h2>The AI doesn&rsquo;t have one search box. It has <em>four ways in.</em></h2>
+          <p class="note">Different questions need different retrieval paths — and some need to cross vault boundaries. This is the heart of the product story.</p>
+        </div>
+      </div>
+      <div class="lanes">
+        <div class="lane">
+          <span class="ln">01</span>
+          <h3>Keyword &amp; full-text</h3>
+          <p>When you remember a phrase, project name, person, or exact term — <b>even if it could live in several vaults.</b></p>
+          <div class="chips"><span class="chip ok">always available</span><span class="chip">search_content</span><span class="chip">search_with_context</span></div>
+          <div class="chips" style="margin-top:7px;"><span class="chip app">needs the app</span><span class="chip app">vault_search</span></div>
+        </div>
+        <div class="lane">
+          <span class="ln">02</span>
+          <h3>Meaning-based</h3>
+          <p>When you remember the <b>idea, not the words.</b> Optional local embeddings via Ollama make this possible.</p>
+          <div class="chips"><span class="chip opt">requires Ollama</span><span class="chip">semantic_search</span><span class="chip">semantic_search_all</span><span class="chip">get_similar</span></div>
+        </div>
+        <div class="lane">
+          <span class="ln">03</span>
+          <h3>Link reading</h3>
+          <p>When the question lives in relationships: what points here, where does this lead, what&rsquo;s disconnected? <b>Navigation, not ranking.</b></p>
+          <div class="chips"><span class="chip ok">read-only graph</span><span class="chip">get_backlinks</span><span class="chip">get_outlinks</span><span class="chip">orphans</span></div>
+        </div>
+        <div class="lane">
+          <span class="ln">04</span>
+          <h3>Structured query</h3>
+          <p>When notes carry properties: status, type, priority, owner, area, date, client, stage — <b>anything you tag.</b></p>
+          <div class="chips"><span class="chip ok">database-like</span><span class="chip">query_notes</span><span class="chip app">query_base</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 04 · LAYERS -->
+  <section class="std tint-a">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="ix">04 — Layers</span>
+        <div>
+          <h2>The layers a vault <em>actually</em> has.</h2>
+          <p class="note">A note is a file <b>and</b> an Obsidian identity <b>and</b> structured content <b>and</b> metadata <b>and</b> a set of links. Mycelium exposes the right layer for each operation.</p>
+        </div>
+      </div>
+      <div class="ltable">
+        <div class="lrow"><div class="lname">Filesystem<span class="meta">disk</span></div><div class="ldesc">A vault is a folder of markdown on disk. Mycelium does <b>safe path resolution</b> — absolute paths and <code style="font-family:var(--mono);">../</code> traversal stay blocked.</div></div>
+        <div class="lrow"><div class="lname">Obsidian app<span class="meta">behavior</span></div><div class="ldesc">Opening a folder as a vault gives links, metadata, search, Bases, plugins. Mycelium respects <b>Obsidian concepts</b>, not only raw files.</div></div>
+        <div class="lrow"><div class="lname">MCP config<span class="meta">names</span></div><div class="ldesc">Mycelium knows your vaults by configured name, and those exact names are <b>surfaced to the AI</b> — no stale &ldquo;Platform&rdquo; / &ldquo;Helena&rdquo; example drift.</div></div>
+        <div class="lrow"><div class="lname">Content<span class="meta">knowledge</span></div><div class="ldesc">Notes carry headings, sections, paragraphs, lists, tasks, tables, quotes, code blocks and citations. Mycelium can <b>read outlines, search with context, target sections, and retrieve the exact slice of knowledge</b> an AI needs.</div></div>
+        <div class="lrow"><div class="lname">Frontmatter<span class="meta">metadata</span></div><div class="ldesc">Machine-readable metadata inside notes. Used for <b>filtering, classification and querying</b> where it&rsquo;s the right authority.</div></div>
+        <div class="lrow"><div class="lname">Links<span class="meta">references</span></div><div class="ldesc">Same-vault wikilinks and cross-vault <code style="font-family:var(--mono);">obsidian://</code> URIs. <b>Native wikilinks stay vault-local</b>; cross-vault movement runs through resolver-backed paths and URIs.</div></div>
+        <div class="lrow"><div class="lname">Graph<span class="meta">read-only</span></div><div class="ldesc">Links expose backlinks, outlinks, orphans, broken links and dead-ends. <b>Today this navigates and audits — it does not rank.</b> Ranking is Coming Next.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 05 · RESOLVER + RECOVERY -->
+  <section class="std">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="ix">05 — Resolver</span>
+        <div>
+          <h2>Resolver-first. <em>Right tool, right order.</em></h2>
+          <p class="note">A good session starts with <code style="font-family:var(--mono);">get_started</code>: it tells the assistant which vaults exist and which tools fit each job. From there, the resolver ladder gives a recovery path — Obsidian-native resolution before filesystem habits.</p>
+        </div>
+      </div>
+      <div class="flow">
+        <div class="frow"><span class="step">01</span><span class="fn">follow_link</span><span class="when">Vault + note title or wikilink known &rarr; <b>resolve identity to file, read it.</b></span></div>
+        <div class="frow"><span class="step">02</span><span class="fn">find_note_by_name</span><span class="when">Title is approximate, or the vault is unknown &rarr; <b>locate it first.</b></span></div>
+        <div class="frow"><span class="step">03</span><span class="fn">search_all_vaults</span><span class="when">Content search, when no single note is named &rarr; <b>search across vaults.</b></span></div>
+        <div class="frow"><span class="step">04</span><span class="fn">read_file</span><span class="when">Only when the exact vault-relative path is genuinely known or required.</span></div>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:clamp(18px,2.5vw,28px); margin-top:clamp(24px,3.5vh,40px);">
+        <div class="code">
+          <div class="bar"><span class="t">Before · dead end</span></div>
+<pre><span class="c">// the agent is simply stuck</span>
+{
+  <span class="k">"error"</span>: <span class="s">"Unknown vault"</span>,
+  <span class="k">"received"</span>: <span class="s">"Research"</span>
+}</pre>
+        </div>
+        <div class="code">
+          <div class="bar"><span class="t">After · self-correcting</span></div>
+<pre>{
+  <span class="k">"error"</span>: <span class="s">"Unknown vault"</span>,
+  <span class="k">"closest_matches"</span>: [<span class="s">"Research Vault"</span>],
+  <span class="k">"next_action"</span>: <span class="a">"Retry with vault=</span>
+    <span class="a">\"Research Vault\""</span>
+}</pre>
+        </div>
+      </div>
+      <p class="lede" style="margin-top:24px;">Same pattern for a missing note: the error suggests <b>follow_link</b>, <b>find_note_by_name</b> and <b>search_content</b> as ordered next steps. The agent reads the hint and tries again — <b>no human correction needed.</b></p>
+    </div>
+  </section>
+
+  <!-- 06 · CROSS-VAULT SYNTAX -->
+  <section class="std tint-a">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="ix">06 — Links</span>
+        <div>
+          <h2>Same vault, or <em>across</em> the ecosystem.</h2>
+          <p class="note">Mycelium exposes both native Obsidian wikilinks and cross-vault URI targets, so an agnostic AI client writes links that actually resolve — and cites which vault each came from.</p>
+        </div>
+      </div>
+      <div class="code">
+        <div class="bar"><span class="t">Link syntax · taught in get_started</span><span class="copyhint">markdown</span></div>
+<pre><span class="c"># Same vault — a wikilink</span>
+[[Note Name]]
+
+<span class="c"># Across vaults — an Obsidian URI (vault + file URL-encoded, no .md)</span>
+[<span class="s">Kickoff</span>](<span class="a">obsidian://open?vault=Work&file=Projects%2FKickoff</span>)</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- BAND -->
+  <section class="band">
+    <img class="net" src="assets/network-woad.png" alt="" />
+    <div class="wrap inner">
+      <div class="no">Coming next · designed, not shipped</div>
+      <h2>The next layer<br />of <em>Mycelium.</em></h2>
+      <p>
+        These are designed as future direction. They make a forward-looking story — but none of them is presented as
+        a capability in v1.3.0. <b>What ships today for the graph is read-only: backlinks, outlinks, orphans, broken links, health.</b>
+      </p>
+      <div class="foot">
+        <span class="label">Honest roadmap · never shipped-until-shipped</span>
+        <span class="label">Stratum 05 · Mycelium</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 07 · COMING NEXT -->
+  <section class="std">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="ix">07 — Future</span>
+        <div>
+          <h2>Coming next.</h2>
+          <p class="note">Inspiration for where Mycelium goes — <b>not available today.</b></p>
+        </div>
+      </div>
+      <div class="coming">
+        <div class="future"><span class="ph">Designed · not shipped</span><h3>Graph orientation</h3><p>Help the AI understand hubs, roots, leaves and structural position inside a vault.</p></div>
+        <div class="future"><span class="ph">Designed · not shipped</span><h3>Graph-aware search</h3><p>Use links and structure to annotate, exclude, or re-rank search results.</p></div>
+        <div class="future"><span class="ph">Designed · not shipped</span><h3>Relevance + importance</h3><p>Combine semantic relevance with structural importance — without pretending it ships today.</p></div>
+        <div class="future"><span class="ph">Designed · not shipped</span><h3>Composed vaults</h3><p>Treat folders from different filesystem locations as one working vault surface.</p></div>
+        <div class="future"><span class="ph">Designed · not shipped</span><h3>Memory capsules</h3><p>Portable, structured memory layers built from vault knowledge.</p></div>
+        <div class="future"><span class="ph">Designed · not shipped</span><h3>Two Pillars</h3><p>The broader future framing behind graph intelligence and composed knowledge spaces.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="foot">
+    <div class="wrap">
+      <div class="grid">
+        <div class="lockup">Ready to <em>connect</em> a vault?</div>
+        <div class="links">
+          <a href="install.html">Install · two minutes →</a>
+          <a href="toolset.html">Browse all 102 tools →</a>
+          <a href="index.html">← Back to overview</a>
+          <a href="https://github.com/Wicked-Evolutions/Mycelium-for-Obsidian/issues">Open an issue ↗</a>
+        </div>
+      </div>
+      <div class="base">
+        <span class="label">Mycelium · for Obsidian · @wickedevolutions/mcp-obsidian v1.3.0</span>
+        <span class="label">MIT · Local-first · Wicked Evolutions</span>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+  (function(){var KEY='myc-theme',root=document.documentElement;
+    function sync(){var dark=root.getAttribute('data-theme')==='woad';
+      document.querySelectorAll('.themetog .txt').forEach(function(t){t.textContent=dark?'Paper':'Woad';});}
+    sync();
+    document.querySelectorAll('.themetog').forEach(function(b){b.addEventListener('click',function(){
+      var dark=root.getAttribute('data-theme')==='woad';
+      if(dark){root.removeAttribute('data-theme');}else{root.setAttribute('data-theme','woad');}
+      try{localStorage.setItem(KEY,dark?'paper':'woad');}catch(e){}
+      sync();});});
+  })();
+  </script>
+</body>
+</html>

@@ -1,852 +1,296 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Mycelium for Obsidian - Toolset Overview</title>
-<style>
-*,*::before,*::after{box-sizing:border-box}
-:root{
-  --ink:#161716;
-  --muted:#59615b;
-  --soft:#7d877f;
-  --line:#dfe5df;
-  --line-strong:#aeb9b0;
-  --paper:#fbfcfa;
-  --white:#fff;
-  --mist:#eef5f1;
-  --leaf:#17734d;
-  --leaf-soft:#dff2e8;
-  --moss:#5e6f3c;
-  --sun:#b86b19;
-  --sun-soft:#fff1dd;
-  --berry:#88415a;
-  --berry-soft:#f7e6ed;
-  --sky:#2d668c;
-  --sky-soft:#e6f1f8;
-  --mono:"SFMono-Regular","Roboto Mono","Cascadia Mono",Consolas,monospace;
-  --sans:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-}
-html{scroll-behavior:smooth}
-body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.6}
-a{color:inherit}
-.topbar{position:sticky;top:0;z-index:20;background:rgba(251,252,250,.94);backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
-.topbar-inner{max-width:1180px;margin:0 auto;padding:0 24px;display:flex;align-items:center;gap:18px;min-height:62px}
-.brand{font-weight:750;font-size:15px;white-space:nowrap}
-.nav{display:flex;gap:4px;overflow:auto;scrollbar-width:none;margin-left:auto}
-.nav::-webkit-scrollbar{display:none}
-.nav a{font-size:12px;text-decoration:none;color:var(--muted);padding:8px 10px;border-radius:8px;white-space:nowrap}
-.nav a:hover{background:var(--mist);color:var(--ink)}
-.wrap{max-width:1180px;margin:0 auto;padding:0 24px}
-.hero{min-height:calc(100vh - 62px);display:grid;grid-template-columns:minmax(0,1fr) 430px;gap:42px;align-items:center;padding:54px 0 36px;border-bottom:1px solid var(--line)}
-.eyebrow{font-family:var(--mono);font-size:11px;text-transform:uppercase;color:var(--soft);margin:0 0 12px}
-h1{font-size:clamp(38px,5vw,68px);line-height:1.02;margin:0 0 18px;letter-spacing:0;font-weight:780;max-width:780px}
-.lead{font-size:20px;line-height:1.55;color:var(--muted);max-width:710px;margin:0 0 26px}
-.hero-actions{display:flex;flex-wrap:wrap;gap:10px;margin:24px 0 28px}
-.btn{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line-strong);border-radius:8px;background:var(--white);color:var(--ink);padding:10px 14px;font-weight:650;font-size:13px;text-decoration:none;cursor:pointer}
-.btn.primary{background:var(--ink);border-color:var(--ink);color:var(--white)}
-.btn svg{width:16px;height:16px}
-.stats{display:grid;grid-template-columns:repeat(4,minmax(100px,1fr));gap:8px;max-width:760px}
-.stat{border:1px solid var(--line);background:var(--white);border-radius:8px;padding:12px}
-.stat strong{display:block;font-size:22px;line-height:1.1}
-.stat span{display:block;font-family:var(--mono);font-size:11px;color:var(--soft);margin-top:4px}
-.map{border:1px solid var(--line);background:var(--white);border-radius:8px;padding:18px;box-shadow:0 18px 50px rgba(22,23,22,.08)}
-.map-title{font-weight:750;font-size:15px;margin:0 0 12px}
-.map-stage{border:1px solid var(--line);border-radius:8px;padding:12px;margin:8px 0;background:var(--paper)}
-.map-stage.ai{background:var(--sky-soft);border-color:#bfd8e8}
-.map-stage.mcp{background:var(--leaf-soft);border-color:#b9dfcc}
-.map-stage.vaults{background:var(--sun-soft);border-color:#ecd1aa}
-.map-label{font-family:var(--mono);font-size:11px;color:var(--muted);text-transform:uppercase;margin-bottom:4px}
-.map-text{font-weight:700}
-.tier-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
-.mini{border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--white)}
-.mini strong{display:block;font-size:20px;line-height:1}
-.mini span{font-family:var(--mono);font-size:10px;color:var(--soft)}
-.section{padding:74px 0;border-bottom:1px solid var(--line)}
-.section-head{display:flex;align-items:end;justify-content:space-between;gap:24px;margin-bottom:26px}
-.section h2{font-size:34px;line-height:1.14;margin:0;letter-spacing:0}
-.section-intro{color:var(--muted);max-width:720px;margin:10px 0 0;font-size:16px}
-.grid{display:grid;gap:12px}
-.grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}
-.grid.four{grid-template-columns:repeat(4,minmax(0,1fr))}
-.card{background:var(--white);border:1px solid var(--line);border-radius:8px;padding:18px}
-.card h3{font-size:17px;margin:0 0 8px}
-.card p{color:var(--muted);margin:0}
-.iconline{display:flex;align-items:center;gap:10px;margin-bottom:10px}
-.iconbox{width:34px;height:34px;border-radius:8px;display:grid;place-items:center;border:1px solid var(--line)}
-.iconbox svg{width:18px;height:18px}
-.i-leaf{background:var(--leaf-soft);color:var(--leaf)}
-.i-sun{background:var(--sun-soft);color:var(--sun)}
-.i-berry{background:var(--berry-soft);color:var(--berry)}
-.i-sky{background:var(--sky-soft);color:var(--sky)}
-.callout{border:1px solid var(--line);border-radius:8px;padding:16px 18px;background:var(--mist);color:var(--muted);margin-top:18px}
-.callout strong{color:var(--ink)}
-.vault-strategy{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:26px}
-.vault-card{background:var(--white);border:1px solid var(--line);border-radius:8px;padding:20px}
-.vault-card h3{font-size:20px;margin:0 0 10px}
-.vault-card p{color:var(--muted);margin:0}
-.vault-list{display:flex;flex-wrap:wrap;gap:7px;margin-top:14px}
-.vault-pill{font-family:var(--mono);font-size:11px;color:var(--muted);background:var(--paper);border:1px solid var(--line);border-radius:999px;padding:5px 8px}
-.surface-line{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-top:18px}
-.surface-item{background:var(--white);border:1px solid var(--line);border-radius:8px;padding:13px}
-.surface-item strong{display:block;font-size:20px;line-height:1.1}
-.surface-item span{font-family:var(--mono);font-size:11px;color:var(--soft)}
-.lanes{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
-.lane{background:var(--white);border:1px solid var(--line);border-radius:8px;padding:16px;min-height:230px;display:flex;flex-direction:column}
-.lane-number{font-family:var(--mono);font-size:11px;color:var(--soft)}
-.lane h3{margin:8px 0 8px;font-size:17px}
-.lane p{margin:0 0 14px;color:var(--muted)}
-.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:auto}
-.chip{font-family:var(--mono);font-size:11px;border:1px solid var(--line);border-radius:999px;padding:4px 8px;background:var(--paper);color:var(--muted)}
-.chip.ok{background:var(--leaf-soft);color:var(--leaf);border-color:#b9dfcc}
-.chip.app{background:var(--sun-soft);color:var(--sun);border-color:#ecd1aa}
-.chip.warn{background:var(--berry-soft);color:var(--berry);border-color:#e7bdcc}
-.workflow-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-.workflow{background:var(--white);border:1px solid var(--line);border-radius:8px;padding:18px}
-.workflow h3{font-size:18px;margin:0 0 10px}
-.steps{display:grid;gap:8px;margin-top:14px}
-.step{display:flex;gap:10px;align-items:flex-start;color:var(--muted)}
-.step-num{width:24px;height:24px;border-radius:8px;background:var(--mist);display:grid;place-items:center;font-family:var(--mono);font-size:11px;color:var(--ink);flex:0 0 auto}
-.operator-wrap{display:grid;grid-template-columns:1.05fr .95fr;gap:14px;margin-top:26px}
-.operator-panel{background:var(--white);border:1px solid var(--line);border-radius:8px;padding:20px}
-.operator-panel h3{font-size:20px;margin:0 0 10px}
-.operator-panel p{color:var(--muted);margin:0 0 14px}
-.operator-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:14px}
-.operator-item{border:1px solid var(--line);border-radius:8px;background:var(--paper);padding:13px}
-.operator-item strong{display:block;font-size:15px;margin-bottom:4px}
-.operator-item span{display:block;color:var(--muted);font-size:13px}
-.eval-card{background:var(--ink);color:var(--white);border-color:var(--ink)}
-.eval-card p,.eval-card span{color:#d8ddd8}
-.eval-card .chip{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.24);color:#fff}
-.responsibility{border:1px solid #ecd1aa;background:var(--sun-soft);color:var(--sun);border-radius:8px;padding:16px 18px;margin-top:14px}
-.responsibility strong{color:#7d410b}
-.tool-browser{background:var(--white);border:1px solid var(--line);border-radius:8px;overflow:hidden}
-.tool-top{display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center;padding:14px;border-bottom:1px solid var(--line);background:var(--mist)}
-.search{width:100%;border:1px solid var(--line-strong);border-radius:8px;padding:11px 12px;font:inherit;background:var(--white);color:var(--ink)}
-.toggles{display:flex;gap:8px;flex-wrap:wrap}
-.toggle{border:1px solid var(--line-strong);background:var(--white);border-radius:8px;padding:9px 11px;font-size:13px;font-weight:650;cursor:pointer;color:var(--muted)}
-.toggle.active{background:var(--ink);border-color:var(--ink);color:var(--white)}
-.tool-layout{display:grid;grid-template-columns:260px 1fr;min-height:540px}
-.cat-list{border-right:1px solid var(--line);background:var(--paper);padding:10px;display:flex;flex-direction:column;gap:6px}
-.cat-btn{border:1px solid transparent;background:transparent;border-radius:8px;padding:10px;text-align:left;cursor:pointer;color:var(--muted);font:inherit}
-.cat-btn:hover{background:var(--mist)}
-.cat-btn.active{background:var(--ink);color:var(--white)}
-.cat-btn strong{display:block;font-size:13px;color:inherit}
-.cat-btn span{font-family:var(--mono);font-size:11px;color:inherit;opacity:.75}
-.tool-panel{padding:20px}
-.panel-head{display:flex;gap:16px;align-items:flex-start;justify-content:space-between;margin-bottom:16px}
-.panel-title h3{font-size:24px;margin:0 0 6px}
-.panel-title p{margin:0;color:var(--muted);max-width:720px}
-.badge-row{display:flex;gap:6px;flex-wrap:wrap}
-.badge{font-family:var(--mono);font-size:11px;border-radius:999px;padding:4px 8px;border:1px solid var(--line)}
-.badge.fs{background:var(--leaf-soft);color:var(--leaf);border-color:#b9dfcc}
-.badge.cli{background:var(--sun-soft);color:var(--sun);border-color:#ecd1aa}
-.tool-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
-.tool{border:1px solid var(--line);border-radius:8px;padding:12px;background:var(--paper)}
-.tool-name{font-family:var(--mono);font-size:12px;color:var(--ink);margin-bottom:5px;word-break:break-word}
-.tool-desc{font-size:13px;color:var(--muted);margin:0}
-.proof{display:grid;grid-template-columns:1.1fr .9fr;gap:18px;align-items:stretch}
-.funnel{background:var(--white);border:1px solid var(--line);border-radius:8px;padding:18px;display:grid;gap:8px}
-.funnel-row{display:grid;grid-template-columns:120px 1fr;gap:10px;align-items:center}
-.funnel-num{font-family:var(--mono);font-size:13px;color:var(--muted)}
-.bar{height:34px;border-radius:8px;background:var(--leaf-soft);border:1px solid #b9dfcc;display:flex;align-items:center;padding:0 10px;color:var(--leaf);font-weight:750;font-size:13px;min-width:64px}
-.bar.b2{width:86%}.bar.b3{width:58%;background:var(--sky-soft);color:var(--sky);border-color:#bfd8e8}.bar.b4{width:34%;background:var(--sun-soft);color:var(--sun);border-color:#ecd1aa}.bar.b5{width:18%;background:var(--berry-soft);color:var(--berry);border-color:#e7bdcc}
-.proof-side{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.metric{background:var(--white);border:1px solid var(--line);border-radius:8px;padding:16px}
-.metric strong{display:block;font-size:28px;line-height:1.05}
-.metric span{display:block;color:var(--muted);font-size:13px;margin-top:6px}
-.coming{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
-.future{border:1px dashed var(--line-strong);background:var(--white);border-radius:8px;padding:16px}
-.future h3{font-size:16px;margin:0 0 8px}
-.future p{margin:0;color:var(--muted)}
-.footer{padding:28px 0 46px;color:var(--soft);font-family:var(--mono);font-size:12px}
-.empty{padding:36px;text-align:center;color:var(--muted)}
-@media(max-width:980px){
-  .hero{grid-template-columns:1fr;min-height:auto}
-  .map{max-width:620px}
-  .grid.three,.grid.four,.lanes,.coming,.vault-strategy,.operator-wrap{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .surface-line{grid-template-columns:repeat(3,minmax(0,1fr))}
-  .tool-layout{grid-template-columns:1fr}
-  .cat-list{border-right:0;border-bottom:1px solid var(--line);display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
-  .proof{grid-template-columns:1fr}
-}
-@media(max-width:680px){
-  .topbar-inner{padding:0 14px}
-  .wrap{padding:0 16px}
-  .hero{padding-top:34px}
-  .stats,.grid.three,.grid.four,.lanes,.workflow-grid,.tool-grid,.coming,.proof-side,.vault-strategy,.surface-line,.operator-wrap,.operator-grid{grid-template-columns:1fr}
-  .section-head,.panel-head,.tool-top{display:block}
-  .toggles{margin-top:10px}
-  .cat-list{grid-template-columns:1fr}
-  .funnel-row{grid-template-columns:1fr}
-  .bar,.bar.b2,.bar.b3,.bar.b4,.bar.b5{width:100%}
-}
-</style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mycelium for Obsidian — many vaults, one AI-operable surface</title>
+<meta name="description" content="Mycelium for Obsidian turns many separate Obsidian vaults into one AI-operable knowledge surface. Keep your domains separate; let your AI work across the whole ecosystem. 102 tools, local-first, MIT." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,600;1,6..96,400;1,6..96,500&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="mycelium.css" />
+<script>try{if(localStorage.getItem('myc-theme')==='woad')document.documentElement.setAttribute('data-theme','woad');}catch(e){}</script>
 </head>
 <body>
-<header class="topbar">
-  <div class="topbar-inner">
-    <div class="brand">Mycelium for Obsidian</div>
-    <nav class="nav" aria-label="Page sections">
-      <a href="#multi-vault">Multi-vault</a>
-      <a href="#together">What we can do</a>
-      <a href="#ways-in">Ways in</a>
-      <a href="#inside-obsidian">Inside Obsidian</a>
-      <a href="#workflows">Workflows</a>
-      <a href="#toolset">Toolset</a>
-      <a href="#proof">Proof</a>
-      <a href="#coming-next">Coming next</a>
-      <a href="#limits">Setup and limits</a>
+
+  <template id="__bundler_thumbnail" data-bg-color="#28324f">
+    <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+      <rect width="1200" height="800" fill="#28324f" />
+      <g fill="none" stroke="#9db4e6" stroke-width="6" opacity="0.9">
+        <circle cx="600" cy="400" r="120" />
+        <circle cx="600" cy="280" r="120" /><circle cx="600" cy="520" r="120" />
+        <circle cx="496" cy="340" r="120" /><circle cx="704" cy="340" r="120" />
+        <circle cx="496" cy="460" r="120" /><circle cx="704" cy="460" r="120" />
+      </g>
+    </svg>
+  </template>
+
+  <svg width="0" height="0" style="position:absolute;">
+    <filter id="wc"><feTurbulence type="fractalNoise" baseFrequency="0.012" numOctaves="3" seed="11" result="n" /><feDisplacementMap in="SourceGraphic" in2="n" scale="28" xChannelSelector="R" yChannelSelector="G" /></filter>
+  </svg>
+
+  <div class="topbar">
+    <span class="brand label"><span class="dot"></span>Mycelium&nbsp;·&nbsp;for&nbsp;Obsidian</span>
+    <span class="grow"></span>
+    <nav class="label">
+      <a href="index.html" class="active">Overview</a>
+      <a href="architecture.html">Architecture</a>
+      <a href="toolset.html">Toolset</a>
+      <a href="install.html">Install</a>
+      <a href="understand/">Understand</a>
+      <a href="https://github.com/Wicked-Evolutions/Mycelium-for-Obsidian">GitHub&nbsp;↗</a>
     </nav>
+    <span class="grow"></span>
+    <span class="ship label">v1.3.0&nbsp;·&nbsp;MIT</span>
+    <button class="themetog" type="button" aria-label="Toggle background"><span class="glyph"></span><span class="txt">Woad</span></button>
   </div>
-</header>
 
-<main class="wrap">
-  <section class="hero" id="top">
-    <div>
-      <p class="eyebrow">Detailed overview for Claude Design</p>
-      <h1>Mycelium turns many Obsidian vaults into one AI-operable knowledge surface.</h1>
-      <p class="lead">Humans can keep domains, brands, products, clients, archives, and memory separated in clean vaults. The AI can still operate across the whole surface: find, read, connect, query, and maintain knowledge without flattening everything into one giant vault.</p>
-      <div class="hero-actions">
-        <a class="btn primary" href="#toolset" aria-label="Jump to full toolset"><i data-lucide="list-tree"></i>Browse the toolset</a>
-        <a class="btn" href="#workflows" aria-label="Jump to workflows"><i data-lucide="route"></i>See common workflows</a>
+  <!-- HERO -->
+  <header class="hero">
+    <div class="haze"><span class="a"></span><span class="b"></span></div>
+    <img class="geo" src="assets/network-woad.png" alt="" />
+    <div class="wrap inner">
+      <div class="kick">
+        <span class="label b">Stratum 05 · Roots</span>
+        <span class="label">MCP for Obsidian · v1.3.0</span>
+        <span class="label accent">Open source · MIT</span>
       </div>
-      <div class="stats" aria-label="Toolset statistics">
-        <div class="stat"><strong>102</strong><span>tools total</span></div>
-        <div class="stat"><strong>74</strong><span>always available</span></div>
-        <div class="stat"><strong>28</strong><span>use Obsidian app</span></div>
-        <div class="stat"><strong>1</strong><span>server, many vaults</span></div>
+      <h1 class="display">Many vaults.<br />One AI-operable<br /><em>surface.</em></h1>
+      <p class="sub">
+        Keep your domains separate — brands, clients, archives, memory, legal, platform, personal.
+        Mycelium for Obsidian is <b>one lightweight, local MCP</b> that gives your AI an operator layer over your
+        whole knowledge ecosystem — <b>it finds, reads, connects and maintains notes across every vault you configure.</b>
+      </p>
+      <div class="btns">
+        <a class="btn solid" href="install.html">Install it <span class="arr">→</span></a>
+        <a class="btn gold" href="toolset.html">Browse the toolset <span class="arr">→</span></a>
+      </div>
+      <div class="footline">
+        <span class="label">Wicked Evolutions · The Organic System</span>
+        <span class="label">102 tools · local-first · self-hosted</span>
       </div>
     </div>
-    <aside class="map" aria-label="System map">
-      <p class="map-title">How the work moves</p>
-      <div class="map-stage ai">
-        <div class="map-label">AI client</div>
-        <div class="map-text">Claude Desktop, Claude Code, Cursor, VS Code, or any MCP client</div>
-      </div>
-      <div class="map-stage mcp">
-        <div class="map-label">Mycelium MCP</div>
-        <div class="map-text">One local server exposes all configured vaults as tools</div>
-        <div class="tier-row">
-          <div class="mini"><strong>74</strong><span>filesystem tools</span></div>
-          <div class="mini"><strong>28</strong><span>Obsidian app tools</span></div>
-        </div>
-      </div>
-      <div class="map-stage vaults">
-        <div class="map-label">Your knowledge</div>
-        <div class="map-text">Separate vaults for separate worlds, searchable and operable as one surface</div>
-      </div>
-      <div class="callout"><strong>Design note:</strong> the page can be more poetic than this prototype, but the claims should stay this grounded.</div>
-    </aside>
-  </section>
+  </header>
 
-  <section class="section" id="multi-vault">
-    <p class="eyebrow">Multi-vault strategy</p>
-    <h2>Separate the worlds for yourself. Let the AI work across them for you.</h2>
-    <p class="section-intro">The live Mycelium orientation does not reveal a single notebook. It reveals a configured ecosystem of vaults. That is the strategic idea: you keep cognitive, brand, legal, client, archive, product, and memory boundaries intact, while the AI gets tools that can cross those boundaries deliberately.</p>
-    <div class="vault-strategy">
-      <article class="vault-card">
-        <div class="iconline"><span class="iconbox i-leaf"><i data-lucide="folders"></i></span><h3>For the human: clean separation</h3></div>
-        <p>Large domains can stay in their own vaults: a platform vault, a client-project vault, a brand vault, a product vault, an archive, a memory vault, or a legal/process vault. You do not have to collapse everything into one enormous vault just so an AI can find it.</p>
-      </article>
-      <article class="vault-card">
-        <div class="iconline"><span class="iconbox i-sky"><i data-lucide="network"></i></span><h3>For the AI: one operating surface</h3></div>
-        <p>Mycelium gives the AI cross-vault tools: search across every vault, find a note when only the title is known, trace links between vaults, get ecosystem statistics, and optionally search all vaults by meaning.</p>
-      </article>
-    </div>
-    <div class="surface-line" aria-label="Cross-vault capabilities">
-      <div class="surface-item"><strong>16</strong><span>vaults live here</span></div>
-      <div class="surface-item"><strong>5</strong><span>cross-vault tools</span></div>
-      <div class="surface-item"><strong>all</strong><span>tools accept vault where relevant</span></div>
-      <div class="surface-item"><strong>titles</strong><span>can resolve across vaults</span></div>
-      <div class="surface-item"><strong>URIs</strong><span>carry cross-vault links</span></div>
-    </div>
-    <div class="vault-card" style="margin-top:14px">
-      <h3>Example live vault surface from <span class="chip">get_started</span></h3>
-      <p>This is the kind of shape Mycelium is made for: many purposeful containers, one AI-operable surface.</p>
-      <div class="vault-list" aria-label="Configured vault names">
-        <span class="vault-pill">11 The Scattered Folder Vault Test</span>
-        <span class="vault-pill">01 Influencentricity Platform Legacy</span>
-        <span class="vault-pill">00 Influencentricity OS</span>
-        <span class="vault-pill">06 2.0 Influencentricity OS MVP</span>
-        <span class="vault-pill">Wordpress Developers Handbooks</span>
-        <span class="vault-pill">08 Client Projects</span>
-        <span class="vault-pill">Case Publish</span>
-        <span class="vault-pill">05 Tyst Opinion</span>
-        <span class="vault-pill">HomeStead</span>
-        <span class="vault-pill">02 Wicked Evolutions</span>
-        <span class="vault-pill">ThinkNiceNow</span>
-        <span class="vault-pill">04 Helena Willow Brand</span>
-        <span class="vault-pill">05 Processen mot Uppsala Kommun</span>
-        <span class="vault-pill">100 Archive All</span>
-        <span class="vault-pill">03 Finding Influencentricity</span>
-        <span class="vault-pill">Memory</span>
-      </div>
-    </div>
-    <div class="callout"><strong>Why this matters:</strong> Mycelium is not only "AI can use Obsidian." It is "AI can operate across a deliberately partitioned knowledge ecosystem while the human keeps each domain understandable."</div>
-  </section>
-
-  <section class="section" id="together">
-    <div class="section-head">
-      <div>
-        <p class="eyebrow">What we can do together</p>
-        <h2>Useful work, not just access.</h2>
-        <p class="section-intro">The toolset is broad, but the user benefit is simple: the AI can find, read, organize, write, query, and maintain your own notes across separate vaults without turning your knowledge into someone else's cloud.</p>
-      </div>
-    </div>
-    <div class="grid three">
-      <article class="card">
-        <div class="iconline"><span class="iconbox i-leaf"><i data-lucide="search"></i></span><h3>Find the right notes</h3></div>
-        <p>Search by text, by meaning, by tag, by file name, by folder, by frontmatter property, or across every configured vault at once.</p>
-      </article>
-      <article class="card">
-        <div class="iconline"><span class="iconbox i-sky"><i data-lucide="book-open-text"></i></span><h3>Read with context</h3></div>
-        <p>Open whole files, inspect outlines, follow wikilinks, gather backlinks, and pull enough surrounding context to understand why a note matters.</p>
-      </article>
-      <article class="card">
-        <div class="iconline"><span class="iconbox i-sun"><i data-lucide="file-pen-line"></i></span><h3>Edit without clumsiness</h3></div>
-        <p>Create notes, update frontmatter, append to sections, move files, rename notes, and keep wikilinks pointing to the right place.</p>
-      </article>
-      <article class="card">
-        <div class="iconline"><span class="iconbox i-berry"><i data-lucide="database"></i></span><h3>Query like a database</h3></div>
-        <p>Use properties, tags, Bases, and Dataview-like filters to turn notes in separate domains into lists, dashboards, and decision surfaces.</p>
-      </article>
-      <article class="card">
-        <div class="iconline"><span class="iconbox i-leaf"><i data-lucide="activity"></i></span><h3>Maintain the vault</h3></div>
-        <p>Spot broken links, unresolved links, dead ends, orphan notes, stale notes, duplicate paths, and other quiet sources of entropy.</p>
-      </article>
-      <article class="card">
-        <div class="iconline"><span class="iconbox i-sky"><i data-lucide="shield-check"></i></span><h3>Stay local-first</h3></div>
-        <p>The server runs on your machine. Your vaults remain markdown on disk. Optional embeddings can run through local Ollama.</p>
-      </article>
-    </div>
-  </section>
-
-  <section class="section" id="ways-in">
-    <p class="eyebrow">Four ways into the vault</p>
-    <h2>The AI does not have one search box. It has several ways to approach knowledge.</h2>
-    <p class="section-intro">This is the heart of the product story: different questions need different retrieval paths, and some questions need to cross vault boundaries.</p>
-    <div class="lanes" style="margin-top:26px">
-      <article class="lane">
-        <span class="lane-number">01</span>
-        <h3>Keyword and full-text</h3>
-        <p>Best when the user remembers a phrase, project name, person, tag, or exact term, even if it could live in several vaults.</p>
-        <div class="chips"><span class="chip ok">always available</span><span class="chip">search_content</span><span class="chip">search_with_context</span><span class="chip app">vault_search</span></div>
-      </article>
-      <article class="lane">
-        <span class="lane-number">02</span>
-        <h3>Meaning-based search</h3>
-        <p>Best when the user remembers the idea, not the words. Optional local embeddings make this possible.</p>
-        <div class="chips"><span class="chip warn">requires Ollama</span><span class="chip">semantic_search</span><span class="chip">semantic_search_all</span><span class="chip">get_similar</span></div>
-      </article>
-      <article class="lane">
-        <span class="lane-number">03</span>
-        <h3>Link reading</h3>
-        <p>Best when the question lives in relationships: what points here, where does this lead, what is disconnected?</p>
-        <div class="chips"><span class="chip ok">navigation, not ranking</span><span class="chip">backlinks</span><span class="chip">outlinks</span><span class="chip">orphans</span></div>
-      </article>
-      <article class="lane">
-        <span class="lane-number">04</span>
-        <h3>Structured query</h3>
-        <p>Best when notes have properties: status, type, priority, owner, area, date, client, stage, or anything else.</p>
-        <div class="chips"><span class="chip ok">database-like</span><span class="chip">query_notes</span><span class="chip app">query_base</span></div>
-      </article>
-    </div>
-  </section>
-
-  <section class="section" id="inside-obsidian">
-    <p class="eyebrow">Advanced operator layer</p>
-    <h2>When Obsidian is running, the AI can work inside the living app.</h2>
-    <p class="section-intro">The filesystem tier gives Mycelium sovereignty and reliability: markdown on disk, available even when Obsidian is closed. The CLI tier adds something different. It lets an experienced AI and Obsidian operator reach into the running application: commands, Bases, templates, sync, history, plugins, snippets, themes, hotkeys, recents, and runtime APIs.</p>
-    <div class="operator-wrap">
-      <article class="operator-panel">
-        <div class="iconline"><span class="iconbox i-sun"><i data-lucide="app-window"></i></span><h3>The CLI tier is the app-aware layer</h3></div>
-        <p>This is where Mycelium stops being only a file operator and starts becoming an Obsidian operator. The AI can use Obsidian's own search, create from your templates, inspect Bases views, compare and restore history, read sync state, and run commands from the command palette.</p>
-        <div class="operator-grid">
-          <div class="operator-item"><strong>Use Obsidian structures</strong><span><span class="chip">vault_search</span> <span class="chip">query_base</span> <span class="chip">list_base_views</span></span></div>
-          <div class="operator-item"><strong>Create in your patterns</strong><span><span class="chip">list_templates</span> <span class="chip">read_template</span> <span class="chip">create_from_template</span></span></div>
-          <div class="operator-item"><strong>Recover and compare</strong><span><span class="chip">diff_versions</span> <span class="chip">restore_version</span> <span class="chip">sync_history</span></span></div>
-          <div class="operator-item"><strong>Shape the workspace</strong><span><span class="chip">execute_command</span> <span class="chip">set_theme</span> <span class="chip">enable_plugin</span></span></div>
-        </div>
-      </article>
-      <article class="operator-panel eval-card">
-        <div class="iconline"><span class="iconbox i-berry"><i data-lucide="square-terminal"></i></span><h3><span class="chip">eval_obsidian</span> is the power hatch</h3></div>
-        <p><span class="chip">eval_obsidian</span> runs JavaScript inside Obsidian with access to the app runtime. That means the AI can inspect internal state, use Obsidian APIs, reach capabilities that are not yet wrapped as formal tools, and prototype highly specific operations.</p>
-        <p>This is the advanced world. It belongs with experienced AI and Obsidian operators who understand the vault, the app, and the consequences of runtime access.</p>
-        <div class="operator-grid">
-          <div class="operator-item eval-card"><strong>Deep inspection</strong><span>Ask the live app what it knows, not only what files contain.</span></div>
-          <div class="operator-item eval-card"><strong>Plugin bridges</strong><span>Explore APIs exposed by installed plugins.</span></div>
-          <div class="operator-item eval-card"><strong>Custom operations</strong><span>Do precise runtime work before it deserves a dedicated tool.</span></div>
-          <div class="operator-item eval-card"><strong>Operator choice</strong><span>Disable it with <span class="chip">OBSIDIAN_DISABLED_TOOLS</span> when a deployment should stay conservative.</span></div>
-        </div>
-      </article>
-    </div>
-    <div class="responsibility"><strong>Ownership and responsibility:</strong> this power is not a scare warning; it is the honest shape of local ownership. The human operator owns the vault, chooses which tools are exposed, decides when the app-aware layer is appropriate, and can disable advanced tools for safer everyday deployments.</div>
-  </section>
-
-  <section class="section" id="workflows">
-    <p class="eyebrow">User-friendly workflows</p>
-    <h2>What the tools add up to.</h2>
-    <p class="section-intro">These examples are written for a human deciding what Mycelium is for. The exact tool names stay available as proof underneath the plain language.</p>
-    <div class="workflow-grid" style="margin-top:26px">
-      <article class="workflow">
-        <h3>Start a session inside a large vault</h3>
-        <p>Orient before acting. The AI can map the configured vaults, see which tools are available, and choose the safest route.</p>
-        <div class="steps">
-          <div class="step"><span class="step-num">1</span><span>Run orientation and discover the available surface.</span></div>
-          <div class="step"><span class="step-num">2</span><span>Check vault names, tool tiers, and disabled tools.</span></div>
-          <div class="step"><span class="step-num">3</span><span>Search, read, or query with the right retrieval mode.</span></div>
-        </div>
-      </article>
-      <article class="workflow">
-        <h3>Turn a scattered topic into a cited synthesis</h3>
-        <p>The AI can search across vaults, follow promising notes, read a small subset deeply, and produce an answer tied back to source files.</p>
-        <div class="steps">
-          <div class="step"><span class="step-num">1</span><span>Search all vaults for the topic and related phrases.</span></div>
-          <div class="step"><span class="step-num">2</span><span>Find dedicated notes, backlinks, and local context.</span></div>
-          <div class="step"><span class="step-num">3</span><span>Read only the notes that matter and synthesize.</span></div>
-        </div>
-      </article>
-      <article class="workflow">
-        <h3>Ask across domains without merging them</h3>
-        <p>A product question may touch brand, platform, client work, development notes, old strategy, and memory. Mycelium lets the AI cross those boundaries while the vaults stay separate for you.</p>
-        <div class="steps">
-          <div class="step"><span class="step-num">1</span><span>Start with <span class="chip">get_started</span> to see the configured vault names.</span></div>
-          <div class="step"><span class="step-num">2</span><span>Use <span class="chip">search_all_vaults</span> or <span class="chip">find_note_by_name</span> when the location is uncertain.</span></div>
-          <div class="step"><span class="step-num">3</span><span>Trace cross-vault links and cite which vault each piece of evidence came from.</span></div>
-        </div>
-      </article>
-      <article class="workflow">
-        <h3>Clean up a vault without losing its shape</h3>
-        <p>Use health reports, broken-link checks, and stale-note scans to find the places where one vault or the whole ecosystem is fraying.</p>
-        <div class="steps">
-          <div class="step"><span class="step-num">1</span><span>Run a vault health report.</span></div>
-          <div class="step"><span class="step-num">2</span><span>Review broken links, orphans, dead ends, and stale notes.</span></div>
-          <div class="step"><span class="step-num">3</span><span>Move, rename, merge, or repair with wikilinks updated.</span></div>
-        </div>
-      </article>
-      <article class="workflow">
-        <h3>Build a lightweight operating system in markdown</h3>
-        <p>Properties, tasks, tags, Bases, daily notes, and templates let each vault behave like its own working environment while still belonging to the larger surface.</p>
-        <div class="steps">
-          <div class="step"><span class="step-num">1</span><span>Use frontmatter properties and tags as the organizing layer.</span></div>
-          <div class="step"><span class="step-num">2</span><span>Query notes by status, type, folder, or priority.</span></div>
-          <div class="step"><span class="step-num">3</span><span>Create from templates and update daily notes or task lists.</span></div>
-        </div>
-      </article>
-    </div>
-  </section>
-
-  <section class="section" id="toolset">
-    <div class="section-head">
-      <div>
-        <p class="eyebrow">Full toolset overview</p>
-        <h2>Browse by what you want the AI to do.</h2>
-        <p class="section-intro">This keeps the exact tool names from the repo, but organizes them into approachable categories. Filesystem tools work without Obsidian open. App tools need Obsidian 1.12+ running with CLI enabled.</p>
-      </div>
-    </div>
-    <div class="tool-browser">
-      <div class="tool-top">
-        <input class="search" id="toolSearch" type="search" placeholder="Search tools or descriptions, for example: backlinks, template, daily, restore">
-        <div class="toggles" aria-label="Tool tier filter">
-          <button class="toggle active" data-tier="all">All</button>
-          <button class="toggle" data-tier="filesystem">Always available</button>
-          <button class="toggle" data-tier="cli">Uses Obsidian app</button>
+  <!-- 00 · MULTI-VAULT STRATEGY -->
+  <section class="std">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="ix">00 — Strategy</span>
+        <div>
+          <h2>Separate the worlds for yourself. Let the AI <em>work across them</em> for you.</h2>
+          <p class="note">
+            This is the strategic center. Each world stays walled off and understandable — and your AI still
+            <b>operates across all of them, deliberately.</b> Obsidian stays the place you think and write; Mycelium is the
+            local operations layer the AI works through. Your knowledge keeps its boundaries; the AI gets one way in.
+          </p>
         </div>
       </div>
-      <div class="tool-layout">
-        <div class="cat-list" id="categoryList" aria-label="Tool categories"></div>
-        <div class="tool-panel">
-          <div class="panel-head">
-            <div class="panel-title">
-              <h3 id="panelTitle">All tools</h3>
-              <p id="panelDesc">Every tool exposed by Mycelium for Obsidian.</p>
+
+      <div class="diagram">
+        <div class="flowmap">
+          <div class="fm-vaults">
+            <div class="h">Your vaults — each kept separate</div>
+            <div class="fm-tiles">
+              <div class="fm-tile">Brands</div><div class="fm-tile">Products</div>
+              <div class="fm-tile">Clients</div><div class="fm-tile">Archives</div>
+              <div class="fm-tile">Memory</div><div class="fm-tile">Legal / process</div>
+              <div class="fm-tile">Platform</div><div class="fm-tile">Personal</div>
             </div>
-            <div class="badge-row" id="panelBadges"></div>
           </div>
-          <div class="tool-grid" id="toolGrid"></div>
+          <div class="fm-arrow"><span class="h">→</span><span class="v">↓</span></div>
+          <div class="fm-node">
+            <div class="nm">Mycelium</div>
+            <div class="ds">one local MCP<br />102 tools · v1.3.0</div>
+          </div>
+          <div class="fm-arrow"><span class="h">⇄</span><span class="v">↕</span></div>
+          <div class="fm-node ai">
+            <div class="nm">Your AI</div>
+            <div class="ds">works across<br />all of them</div>
+          </div>
+        </div>
+        <p class="dgm-cap">The walls stay up for you. <b>The AI works across the whole ecosystem.</b></p>
+      </div>
+
+      <div class="invite" style="margin-top:clamp(28px,4vh,48px);">
+        <div class="col">
+          <span class="ph">For the human</span>
+          <h3>Clean separation</h3>
+          <p>A platform vault, a client-project vault, a brand vault, an archive, a memory vault, a legal/process vault. <b>You never collapse everything into one enormous vault just so an AI can find it.</b></p>
+        </div>
+        <div class="col">
+          <span class="ph">For the AI</span>
+          <h3>One operating surface</h3>
+          <p>Cross-vault tools: search every vault at once, find a note from only its title, trace links between vaults, pull ecosystem stats — <b>and optionally search all vaults by meaning.</b></p>
         </div>
       </div>
     </div>
   </section>
 
-  <section class="section" id="proof">
-    <p class="eyebrow">Proof point</p>
-    <h2>A real task in a real knowledge ecosystem.</h2>
-    <p class="section-intro">In the QIAI test, Mycelium helped an AI narrow a large multi-vault corpus into a cited synthesis. This proves the search and structure workflow. It does not claim semantic search for that specific run.</p>
-    <div class="proof" style="margin-top:26px">
-      <div class="funnel">
-        <div class="funnel-row"><div class="funnel-num">122 MB</div><div class="bar">6,201 notes across 16 vaults</div></div>
-        <div class="funnel-row"><div class="funnel-num">15.5 MB</div><div class="bar b2">matched "QIAI"</div></div>
-        <div class="funnel-row"><div class="funnel-num">19 notes</div><div class="bar b3">dedicated notes identified</div></div>
-        <div class="funnel-row"><div class="funnel-num">10 read</div><div class="bar b4">deep source reading</div></div>
-        <div class="funnel-row"><div class="funnel-num">20 KB</div><div class="bar b5">cited synthesis</div></div>
+  <!-- 01 · WHAT WE CAN DO TOGETHER -->
+  <section class="std tint-a">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="ix">01 — Together</span>
+        <div>
+          <h2>Useful work, <em>not just access.</em></h2>
+          <p class="note">The toolset is broad; the benefit is simple. Your AI can find, read, organize, write, query and maintain your own notes across separate vaults — <b>without moving your vault into a hosted knowledge base.</b></p>
+        </div>
       </div>
-      <div class="proof-side">
-        <div class="metric"><strong>0.16%</strong><span>of the corpus read deeply</span></div>
-        <div class="metric"><strong>6.8:1</strong><span>compression into synthesis</span></div>
-        <div class="metric"><strong>~12.5m</strong><span>to finished written answer</span></div>
-        <div class="metric"><strong>text + fs</strong><span>tiers used in that run</span></div>
+      <div class="capgrid">
+        <div class="cap"><span class="k">Find</span><h3>Find anything</h3><p>By text, by meaning, by tag, by file name, by frontmatter property — <b>in one vault or all of them at once.</b></p></div>
+        <div class="cap"><span class="k">Read</span><h3>Read with context</h3><p>Whole files, outlines, frontmatter, backlink context — follow link chains across a domain to see <b>why a note matters.</b></p></div>
+        <div class="cap"><span class="k">Write</span><h3>Edit without clumsiness</h3><p>Create, update, move, rename with <b>wikilinks kept pointing right.</b> Edit one section or one property in place — precise, surgical edits.</p></div>
+        <div class="cap"><span class="k">Query</span><h3>Query like a database</h3><p>Properties, tags and Bases turn tagged notes across domains into <b>typed, filterable tables.</b></p></div>
+        <div class="cap"><span class="k">Maintain</span><h3>Audit &amp; maintain</h3><p>Health reports, orphans, broken links, stale notes — <b>the quiet entropy, surfaced</b> before it spreads.</p></div>
+        <div class="cap"><span class="k">Sovereign</span><h3>Stay local-first</h3><p>Mycelium runs on your machine; notes stay markdown on disk; embeddings, when used, run on local Ollama. <b>What leaves your machine depends on the AI client you connect.</b></p></div>
       </div>
     </div>
-    <div class="callout"><strong>Honesty note:</strong> semantic search is real when Ollama and the vector index are correctly available, but the QIAI proof point should be attached to search, structure, and filesystem operations.</div>
   </section>
 
-  <section class="section" id="coming-next">
-    <p class="eyebrow">Coming next</p>
-    <h2>The next layer of Mycelium.</h2>
-    <p class="section-intro">These ideas are designed as future direction. They can inspire a forward-looking page section, but should not be presented as capabilities available in v1.3.0.</p>
-    <div class="coming" style="margin-top:26px">
-      <article class="future"><h3>Graph orientation</h3><p>Helping the AI understand hubs, roots, leaves, and structural position inside a vault.</p></article>
-      <article class="future"><h3>Graph-aware search</h3><p>Using links and note structure to annotate, exclude, or re-rank search results.</p></article>
-      <article class="future"><h3>Relevance plus importance</h3><p>Combining semantic relevance with structural importance, without pretending that is shipped today.</p></article>
-      <article class="future"><h3>Composed vaults</h3><p>Treating folders from different filesystem locations as one working vault surface.</p></article>
-      <article class="future"><h3>Memory capsules</h3><p>Portable, structured memory layers built from vault knowledge.</p></article>
-      <article class="future"><h3>Two Pillars architecture</h3><p>The broader future framing behind graph intelligence and composed knowledge spaces.</p></article>
+  <!-- 02 · SPEC STRIP -->
+  <section class="std">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="ix">02 — Shape</span>
+        <div>
+          <h2>One MCP. Many vaults. <em>Two tiers.</em></h2>
+          <p class="note">Every tool takes an optional vault; cross-vault tools act on all at once. <b>74 work even when Obsidian is closed; 28 reach inside the running app.</b></p>
+        </div>
+      </div>
+      <div class="spec">
+        <div class="s"><div class="v">102</div><div class="k">tools total<br />v1.3.0</div></div>
+        <div class="s"><div class="v">74</div><div class="k">always available<br />app closed</div></div>
+        <div class="s g"><div class="v">28</div><div class="k">use the<br />Obsidian app</div></div>
+        <div class="s g"><div class="v">16</div><div class="k">vaults in one<br />real example</div></div>
+      </div>
+      <div class="btns">
+        <a class="btn ghost" href="architecture.html">How the two tiers work <span class="arr">→</span></a>
+      </div>
     </div>
   </section>
 
-  <section class="section" id="limits">
-    <p class="eyebrow">Setup and limits</p>
-    <h2>Clear boundaries make the product more trustworthy.</h2>
-    <div class="grid three" style="margin-top:26px">
-      <article class="card">
-        <div class="iconline"><span class="iconbox i-leaf"><i data-lucide="hard-drive"></i></span><h3>Always available</h3></div>
-        <p>The filesystem tier works with plain Node.js and markdown files. Obsidian does not need to be open for these 74 tools.</p>
-      </article>
-      <article class="card">
-        <div class="iconline"><span class="iconbox i-sun"><i data-lucide="app-window"></i></span><h3>App-powered tools</h3></div>
-        <p>The 28 CLI tools need Obsidian 1.12+ running with the command line interface enabled. If the app is closed, they fail cleanly.</p>
-      </article>
-      <article class="card">
-        <div class="iconline"><span class="iconbox i-sky"><i data-lucide="brain"></i></span><h3>Optional semantic search</h3></div>
-        <p>Meaning-based search requires local Ollama and an embedding index. Everything else keeps working without it.</p>
-      </article>
-      <article class="card">
-        <div class="iconline"><span class="iconbox i-berry"><i data-lucide="triangle-alert"></i></span><h3>Power tools need care</h3></div>
-        <p><span class="chip">update_file</span> replaces the file body. <span class="chip">update_section</span> on H1 reaches the end of a file. <span class="chip">search_replace_in_file</span> should be used deliberately.</p>
-      </article>
-      <article class="card">
-        <div class="iconline"><span class="iconbox i-leaf"><i data-lucide="sliders-horizontal"></i></span><h3>Tools can be disabled</h3></div>
-        <p>Operators can remove risky or unwanted tools from the exposed MCP surface with <span class="chip">OBSIDIAN_DISABLED_TOOLS</span>.</p>
-      </article>
-      <article class="card">
-        <div class="iconline"><span class="iconbox i-sky"><i data-lucide="lock-keyhole"></i></span><h3>Local-first by design</h3></div>
-        <p>The server is software you run. The vault remains yours: local files, local configuration, and optional local embeddings.</p>
-      </article>
+  <!-- 03 · PROOF -->
+  <section class="std tint-a">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="ix">03 — Proof</span>
+        <div>
+          <h2>A real task in a <em>real</em> ecosystem.</h2>
+          <p class="note">The QIAI live test: narrowing a large multi-vault corpus to a cited synthesis. This proves the <b>search-and-structure</b> workflow — measured, not estimated.</p>
+        </div>
+      </div>
+
+      <div class="diagram">
+        <div class="funnel">
+          <div class="fn-bar fn-w1"><span class="big">122 MB</span><span class="lbl">6,201 notes · 16 vaults</span></div>
+          <div class="fn-arrow">↓</div>
+          <div class="fn-bar fn-w2"><span class="big">15.5 MB</span><span class="lbl">matched &ldquo;QIAI&rdquo; — ~12.7%</span></div>
+          <div class="fn-arrow">↓</div>
+          <div class="fn-bar fn-w3"><span class="big">19 notes</span><span class="lbl">actually about it</span></div>
+          <div class="fn-arrow">↓</div>
+          <div class="fn-bar fn-w4"><span class="big">10 read</span><span class="lbl">deep source reading · 0.16%</span></div>
+          <div class="fn-arrow">↓</div>
+          <div class="fn-bar fn-w5 last"><span class="big">20 KB</span><span class="lbl">cited synthesis</span></div>
+        </div>
+        <p class="dgm-cap">Read <b>0.16% of the corpus</b> and produced a fully-cited synthesis in about <b>12 minutes</b>.</p>
+      </div>
+
+      <div class="spec" style="margin-top:clamp(20px,3vh,36px);">
+        <div class="s"><div class="v">0.16%</div><div class="k">of corpus<br />read deeply</div></div>
+        <div class="s g"><div class="v">6.8:1</div><div class="k">compression<br />into synthesis</div></div>
+        <div class="s"><div class="v">~12.5m</div><div class="k">to a finished<br />written answer</div></div>
+        <div class="s g"><div class="v">text+fs</div><div class="k">tiers used<br />in this run</div></div>
+      </div>
+      <p class="lede" style="margin-top:24px;">
+        <b>Honest note:</b> in this run the semantic tier was unavailable in that runtime, so Mycelium fell back to lexical
+        and context-aware search and finished the task. These numbers prove the <b>search-and-structure</b> workflow;
+        semantic search is measured separately.
+      </p>
     </div>
   </section>
 
-  <footer class="footer">
-    Prototype reference page for Claude Design. Based on @wickedevolutions/mcp-obsidian v1.3.0 and the Mycelium source pack.
+  <!-- BAND · LOCAL-FIRST CLOSE -->
+  <section class="band">
+    <img class="net" src="assets/network-woad.png" alt="" />
+    <div class="wrap inner">
+      <div class="no">Stratum 05 · The connective tissue</div>
+      <h2>A lightweight MCP,<br /><em>local</em> at its core.</h2>
+      <p>
+        Mycelium runs locally. Your vaults stay as markdown on disk. Semantic embeddings, when enabled, use local Ollama.
+        <b>What leaves your machine depends on the AI client and model you connect to it.</b> Like the mycelial network under a
+        forest, Mycelium connects what you already have — your model routing still depends on the client you choose.
+      </p>
+      <p><b>Independence from interdependence.</b> One stratum of a larger organic system — and it stands on its own.</p>
+      <div class="foot">
+        <span class="label">Wicked Evolutions · The Organic System</span>
+        <span class="label">Local-first by design</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 04 · INVITATION / COMING NEXT -->
+  <section class="std tint-b">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="ix">04 — Open</span>
+        <div>
+          <h2>Tell me what&rsquo;s missing. <em>Tell me what&rsquo;s broken.</em></h2>
+          <p class="note">
+            A few things are <b>designed but not yet shipped</b> — see the full list on <a href="architecture.html" style="color:var(--deep);">Architecture</a>.
+            If you run a real vault, your pull on them is worth more than any roadmap.
+          </p>
+        </div>
+      </div>
+      <div class="invite">
+        <div class="col">
+          <span class="ph">Designed · not shipped</span>
+          <h3>Graph orientation</h3>
+          <p>Reading the <b>link graph</b> to tell a hub from a root from a leaf. Today the graph tools are read-only — backlinks, orphans, broken links — <b>they navigate, they don&rsquo;t rank.</b></p>
+        </div>
+        <div class="col">
+          <span class="ph">Designed · not shipped</span>
+          <h3>Composed vaults</h3>
+          <p>Treating folders from different filesystem locations as <b>one working vault surface</b> — operator-controlled, read-only first. The productized API is the open question.</p>
+        </div>
+      </div>
+      <div class="btns">
+        <a class="btn gold solid" href="https://github.com/Wicked-Evolutions/Mycelium-for-Obsidian/issues">Open an issue ↗</a>
+        <a class="btn ghost" href="architecture.html">See how it&rsquo;s built <span class="arr">→</span></a>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="foot">
+    <div class="wrap">
+      <div class="grid">
+        <div class="lockup">Keep your worlds<br /><em>separate.</em> Operate as one.</div>
+        <div class="links">
+          <a href="install.html">Install · two minutes →</a>
+          <a href="toolset.html">Browse all 102 tools →</a>
+          <a href="https://github.com/Wicked-Evolutions/Mycelium-for-Obsidian">github.com/Wicked-Evolutions/Mycelium-for-Obsidian ↗</a>
+          <a href="https://github.com/Wicked-Evolutions/Mycelium-for-Obsidian/releases">Releases ↗</a>
+        </div>
+      </div>
+      <div class="base">
+        <span class="label">Mycelium · for Obsidian · @wickedevolutions/mcp-obsidian v1.3.0</span>
+        <span class="label">MIT · Local-first · Wicked Evolutions</span>
+      </div>
+    </div>
   </footer>
-</main>
 
-<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-<script>
-const categories = [
-  {
-    id:"orientation", label:"Start and orient", tier:"filesystem",
-    desc:"Tools that help the AI understand the configured vaults, available capabilities, and safest next steps before it starts working.",
-    tools:[
-      ["get_started","Orientation guide with configured vaults, tool categories, and tier guidance."],
-      ["discover_tools","Compact inventory of all tools with category and tier."]
-    ]
-  },
-  {
-    id:"files", label:"Read, write, and move notes", tier:"filesystem",
-    desc:"The basic ability to work with markdown files on disk: list, read, create, update, delete, move, and inspect frontmatter.",
-    tools:[
-      ["list_files","List markdown files in a vault."],
-      ["read_file","Read a file with its frontmatter."],
-      ["create_file","Create a note with optional frontmatter."],
-      ["update_file","Replace file contents while preserving frontmatter when omitted."],
-      ["delete_file","Delete a file."],
-      ["get_frontmatter","Read only a note's metadata."],
-      ["update_frontmatter","Merge updates into frontmatter."],
-      ["search_content","Search file contents with regex."],
-      ["move_note","Move a note and update wikilinks pointing to it."]
-    ]
-  },
-  {
-    id:"wikilinks", label:"Follow the note graph", tier:"filesystem",
-    desc:"Tools for resolving Obsidian wikilinks and reading the relationships between notes.",
-    tools:[
-      ["resolve_wikilink","Resolve a wikilink to a file path."],
-      ["get_outlinks","List links that leave a note."],
-      ["get_backlinks","List notes that point to a target note."],
-      ["follow_link","Resolve a wikilink and read the target."],
-      ["rebuild_link_index","Rebuild the wikilink resolution index."]
-    ]
-  },
-  {
-    id:"semantic", label:"Search by meaning", tier:"filesystem",
-    desc:"Optional local embedding tools for finding similar ideas, not only matching words. Requires Ollama for full use.",
-    tools:[
-      ["semantic_search","Find similar content using embeddings."],
-      ["index_vault","Index a vault for semantic search."],
-      ["index_file","Index a single file."],
-      ["get_similar","Find notes similar to a given note."],
-      ["index_status","Check embedding index status and stats."]
-    ]
-  },
-  {
-    id:"query", label:"Query properties", tier:"filesystem",
-    desc:"Turn frontmatter into a structured view over notes, with filters, selected fields, sorting, and limits.",
-    tools:[
-      ["query_notes","Dataview-like query engine for frontmatter fields."]
-    ]
-  },
-  {
-    id:"health", label:"Audit vault health", tier:"filesystem",
-    desc:"Find the places where a vault is losing coherence: stale notes, broken links, orphan notes, and unresolved references.",
-    tools:[
-      ["get_vault_health","Composite health report."],
-      ["get_orphan_notes","Find notes with zero inbound wikilinks."],
-      ["get_broken_links","Find wikilinks pointing to missing notes."],
-      ["get_stale_notes","Find notes not modified within a chosen number of days."],
-      ["list_orphans","Files with no incoming links."],
-      ["list_deadends","Files with no outgoing links."],
-      ["unresolved_links","Broken or unresolved wikilinks across the vault."]
-    ]
-  },
-  {
-    id:"sections", label:"Edit sections safely", tier:"filesystem",
-    desc:"Target part of a markdown file instead of rewriting the whole note.",
-    tools:[
-      ["append_to_section","Add content to the end of a section."],
-      ["prepend_to_section","Add content to the beginning of a section."],
-      ["update_section","Replace content inside a section while preserving the heading."]
-    ]
-  },
-  {
-    id:"crossvault", label:"Work across vaults", tier:"filesystem",
-    desc:"A single server can span many vaults, so the AI can search and trace links across a whole knowledge ecosystem.",
-    tools:[
-      ["search_all_vaults","Search across all configured vaults."],
-      ["semantic_search_all","Semantic search across all configured vaults."],
-      ["find_note_by_name","Find a note by name across vaults."],
-      ["get_cross_vault_links","Find wikilinks between vaults."],
-      ["get_ecosystem_stats","Stats across the entire configured ecosystem."]
-    ]
-  },
-  {
-    id:"daily", label:"Daily notes and tasks", tier:"filesystem",
-    desc:"Small operational tools for daily notes and markdown tasks.",
-    tools:[
-      ["daily_read","Read today's daily note."],
-      ["daily_append","Append content to the daily note."],
-      ["daily_prepend","Prepend content to the daily note."],
-      ["daily_path","Get the configured daily note path."],
-      ["list_tasks","List tasks with status, file, and line number."],
-      ["update_task","Toggle, complete, or uncomplete a task by file and line."]
-    ]
-  },
-  {
-    id:"properties", label:"Tags and properties", tier:"filesystem",
-    desc:"Inventory and edit the metadata layer that makes markdown queryable.",
-    tools:[
-      ["list_tags","List all tags with occurrence counts."],
-      ["get_tag_info","Show tag details and file list."],
-      ["list_properties","List all frontmatter properties with counts."],
-      ["get_property_values","List unique values for a property."],
-      ["property_read","Read a single property from a file."],
-      ["property_set","Set a single frontmatter property."],
-      ["property_remove","Remove a single frontmatter property."]
-    ]
-  },
-  {
-    id:"targeted", label:"Targeted text edits", tier:"filesystem",
-    desc:"Direct edits for appending, prepending, and replacing matched text inside files.",
-    tools:[
-      ["file_append","Append content to the end of a file."],
-      ["file_prepend","Prepend content after frontmatter."],
-      ["search_replace_in_file","Find and replace only matched text."]
-    ]
-  },
-  {
-    id:"metadata", label:"Navigate and inspect", tier:"filesystem",
-    desc:"Small utilities that help the AI understand the shape, size, and location of files and folders.",
-    tools:[
-      ["list_aliases","List aliases in a vault or file."],
-      ["get_file_info","File metadata: name, path, size, created and modified dates."],
-      ["get_folder_info","Folder metadata: file count, folder count, and size."],
-      ["list_folders","List folders, optionally under a parent."],
-      ["read_random","Read a random note."],
-      ["get_outline","Heading tree for a file."],
-      ["word_count","Word and character count."]
-    ]
-  },
-  {
-    id:"management", label:"File management and bookmarks", tier:"filesystem",
-    desc:"Rename, move, and bookmark things while preserving Obsidian link integrity where supported.",
-    tools:[
-      ["rename_file","Rename a file and update wikilinks."],
-      ["move_file","Move a file and update wikilinks."],
-      ["add_bookmark","Bookmark a file, folder, search query, or URL."],
-      ["list_bookmarks","List all bookmarks."]
-    ]
-  },
-  {
-    id:"vault", label:"Vault and workspace", tier:"filesystem",
-    desc:"Understand vault-level information, open workspace layout, Bases files, plugins, snippets, and themes.",
-    tools:[
-      ["search_with_context","Search with matching line context."],
-      ["list_plugins","List installed plugins."],
-      ["get_plugin_info","Get detailed info about a plugin."],
-      ["list_enabled_plugins","List enabled plugins."],
-      ["list_snippets","List installed CSS snippets."],
-      ["list_themes","List installed themes."],
-      ["get_active_theme","Get the active theme."],
-      ["get_vault_info","Vault metadata, path, file count, folder count, and size."],
-      ["get_workspace","Workspace tree with open panes and layout."],
-      ["list_bases","List .base files in the vault."]
-    ]
-  },
-  {
-    id:"app-commands", label:"Run Obsidian itself", tier:"cli",
-    desc:"Tools that use the running Obsidian app: commands, Obsidian search, recent files, vault list, and hotkeys.",
-    tools:[
-      ["list_commands","List available Obsidian commands."],
-      ["execute_command","Run an Obsidian command by ID."],
-      ["vault_search","Search using Obsidian's own search engine."],
-      ["list_recents","List recently opened files."],
-      ["list_known_vaults","List vaults known to Obsidian."],
-      ["get_hotkey","Get the hotkey for a command."],
-      ["list_hotkeys","List hotkey bindings."]
-    ]
-  },
-  {
-    id:"app-templates", label:"Templates, Bases, and history", tier:"cli",
-    desc:"Use Obsidian features that live in the app: templates, Bases views, version history, and sync history.",
-    tools:[
-      ["list_templates","List available templates."],
-      ["read_template","Read template content with optional variables resolved."],
-      ["create_from_template","Create a new file from a template."],
-      ["list_versions","List file version history."],
-      ["read_version","Read a historical version."],
-      ["diff_versions","Diff between versions."],
-      ["restore_version","Restore a previous version."],
-      ["list_files_with_history","List files with version history."],
-      ["sync_status","Show Obsidian Sync status."],
-      ["sync_history","Sync version history for a file."],
-      ["sync_read_version","Read a specific sync version."],
-      ["query_base","Query a Base view as JSON, CSV, TSV, markdown, or paths."],
-      ["create_base_item","Create a new item in a Base."],
-      ["list_base_views","List views in a Base file."]
-    ]
-  },
-  {
-    id:"app-state", label:"Advanced app control", tier:"cli",
-    desc:"Read and change runtime state in Obsidian: plugins, snippets, themes, and the advanced eval_obsidian power hatch for experienced operators.",
-    tools:[
-      ["enable_plugin","Enable an installed plugin."],
-      ["disable_plugin","Disable a plugin."],
-      ["list_enabled_snippets","List enabled CSS snippets."],
-      ["enable_snippet","Enable a CSS snippet."],
-      ["disable_snippet","Disable a CSS snippet."],
-      ["set_theme","Set the active theme."],
-      ["eval_obsidian","Execute JavaScript inside Obsidian's process with access to the app runtime. Advanced operator tool."]
-    ]
-  }
-];
-
-let activeCategory = "all";
-let activeTier = "all";
-
-const categoryList = document.getElementById("categoryList");
-const toolGrid = document.getElementById("toolGrid");
-const panelTitle = document.getElementById("panelTitle");
-const panelDesc = document.getElementById("panelDesc");
-const panelBadges = document.getElementById("panelBadges");
-const searchInput = document.getElementById("toolSearch");
-
-function countTools(cat){ return cat.tools.length; }
-
-function renderCategories(){
-  const allCount = categories.reduce((sum,cat)=>sum+countTools(cat),0);
-  categoryList.innerHTML = "";
-  const allButton = document.createElement("button");
-  allButton.className = "cat-btn" + (activeCategory === "all" ? " active" : "");
-  allButton.innerHTML = `<strong>All tools</strong><span>${allCount} tools</span>`;
-  allButton.addEventListener("click",()=>{activeCategory="all";render();});
-  categoryList.appendChild(allButton);
-  categories.forEach(cat=>{
-    const btn = document.createElement("button");
-    btn.className = "cat-btn" + (activeCategory === cat.id ? " active" : "");
-    btn.innerHTML = `<strong>${cat.label}</strong><span>${countTools(cat)} tools · ${cat.tier === "cli" ? "app" : "always"}</span>`;
-    btn.addEventListener("click",()=>{activeCategory=cat.id;render();});
-    categoryList.appendChild(btn);
-  });
-}
-
-function flattenTools(){
-  return categories.flatMap(cat=>cat.tools.map(tool=>({
-    name:tool[0],
-    desc:tool[1],
-    category:cat.label,
-    categoryId:cat.id,
-    tier:cat.tier
-  })));
-}
-
-function categoryMeta(){
-  if(activeCategory === "all"){
-    return {
-      title:"All tools",
-      desc:"Every tool exposed by Mycelium for Obsidian, filtered by search and tier.",
-      tiers:["filesystem","cli"]
-    };
-  }
-  const cat = categories.find(c=>c.id===activeCategory);
-  return {title:cat.label, desc:cat.desc, tiers:[cat.tier]};
-}
-
-function renderTools(){
-  const query = searchInput.value.trim().toLowerCase();
-  const meta = categoryMeta();
-  panelTitle.textContent = meta.title;
-  panelDesc.textContent = meta.desc;
-  panelBadges.innerHTML = meta.tiers.map(t=>`<span class="badge ${t === "cli" ? "cli" : "fs"}">${t === "cli" ? "uses Obsidian app" : "always available"}</span>`).join("");
-
-  let tools = flattenTools();
-  if(activeCategory !== "all") tools = tools.filter(t=>t.categoryId===activeCategory);
-  if(activeTier !== "all") tools = tools.filter(t=>t.tier===activeTier);
-  if(query){
-    tools = tools.filter(t=>(t.name+" "+t.desc+" "+t.category).toLowerCase().includes(query));
-  }
-
-  if(!tools.length){
-    toolGrid.innerHTML = `<div class="empty">No tools match this filter.</div>`;
-    return;
-  }
-
-  toolGrid.innerHTML = tools.map(t=>`
-    <article class="tool">
-      <div class="tool-name">${t.name}</div>
-      <p class="tool-desc">${t.desc}</p>
-      <div class="chips" style="margin-top:10px"><span class="chip ${t.tier === "cli" ? "app" : "ok"}">${t.tier === "cli" ? "Obsidian app" : "always available"}</span></div>
-    </article>
-  `).join("");
-}
-
-function render(){
-  renderCategories();
-  renderTools();
-}
-
-document.querySelectorAll(".toggle").forEach(btn=>{
-  btn.addEventListener("click",()=>{
-    document.querySelectorAll(".toggle").forEach(b=>b.classList.remove("active"));
-    btn.classList.add("active");
-    activeTier = btn.dataset.tier;
-    renderTools();
-  });
-});
-
-searchInput.addEventListener("input",renderTools);
-render();
-if(window.lucide){ window.lucide.createIcons(); }
-</script>
+  <script>
+  (function(){var KEY='myc-theme',root=document.documentElement;
+    function sync(){var dark=root.getAttribute('data-theme')==='woad';
+      document.querySelectorAll('.themetog .txt').forEach(function(t){t.textContent=dark?'Paper':'Woad';});}
+    sync();
+    document.querySelectorAll('.themetog').forEach(function(b){b.addEventListener('click',function(){
+      var dark=root.getAttribute('data-theme')==='woad';
+      if(dark){root.removeAttribute('data-theme');}else{root.setAttribute('data-theme','woad');}
+      try{localStorage.setItem(KEY,dark?'paper':'woad');}catch(e){}
+      sync();});});
+  })();
+  </script>
 </body>
 </html>

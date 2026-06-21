@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mycelium for Obsidian — Install</title>
+<meta name="description" content="Install Mycelium for Obsidian: one-click Claude Desktop bundle for macOS Apple Silicon, npm/npx setup for other platforms, OBSIDIAN_VAULTS config, get_started, optional Ollama + app tools, and contributor source build." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,600;1,6..96,400;1,6..96,500&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="mycelium.css" />
+<script>try{if(localStorage.getItem('myc-theme')==='woad')document.documentElement.setAttribute('data-theme','woad');}catch(e){}</script>
+</head>
+<body>
+
+  <template id="__bundler_thumbnail" data-bg-color="#28324f">
+    <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+      <rect width="1200" height="800" fill="#28324f" />
+      <g fill="none" stroke="#9db4e6" stroke-width="7" opacity="0.9">
+        <path d="M600 250 L600 520 M520 440 L600 520 L680 440" />
+        <line x1="470" y1="560" x2="730" y2="560" />
+      </g>
+    </svg>
+  </template>
+
+  <svg width="0" height="0" style="position:absolute;">
+    <filter id="wc"><feTurbulence type="fractalNoise" baseFrequency="0.012" numOctaves="3" seed="11" result="n" /><feDisplacementMap in="SourceGraphic" in2="n" scale="28" xChannelSelector="R" yChannelSelector="G" /></filter>
+  </svg>
+
+  <div class="topbar">
+    <span class="brand label"><span class="dot"></span>Mycelium&nbsp;·&nbsp;for&nbsp;Obsidian</span>
+    <span class="grow"></span>
+    <nav class="label">
+      <a href="index.html">Overview</a>
+      <a href="architecture.html">Architecture</a>
+      <a href="toolset.html">Toolset</a>
+      <a href="install.html" class="active">Install</a>
+      <a href="understand/">Understand</a>
+      <a href="https://github.com/Wicked-Evolutions/Mycelium-for-Obsidian">GitHub&nbsp;↗</a>
+    </nav>
+    <span class="grow"></span>
+    <span class="ship label">v1.3.0&nbsp;·&nbsp;MIT</span>
+    <button class="themetog" type="button" aria-label="Toggle background"><span class="glyph"></span><span class="txt">Woad</span></button>
+  </div>
+
+  <!-- HERO -->
+  <header class="hero">
+    <div class="haze"><span class="a"></span><span class="b"></span></div>
+    <img class="geo" src="assets/network-woad.png" alt="" />
+    <div class="wrap inner">
+      <div class="kick">
+        <span class="label b">Install</span>
+        <span class="label">Self-hosted · runs locally</span>
+        <span class="label accent">~ two minutes</span>
+      </div>
+      <h1 class="display">Point it at<br />your <em>vaults.</em></h1>
+      <p class="sub">
+        Mycelium runs on your machine and talks to your MCP client over stdio. On Claude Desktop for macOS Apple Silicon,
+        use the one-click bundle. Everywhere else, use <code style="font-family:var(--mono);background:rgba(58,74,120,.12);padding:1px 5px;border-radius:2px;">npx</code> —
+        no clone, no build. Name your vaults, restart your client, then ask your assistant to call <code style="font-family:var(--mono);background:rgba(58,74,120,.12);padding:1px 5px;border-radius:2px;">get_started</code>.
+      </p>
+      <div class="btns">
+        <a class="btn solid" href="https://github.com/Wicked-Evolutions/Mycelium-for-Obsidian/releases/latest/download/mcp-obsidian.mcpb">Download .mcpb ↗</a>
+        <a class="btn gold" href="#setup">Use npm / npx <span class="arr">→</span></a>
+        <a class="btn ghost" href="https://github.com/Wicked-Evolutions/Mycelium-for-Obsidian">Get the repo ↗</a>
+        <a class="btn gold" href="https://github.com/Wicked-Evolutions/Mycelium-for-Obsidian/releases">Releases ↗</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- 00 · REQUIREMENTS -->
+  <section class="std">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="ix">00 — Need</span>
+        <div>
+          <h2>What you need first.</h2>
+          <p class="note">Two essentials, one optional. Mycelium stays local; model traffic depends on the AI client you connect.</p>
+        </div>
+      </div>
+      <div class="ltable">
+        <div class="lrow"><div class="lname">Node.js<span class="meta">required · 18+</span></div><div class="ldesc">Mycelium is a lightweight MCP published to npm; <code style="font-family:var(--mono);">npx</code> fetches and runs it. Any recent LTS Node works — the <b>74 filesystem tools</b> run on Node alone.</div></div>
+        <div class="lrow"><div class="lname">Obsidian + a vault<span class="meta">required</span></div><div class="ldesc">One or more vaults — just folders of markdown. The <b>28 CLI tools</b> need Obsidian 1.12+ running with the CLI enabled; if it&rsquo;s closed, they error cleanly and the 74 keep working.</div></div>
+        <div class="lrow"><div class="lname">Local Ollama<span class="meta">optional</span></div><div class="ldesc">Only for <b>meaning-based search</b> (<code style="font-family:var(--mono);">nomic-embed-text</code>). Without it, every other way in — keyword, link-reading, structured query — still works.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 01 · STEPS -->
+  <section class="std tint-a" id="setup">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="ix">01 — Setup</span>
+        <div>
+          <h2>Add Mycelium to <em>Claude.</em></h2>
+          <p class="note">Claude Desktop on macOS Apple Silicon gets the one-click bundle. Other platforms can use <code style="font-family:var(--mono);">npx</code> &mdash; no clone, no build. Building from source is the contributor path, further down.</p>
+        </div>
+      </div>
+
+      <div class="steps">
+        <div class="step-item">
+          <div class="num"></div>
+          <div class="body">
+            <h3>Claude Desktop &mdash; one click</h3>
+            <p>Download <a href="https://github.com/Wicked-Evolutions/Mycelium-for-Obsidian/releases/latest/download/mcp-obsidian.mcpb">mcp-obsidian.mcpb</a>, double-click it, enter your vault paths, and restart Claude Desktop. Then ask your assistant to call <code class="inl">get_started</code>.</p>
+            <p class="note">The one-click bundle is built and tested on <b>macOS Apple Silicon</b>. It ships a prebuilt native module for that platform. On Intel Mac, Windows, or Linux, use npm/npx below instead; npm compiles the native module for your platform at install time.</p>
+          </div>
+        </div>
+
+        <div class="step-item">
+          <div class="num"></div>
+          <div class="body">
+            <h3>Or add it with one command</h3>
+            <p>Claude Code can register it directly. The <code class="inl">npx</code> runner fetches and runs the published package &mdash; <b>nothing to build.</b> Pick clear vault names; the names you choose are exactly what the AI sees.</p>
+            <div class="code">
+              <div class="bar"><span class="t">terminal</span><span class="copyhint">bash</span></div>
+<pre><span class="prompt">$</span> claude mcp add obsidian \
+    -e OBSIDIAN_VAULTS=<span class="s">'{"Work":"/path/to/work","Personal":"/path/to/personal"}'</span> \
+    -- npx @wickedevolutions/mcp-obsidian</pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="step-item">
+          <div class="num"></div>
+          <div class="body">
+            <h3>Or add it by hand</h3>
+            <p>Any MCP client (Claude Desktop, Cursor, &hellip;) takes the same shape in its config. <code class="inl">OBSIDIAN_VAULTS</code> is a JSON object of <b>name &rarr; path</b> &mdash; use neutral, real names.</p>
+            <div class="code">
+              <div class="bar"><span class="t">claude_desktop_config.json</span><span class="copyhint">json</span></div>
+<pre>{
+  <span class="k">"mcpServers"</span>: {
+    <span class="k">"obsidian"</span>: {
+      <span class="k">"command"</span>: <span class="s">"npx"</span>,
+      <span class="k">"args"</span>: [<span class="s">"@wickedevolutions/mcp-obsidian"</span>],
+      <span class="k">"env"</span>: {
+        <span class="k">"OBSIDIAN_VAULTS"</span>: <span class="s">"{\"Work\":\"/Users/you/vaults/work\",\"Personal\":\"/Users/you/vaults/personal\"}"</span>
+      }
+    }
+  }
+}</pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="step-item">
+          <div class="num"></div>
+          <div class="body">
+            <h3>Restart &mdash; then ask it to orient</h3>
+            <p>Config is read <b>once at startup</b>, so restart the client after any change. Then ask your assistant to call <code class="inl">get_started</code> first &mdash; it returns your vaults, the tool categories, and the resolver-first workflow before it touches a note.</p>
+            <div class="code">
+              <div class="bar"><span class="t">ask your assistant</span><span class="copyhint">mcp</span></div>
+<pre><span class="c">"Call get_started, then work from there."</span>
+
+<span class="prompt">→</span> <span class="k">get_started</span>()  <span class="c">returns:</span>
+  <span class="k">configured_vaults</span>      <span class="c">your vaults, by exact name</span>
+  <span class="k">tool_categories</span>        <span class="c">what exists, grouped</span>
+  <span class="k">recommended_steps</span>      <span class="c">resolver-first, link syntax, safety</span></pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="step-item">
+          <div class="num"></div>
+          <div class="body">
+            <h3>Optional &mdash; turn on more reach</h3>
+            <p><b>App tools:</b> run Obsidian 1.12+ with the CLI enabled to unlock the 28 CLI-tier tools. <b>Meaning-based search:</b> run local Ollama with <code class="inl">nomic-embed-text</code> and index a vault. Both are optional; the 74 filesystem tools work on their own.</p>
+            <div class="code">
+              <div class="bar"><span class="t">optional · semantic search</span><span class="copyhint">bash</span></div>
+<pre><span class="prompt">$</span> ollama pull nomic-embed-text
+<span class="prompt">→</span> <span class="k">index_vault</span>(vault=<span class="s">"Work"</span>)   <span class="c"># then semantic_search is live</span></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- contributor build -->
+      <div style="margin-top:clamp(30px,4.5vh,52px); border-top:1px solid var(--pagehair); padding-top:clamp(22px,3vh,34px);">
+        <span class="label accent" style="letter-spacing:0.16em;">Contributor path</span>
+        <h3 style="font-family:var(--disp); font-weight:500; font-size:clamp(21px,2.4vw,29px); line-height:1.02; letter-spacing:-0.01em; margin:10px 0 9px;">Build from source.</h3>
+        <p class="note" style="max-width:62ch; margin-bottom:16px;">Hacking on Mycelium itself? Clone, install and build, then point your client at the local <code class="inl">dist/</code> instead of <code class="inl">npx</code>.</p>
+        <div class="code">
+          <div class="bar"><span class="t">terminal</span><span class="copyhint">bash</span></div>
+<pre><span class="prompt">$</span> git clone https://github.com/Wicked-Evolutions/Mycelium-for-Obsidian
+<span class="prompt">$</span> cd Mycelium-for-Obsidian
+<span class="prompt">$</span> npm install && npm run build
+<span class="c"># then in your client config use:</span>
+<span class="c">#   "command": "node", "args": ["/path/to/Mycelium-for-Obsidian/dist/index.js"]</span></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 02 · TOOL SURFACE -->
+  <section class="std">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="ix">02 — Surface</span>
+        <div>
+          <h2>102 tools, <em>grouped</em> so an AI can find them.</h2>
+          <p class="note">
+            Ask for <code style="font-family:var(--mono);">get_started</code> and it hands over orientation;
+            <code style="font-family:var(--mono);">discover_tools</code> browses the surface by category, compact by default.
+            <b>The full, searchable reference lives on the Toolset page.</b>
+          </p>
+        </div>
+      </div>
+      <div class="spec">
+        <div class="s"><div class="v">102</div><div class="k">tools total<br />17 categories</div></div>
+        <div class="s"><div class="v">74</div><div class="k">filesystem tier<br />app closed</div></div>
+        <div class="s g"><div class="v">28</div><div class="k">CLI tier<br />needs the app</div></div>
+        <div class="s g"><div class="v">1</div><div class="k">MCP<br />many vaults</div></div>
+      </div>
+      <div class="btns">
+        <a class="btn solid" href="toolset.html">Browse all 102 tools <span class="arr">→</span></a>
+      </div>
+    </div>
+  </section>
+
+  <!-- 03 · LIMITS -->
+  <section class="std tint-b">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="ix">03 — Honest</span>
+        <div>
+          <h2>Clear boundaries make it <em>more trustworthy.</em></h2>
+          <p class="note">What works without anything extra, what needs the app, and the two tools to handle deliberately.</p>
+        </div>
+      </div>
+      <div class="capgrid">
+        <div class="cap"><span class="k">Always</span><h3>74 work app-closed</h3><p>The filesystem tier runs on plain Node and markdown. <b>Obsidian doesn&rsquo;t need to be open</b> for these.</p></div>
+        <div class="cap"><span class="k">App</span><h3>28 need the app</h3><p>The CLI tier needs Obsidian 1.12+ running with the CLI enabled. <b>If it&rsquo;s closed, they fail cleanly</b> — the 74 keep going.</p></div>
+        <div class="cap"><span class="k">Optional</span><h3>Semantic is opt-in</h3><p>Meaning-based search needs local Ollama and an index. <b>Everything else works without it.</b></p></div>
+        <div class="cap"><span class="k">Care</span><h3>Two power tools</h3><p><code class="inl">update_file</code> replaces the body; <code class="inl">update_section</code> on an H1 reaches end-of-file. Try them on a test note and keep vaults under git.</p></div>
+        <div class="cap"><span class="k">Control</span><h3>Disable any tool</h3><p>Remove risky or unwanted tools from the exposed surface with <code class="inl">OBSIDIAN_DISABLED_TOOLS</code>.</p></div>
+        <div class="cap"><span class="k">Sovereign</span><h3>Local-first</h3><p>Mycelium runs locally; vault, config and optional embeddings stay on your machine. <b>What leaves depends on the AI client you connect.</b></p></div>
+      </div>
+      <div class="btns">
+        <a class="btn gold solid" href="https://github.com/Wicked-Evolutions/Mycelium-for-Obsidian/issues">Tell me what you need ↗</a>
+        <a class="btn ghost" href="architecture.html">How it works <span class="arr">→</span></a>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="foot">
+    <div class="wrap">
+      <div class="grid">
+        <div class="lockup">Self-hosted.<br /><em>Yours</em> all the way down.</div>
+        <div class="links">
+          <a href="https://github.com/Wicked-Evolutions/Mycelium-for-Obsidian">github.com/Wicked-Evolutions/Mycelium-for-Obsidian ↗</a>
+          <a href="toolset.html">Browse all 102 tools →</a>
+          <a href="index.html">← Overview</a>
+          <a href="architecture.html">Architecture →</a>
+        </div>
+      </div>
+      <div class="base">
+        <span class="label">Mycelium · for Obsidian · @wickedevolutions/mcp-obsidian v1.3.0</span>
+        <span class="label">MIT · Local-first · Wicked Evolutions</span>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+  (function(){var KEY='myc-theme',root=document.documentElement;
+    function sync(){var dark=root.getAttribute('data-theme')==='woad';
+      document.querySelectorAll('.themetog .txt').forEach(function(t){t.textContent=dark?'Paper':'Woad';});}
+    sync();
+    document.querySelectorAll('.themetog').forEach(function(b){b.addEventListener('click',function(){
+      var dark=root.getAttribute('data-theme')==='woad';
+      if(dark){root.removeAttribute('data-theme');}else{root.setAttribute('data-theme','woad');}
+      try{localStorage.setItem(KEY,dark?'paper':'woad');}catch(e){}
+      sync();});});
+  })();
+  </script>
+</body>
+</html>
