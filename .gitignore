@@ -14,8 +14,14 @@ data/*.db
 .ijfw/
 .codex/
 
-# understand-anything knowledge-graph tooling output — not committed
-.understand-anything/
+# Understand-Anything — commit the graph data (knowledge-graph.json, meta.json,
+# fingerprints.json, .understandignore) so the dashboard CI can publish it;
+# ignore scratch, local config, and any local static build.
+.understand-anything/intermediate/
+.understand-anything/tmp/
+.understand-anything/.trash-*/
+.understand-anything/dashboard-static/
+.understand-anything/config.json
 
 # Local design materials / scratch — not part of the package
 prototypes/
