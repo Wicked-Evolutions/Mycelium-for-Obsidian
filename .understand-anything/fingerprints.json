@@ -1,0 +1,3760 @@
+{
+  "version": "1.0.0",
+  "gitCommitHash": "c00582c00b8aa0a2262728b8fb82d223f7caf1c2",
+  "generatedAt": "2026-06-21T06:29:48.978Z",
+  "files": {
+    ".env.example": {
+      "filePath": ".env.example",
+      "contentHash": "90487610d8adce9123177aa266e52550c5a3318f53a7126298d143b7b878926c",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 19,
+      "hasStructuralAnalysis": true
+    },
+    ".github/ISSUE_TEMPLATE/bug-report.yml": {
+      "filePath": ".github/ISSUE_TEMPLATE/bug-report.yml",
+      "contentHash": "ff7e82341ae328d70838a122d82820cf699dbb0b597f6a5a4d6e36b2d1644f2f",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 39,
+      "hasStructuralAnalysis": true
+    },
+    ".github/ISSUE_TEMPLATE/feature-request.yml": {
+      "filePath": ".github/ISSUE_TEMPLATE/feature-request.yml",
+      "contentHash": "7f4901eb230d5d17a16b5d14cce5d5bf8a182e8d670a30509eab7567cabcd7e9",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 16,
+      "hasStructuralAnalysis": true
+    },
+    ".github/PULL_REQUEST_TEMPLATE.md": {
+      "filePath": ".github/PULL_REQUEST_TEMPLATE.md",
+      "contentHash": "4569339cb88391c768142bcd493d32838544fa390113fcaad7222d610cd2c1c2",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 19,
+      "hasStructuralAnalysis": true
+    },
+    ".github/workflows/add-to-project.yml": {
+      "filePath": ".github/workflows/add-to-project.yml",
+      "contentHash": "2cf97c0b2a10a7770dce9fe13c2291dfeeaf736ead16393d4d47b25b47ff86d4",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 15,
+      "hasStructuralAnalysis": true
+    },
+    ".npmignore": {
+      "filePath": ".npmignore",
+      "contentHash": "6dd3fd6ddc2ea6868363586fae47aba7b562a1024a695c46bf063a58ab5688ea",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 13,
+      "hasStructuralAnalysis": false
+    },
+    "CHANGELOG.md": {
+      "filePath": "CHANGELOG.md",
+      "contentHash": "560665ae7bc26b6d83e72b65dd463f72cfbe094c3d438f3dbc7f2bb76343c76e",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 133,
+      "hasStructuralAnalysis": true
+    },
+    "CONTRIBUTING.md": {
+      "filePath": "CONTRIBUTING.md",
+      "contentHash": "643486ea34e84f39f8dd9c1e0ecd62f1c5679f8329b8c837585b1f5b8e268bab",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 68,
+      "hasStructuralAnalysis": true
+    },
+    "manifest.json": {
+      "filePath": "manifest.json",
+      "contentHash": "279a998c7ab2b92aa56460767df9714155ab60cd4002f0ab9053e4ea6204b57e",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 39,
+      "hasStructuralAnalysis": true
+    },
+    "package.json": {
+      "filePath": "package.json",
+      "contentHash": "f2c2874f890b1a5f65a4bd2c530a9182979eda212d80563c04a19976525188f3",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 64,
+      "hasStructuralAnalysis": true
+    },
+    "README.md": {
+      "filePath": "README.md",
+      "contentHash": "803dfd238c3b44f6d6b2efb35fa1edd3cc8d4967df0a4117c7a5ff9f28d53095",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 593,
+      "hasStructuralAnalysis": true
+    },
+    "scripts/build-mcpb.sh": {
+      "filePath": "scripts/build-mcpb.sh",
+      "contentHash": "1df7e642e606cd8739b80c9eb0852a6db4897c5a496c13bb8fbf5d633aaac539",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 43,
+      "hasStructuralAnalysis": true
+    },
+    "SECURITY.md": {
+      "filePath": "SECURITY.md",
+      "contentHash": "e8efc4067399960899e9d8cc37ad863167acf3b25f64b1a8039c4189a6ff4884",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 31,
+      "hasStructuralAnalysis": true
+    },
+    "src/cli/bridge.ts": {
+      "filePath": "src/cli/bridge.ts",
+      "contentHash": "be96b4a6f1f2a99930e9a12adda992209bcef7b72e9809ae3c62807aa12bdf58",
+      "functions": [
+        {
+          "name": "getCliVaultName",
+          "params": [
+            "vaultPath"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "buildVaultNameMap",
+          "params": [
+            "config"
+          ],
+          "returnType": "Map<string, string>",
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "execCli",
+          "params": [
+            "args",
+            "timeoutMs"
+          ],
+          "returnType": "Promise<string>",
+          "exported": true,
+          "lineCount": 34
+        },
+        {
+          "name": "execCliForVault",
+          "params": [
+            "config",
+            "mcpVaultName",
+            "command",
+            "args",
+            "timeoutMs"
+          ],
+          "returnType": "Promise<string>",
+          "exported": true,
+          "lineCount": 27
+        },
+        {
+          "name": "evalInObsidian",
+          "params": [
+            "config",
+            "mcpVaultName",
+            "code",
+            "timeoutMs"
+          ],
+          "returnType": "Promise<string>",
+          "exported": true,
+          "lineCount": 13
+        },
+        {
+          "name": "isCliAvailable",
+          "params": [],
+          "returnType": "Promise<boolean>",
+          "exported": true,
+          "lineCount": 8
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "child_process",
+          "specifiers": [
+            "execFile"
+          ]
+        },
+        {
+          "source": "../config.js",
+          "specifiers": [
+            "Config"
+          ]
+        }
+      ],
+      "exports": [
+        "execCli",
+        "execCliForVault",
+        "evalInObsidian",
+        "isCliAvailable"
+      ],
+      "totalLines": 136,
+      "hasStructuralAnalysis": true
+    },
+    "src/config.ts": {
+      "filePath": "src/config.ts",
+      "contentHash": "28119c19840c2741bb465e950960b9100a8e2c660bebd5a62ff6a86aafc4d2b2",
+      "functions": [
+        {
+          "name": "loadConfig",
+          "params": [],
+          "returnType": "Config",
+          "exported": true,
+          "lineCount": 57
+        },
+        {
+          "name": "getPrimaryVault",
+          "params": [
+            "config"
+          ],
+          "returnType": "VaultConfig",
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "getVaultByName",
+          "params": [
+            "config",
+            "name"
+          ],
+          "returnType": "VaultConfig | undefined",
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "resolveVault",
+          "params": [
+            "config",
+            "vaultName"
+          ],
+          "returnType": "VaultConfig",
+          "exported": true,
+          "lineCount": 18
+        },
+        {
+          "name": "resolvePathInVault",
+          "params": [
+            "vaultPath",
+            "userPath"
+          ],
+          "returnType": "string",
+          "exported": true,
+          "lineCount": 57
+        },
+        {
+          "name": "verifyPathAfterOpen",
+          "params": [
+            "fdPath",
+            "vaultPath"
+          ],
+          "returnType": "Promise<void>",
+          "exported": true,
+          "lineCount": 14
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "path",
+          "specifiers": [
+            "* as path"
+          ]
+        },
+        {
+          "source": "fs",
+          "specifiers": [
+            "* as fs"
+          ]
+        },
+        {
+          "source": "./types/index.js",
+          "specifiers": [
+            "VaultConfig"
+          ]
+        },
+        {
+          "source": "./resolver-hints.js",
+          "specifiers": [
+            "closestMatches",
+            "VAULT_NOT_FOUND_HINT"
+          ]
+        }
+      ],
+      "exports": [
+        "loadConfig",
+        "getPrimaryVault",
+        "getVaultByName",
+        "resolveVault",
+        "resolvePathInVault",
+        "verifyPathAfterOpen"
+      ],
+      "totalLines": 199,
+      "hasStructuralAnalysis": true
+    },
+    "src/embeddings/ollama.ts": {
+      "filePath": "src/embeddings/ollama.ts",
+      "contentHash": "1206d8e338622f8c43fa2a5fa3b8e3cafe64f3d1b457bd01624c9d26317c2c50",
+      "functions": [
+        {
+          "name": "generateEmbedding",
+          "params": [
+            "text",
+            "config"
+          ],
+          "returnType": "Promise<EmbeddingResult>",
+          "exported": true,
+          "lineCount": 27
+        },
+        {
+          "name": "generateEmbeddings",
+          "params": [
+            "texts",
+            "config",
+            "onProgress"
+          ],
+          "returnType": "Promise<EmbeddingResult[]>",
+          "exported": true,
+          "lineCount": 18
+        },
+        {
+          "name": "checkOllamaAvailability",
+          "params": [
+            "config"
+          ],
+          "returnType": "Promise<{\n  available: boolean;\n  hasModel: boolean;\n  error?: string;\n}>",
+          "exported": true,
+          "lineCount": 30
+        },
+        {
+          "name": "cosineSimilarity",
+          "params": [
+            "a",
+            "b"
+          ],
+          "returnType": "number",
+          "exported": true,
+          "lineCount": 18
+        }
+      ],
+      "classes": [],
+      "imports": [],
+      "exports": [
+        "generateEmbedding",
+        "generateEmbeddings",
+        "checkOllamaAvailability",
+        "cosineSimilarity"
+      ],
+      "totalLines": 124,
+      "hasStructuralAnalysis": true
+    },
+    "src/embeddings/storage.ts": {
+      "filePath": "src/embeddings/storage.ts",
+      "contentHash": "fdbf76017124272eed4fc52459f0f56080a7c9002fe1ea8fe82552ca16355829",
+      "functions": [
+        {
+          "name": "getSharedStorage",
+          "params": [
+            "vaultPath"
+          ],
+          "returnType": "EmbeddingStorage",
+          "exported": true,
+          "lineCount": 7
+        }
+      ],
+      "classes": [
+        {
+          "name": "EmbeddingStorage",
+          "methods": [
+            "constructor",
+            "initialize",
+            "store",
+            "get",
+            "isUpToDate",
+            "delete",
+            "deleteStale",
+            "clear",
+            "getAll",
+            "search",
+            "keywordSearch",
+            "getStats",
+            "close"
+          ],
+          "properties": [
+            "db"
+          ],
+          "exported": true,
+          "lineCount": 352
+        }
+      ],
+      "imports": [
+        {
+          "source": "better-sqlite3",
+          "specifiers": [
+            "Database"
+          ]
+        },
+        {
+          "source": "path",
+          "specifiers": [
+            "* as path"
+          ]
+        },
+        {
+          "source": "fs",
+          "specifiers": [
+            "* as fs"
+          ]
+        },
+        {
+          "source": "./ollama.js",
+          "specifiers": [
+            "cosineSimilarity"
+          ]
+        }
+      ],
+      "exports": [
+        "getSharedStorage",
+        "EmbeddingStorage"
+      ],
+      "totalLines": 396,
+      "hasStructuralAnalysis": true
+    },
+    "src/embeddings/watcher.ts": {
+      "filePath": "src/embeddings/watcher.ts",
+      "contentHash": "fe90f5472346a37e7d786f746330b81546e97fef3a93b568d85cee7be75e593f",
+      "functions": [
+        {
+          "name": "hashContent",
+          "params": [
+            "content"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "createVaultWatcher",
+          "params": [
+            "config"
+          ],
+          "returnType": "VaultWatcher",
+          "exported": true,
+          "lineCount": 5
+        }
+      ],
+      "classes": [
+        {
+          "name": "VaultWatcher",
+          "methods": [
+            "constructor",
+            "start",
+            "stop",
+            "watchDirectory",
+            "queueFile",
+            "processPendingFiles"
+          ],
+          "properties": [
+            "watchers",
+            "pendingFiles",
+            "processTimer",
+            "isProcessing",
+            "config",
+            "debounceMs"
+          ],
+          "exported": true,
+          "lineCount": 204
+        }
+      ],
+      "imports": [
+        {
+          "source": "fs",
+          "specifiers": [
+            "* as fs"
+          ]
+        },
+        {
+          "source": "path",
+          "specifiers": [
+            "* as path"
+          ]
+        },
+        {
+          "source": "crypto",
+          "specifiers": [
+            "* as crypto"
+          ]
+        },
+        {
+          "source": "../types/index.js",
+          "specifiers": [
+            "VaultConfig"
+          ]
+        },
+        {
+          "source": "./storage.js",
+          "specifiers": [
+            "getSharedStorage"
+          ]
+        },
+        {
+          "source": "./ollama.js",
+          "specifiers": [
+            "generateEmbedding",
+            "checkOllamaAvailability",
+            "OllamaConfig"
+          ]
+        },
+        {
+          "source": "../parsers/markdown.js",
+          "specifiers": [
+            "extractSections"
+          ]
+        }
+      ],
+      "exports": [
+        "VaultWatcher",
+        "createVaultWatcher"
+      ],
+      "totalLines": 246,
+      "hasStructuralAnalysis": true
+    },
+    "src/http-server.ts": {
+      "filePath": "src/http-server.ts",
+      "contentHash": "926784c473af22cfbcb43927c326f7037adca4e5ef196f2cd9cbd7d0c1672cf0",
+      "functions": [
+        {
+          "name": "createHttpServer",
+          "params": [
+            "options"
+          ],
+          "exported": true,
+          "lineCount": 161
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "crypto",
+          "specifiers": [
+            "* as crypto"
+          ]
+        },
+        {
+          "source": "express",
+          "specifiers": [
+            "express",
+            "Request",
+            "Response",
+            "NextFunction"
+          ]
+        },
+        {
+          "source": "./config.js",
+          "specifiers": [
+            "Config",
+            "getPrimaryVault"
+          ]
+        },
+        {
+          "source": "./tools/index.js",
+          "specifiers": [
+            "allTools",
+            "createAllHandlers"
+          ]
+        }
+      ],
+      "exports": [
+        "createHttpServer"
+      ],
+      "totalLines": 186,
+      "hasStructuralAnalysis": true
+    },
+    "src/index.ts": {
+      "filePath": "src/index.ts",
+      "contentHash": "cde5ec310eaaed07d9e25c3ff3d91ecd6b3b3ce2493be20dd3d1770f14c5b370",
+      "functions": [
+        {
+          "name": "shutdown",
+          "params": [
+            "reason"
+          ],
+          "returnType": "void",
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "main",
+          "params": [],
+          "exported": false,
+          "lineCount": 23
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "dotenv/config",
+          "specifiers": []
+        },
+        {
+          "source": "@modelcontextprotocol/sdk/server/index.js",
+          "specifiers": [
+            "Server"
+          ]
+        },
+        {
+          "source": "@modelcontextprotocol/sdk/server/stdio.js",
+          "specifiers": [
+            "StdioServerTransport"
+          ]
+        },
+        {
+          "source": "@modelcontextprotocol/sdk/types.js",
+          "specifiers": [
+            "ListToolsRequestSchema",
+            "CallToolRequestSchema"
+          ]
+        },
+        {
+          "source": "./config.js",
+          "specifiers": [
+            "loadConfig",
+            "Config"
+          ]
+        },
+        {
+          "source": "./tools/index.js",
+          "specifiers": [
+            "allTools",
+            "createAllHandlers"
+          ]
+        },
+        {
+          "source": "./embeddings/watcher.js",
+          "specifiers": [
+            "createVaultWatcher",
+            "VaultWatcher"
+          ]
+        },
+        {
+          "source": "./http-server.js",
+          "specifiers": [
+            "createHttpServer"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 158,
+      "hasStructuralAnalysis": true
+    },
+    "src/parsers/markdown.ts": {
+      "filePath": "src/parsers/markdown.ts",
+      "contentHash": "3ecd88cfb92b0243cc32c2890f8adf8891896976a38b6d57c0874222651b0cf3",
+      "functions": [
+        {
+          "name": "checkFileSize",
+          "params": [
+            "filePath"
+          ],
+          "returnType": "Promise<void>",
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "parseMarkdownFile",
+          "params": [
+            "filePath",
+            "vaultPath"
+          ],
+          "returnType": "Promise<ParsedFile>",
+          "exported": true,
+          "lineCount": 23
+        },
+        {
+          "name": "extractTitle",
+          "params": [
+            "parsed"
+          ],
+          "returnType": "string",
+          "exported": true,
+          "lineCount": 15
+        },
+        {
+          "name": "updateFrontmatter",
+          "params": [
+            "filePath",
+            "vaultPath",
+            "updates"
+          ],
+          "returnType": "Promise<ParsedFile>",
+          "exported": true,
+          "lineCount": 23
+        },
+        {
+          "name": "createMarkdownFile",
+          "params": [
+            "filePath",
+            "vaultPath",
+            "content",
+            "frontmatter"
+          ],
+          "returnType": "Promise<ParsedFile>",
+          "exported": true,
+          "lineCount": 36
+        },
+        {
+          "name": "fileExists",
+          "params": [
+            "filePath",
+            "vaultPath"
+          ],
+          "returnType": "Promise<boolean>",
+          "exported": true,
+          "lineCount": 12
+        },
+        {
+          "name": "escapeRegex",
+          "params": [
+            "str"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "findSectionByHeading",
+          "params": [
+            "content",
+            "heading"
+          ],
+          "returnType": "SectionBoundary | null",
+          "exported": true,
+          "lineCount": 49
+        },
+        {
+          "name": "atomicWriteFile",
+          "params": [
+            "filePath",
+            "content"
+          ],
+          "returnType": "Promise<void>",
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "appendToSection",
+          "params": [
+            "filePath",
+            "vaultPath",
+            "heading",
+            "newContent"
+          ],
+          "returnType": "Promise<{ success: boolean; error?: string }>",
+          "exported": true,
+          "lineCount": 30
+        },
+        {
+          "name": "prependToSection",
+          "params": [
+            "filePath",
+            "vaultPath",
+            "heading",
+            "newContent"
+          ],
+          "returnType": "Promise<{ success: boolean; error?: string }>",
+          "exported": true,
+          "lineCount": 31
+        },
+        {
+          "name": "replaceSection",
+          "params": [
+            "filePath",
+            "vaultPath",
+            "heading",
+            "newContent"
+          ],
+          "returnType": "Promise<{ success: boolean; error?: string }>",
+          "exported": true,
+          "lineCount": 30
+        },
+        {
+          "name": "slugify",
+          "params": [
+            "text"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "extractSections",
+          "params": [
+            "content"
+          ],
+          "returnType": "ExtractedSection[]",
+          "exported": true,
+          "lineCount": 89
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "gray-matter",
+          "specifiers": [
+            "matter"
+          ]
+        },
+        {
+          "source": "fs/promises",
+          "specifiers": [
+            "* as fs"
+          ]
+        },
+        {
+          "source": "path",
+          "specifiers": [
+            "* as path"
+          ]
+        },
+        {
+          "source": "../types/index.js",
+          "specifiers": [
+            "ParsedFile"
+          ]
+        },
+        {
+          "source": "../config.js",
+          "specifiers": [
+            "resolvePathInVault",
+            "verifyPathAfterOpen"
+          ]
+        }
+      ],
+      "exports": [
+        "parseMarkdownFile",
+        "extractTitle",
+        "updateFrontmatter",
+        "createMarkdownFile",
+        "fileExists",
+        "findSectionByHeading",
+        "appendToSection",
+        "prependToSection",
+        "replaceSection",
+        "extractSections"
+      ],
+      "totalLines": 459,
+      "hasStructuralAnalysis": true
+    },
+    "src/parsers/wikilink.ts": {
+      "filePath": "src/parsers/wikilink.ts",
+      "contentHash": "c8319e7f686611cd298ec326b859eeb91b9597c0ebd1111e41a0c893fe70b53d",
+      "functions": [
+        {
+          "name": "extractWikilinks",
+          "params": [
+            "content"
+          ],
+          "returnType": "WikiLink[]",
+          "exported": true,
+          "lineCount": 22
+        },
+        {
+          "name": "parseCrossVaultLink",
+          "params": [
+            "link"
+          ],
+          "returnType": "{ vault?: string; note: string }",
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "resolveWikilink",
+          "params": [
+            "target",
+            "vaultPath",
+            "fileIndex",
+            "sourcePath",
+            "multiIndex"
+          ],
+          "returnType": "Promise<string | null>",
+          "exported": true,
+          "lineCount": 61
+        },
+        {
+          "name": "searchVaultForFile",
+          "params": [
+            "dirPath",
+            "targetName",
+            "basePath"
+          ],
+          "returnType": "Promise<string | null>",
+          "exported": false,
+          "lineCount": 30
+        },
+        {
+          "name": "buildFileIndex",
+          "params": [
+            "vaultPath"
+          ],
+          "returnType": "Promise<Map<string, string>>",
+          "exported": true,
+          "lineCount": 31
+        },
+        {
+          "name": "buildMultiFileIndex",
+          "params": [
+            "vaultPath"
+          ],
+          "returnType": "Promise<Map<string, string[]>>",
+          "exported": true,
+          "lineCount": 32
+        },
+        {
+          "name": "resolveAllWikilinks",
+          "params": [
+            "content",
+            "vaultPath",
+            "fileIndex"
+          ],
+          "returnType": "Promise<WikiLink[]>",
+          "exported": true,
+          "lineCount": 17
+        },
+        {
+          "name": "getWikilinkLineNumber",
+          "params": [
+            "content",
+            "wikilink"
+          ],
+          "returnType": "number",
+          "exported": true,
+          "lineCount": 9
+        },
+        {
+          "name": "getWikilinkContext",
+          "params": [
+            "content",
+            "wikilink",
+            "contextChars"
+          ],
+          "returnType": "string",
+          "exported": true,
+          "lineCount": 18
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "fs/promises",
+          "specifiers": [
+            "* as fs"
+          ]
+        },
+        {
+          "source": "path",
+          "specifiers": [
+            "* as path"
+          ]
+        },
+        {
+          "source": "../types/index.js",
+          "specifiers": [
+            "WikiLink"
+          ]
+        },
+        {
+          "source": "../config.js",
+          "specifiers": [
+            "resolvePathInVault"
+          ]
+        }
+      ],
+      "exports": [
+        "extractWikilinks",
+        "parseCrossVaultLink",
+        "resolveWikilink",
+        "buildFileIndex",
+        "buildMultiFileIndex",
+        "resolveAllWikilinks",
+        "getWikilinkLineNumber",
+        "getWikilinkContext"
+      ],
+      "totalLines": 289,
+      "hasStructuralAnalysis": true
+    },
+    "src/resolver-hints.ts": {
+      "filePath": "src/resolver-hints.ts",
+      "contentHash": "67dc0e073b577b17d0dc6d499d7163e0f975fa3327b32cc9e52fcfae19ac073c",
+      "functions": [
+        {
+          "name": "noteNotFoundHint",
+          "params": [
+            "suggestions"
+          ],
+          "returnType": "string",
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "formatVaultError",
+          "params": [
+            "error"
+          ],
+          "returnType": "{\n  content: Array<{ type: 'text'; text: string }>;\n  isError: true;\n}",
+          "exported": true,
+          "lineCount": 24
+        },
+        {
+          "name": "editDistance",
+          "params": [
+            "a",
+            "b"
+          ],
+          "returnType": "number",
+          "exported": true,
+          "lineCount": 20
+        },
+        {
+          "name": "closestMatches",
+          "params": [
+            "query",
+            "names",
+            "limit",
+            "maxDistance"
+          ],
+          "returnType": "string[]",
+          "exported": true,
+          "lineCount": 20
+        }
+      ],
+      "classes": [],
+      "imports": [],
+      "exports": [
+        "VAULT_NOT_FOUND_HINT",
+        "NOTE_NOT_FOUND_HINT",
+        "noteNotFoundHint",
+        "formatVaultError",
+        "editDistance",
+        "closestMatches"
+      ],
+      "totalLines": 139,
+      "hasStructuralAnalysis": true
+    },
+    "src/tools/analytics.ts": {
+      "filePath": "src/tools/analytics.ts",
+      "contentHash": "cfb9291a4f8d344583cd755dc064f1a9025cb2105eafea0639ff892f680c98b8",
+      "functions": [
+        {
+          "name": "collectFiles",
+          "params": [
+            "dirPath",
+            "vaultPath",
+            "files"
+          ],
+          "returnType": "Promise<Array<{ relativePath: string; mtime: Date }>>",
+          "exported": false,
+          "lineCount": 25
+        },
+        {
+          "name": "buildBacklinkIndex",
+          "params": [
+            "vaultPath"
+          ],
+          "returnType": "Promise<{ backlinkCounts: Map<string, number>; brokenLinks: Array<{ source: string; target: string; lineNumber: number }> }>",
+          "exported": false,
+          "lineCount": 58
+        },
+        {
+          "name": "matchesExclude",
+          "params": [
+            "filePath",
+            "patterns"
+          ],
+          "returnType": "boolean",
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "createAnalyticsHandlers",
+          "params": [
+            "config"
+          ],
+          "exported": true,
+          "lineCount": 225
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "fs/promises",
+          "specifiers": [
+            "* as fs"
+          ]
+        },
+        {
+          "source": "path",
+          "specifiers": [
+            "* as path"
+          ]
+        },
+        {
+          "source": "@modelcontextprotocol/sdk/types.js",
+          "specifiers": [
+            "Tool"
+          ]
+        },
+        {
+          "source": "../config.js",
+          "specifiers": [
+            "Config",
+            "resolveVault"
+          ]
+        },
+        {
+          "source": "../types/index.js",
+          "specifiers": [
+            "ToolResponse"
+          ]
+        },
+        {
+          "source": "../parsers/markdown.js",
+          "specifiers": [
+            "parseMarkdownFile",
+            "extractTitle"
+          ]
+        },
+        {
+          "source": "../parsers/wikilink.js",
+          "specifiers": [
+            "extractWikilinks",
+            "resolveWikilink",
+            "buildFileIndex",
+            "buildMultiFileIndex"
+          ]
+        },
+        {
+          "source": "./schema-helpers.js",
+          "specifiers": [
+            "vaultParam",
+            "limitParam"
+          ]
+        }
+      ],
+      "exports": [
+        "analyticsTools",
+        "createAnalyticsHandlers"
+      ],
+      "totalLines": 420,
+      "hasStructuralAnalysis": true
+    },
+    "src/tools/categories.ts": {
+      "filePath": "src/tools/categories.ts",
+      "contentHash": "3678e5cad4724f4fc3f58173ea48575b32590ddb195a0a53998c29e2cd46cbd5",
+      "functions": [
+        {
+          "name": "buildModuleIndex",
+          "params": [],
+          "returnType": "Map<string, string>",
+          "exported": false,
+          "lineCount": 27
+        },
+        {
+          "name": "getToolCategory",
+          "params": [
+            "name"
+          ],
+          "returnType": "string",
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "categorize",
+          "params": [
+            "tools"
+          ],
+          "returnType": "Record<string, Tool[]>",
+          "exported": true,
+          "lineCount": 11
+        },
+        {
+          "name": "categorySummary",
+          "params": [
+            "tools"
+          ],
+          "returnType": "Array<{ category: string; count: number }>",
+          "exported": true,
+          "lineCount": 7
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "@modelcontextprotocol/sdk/types.js",
+          "specifiers": [
+            "Tool"
+          ]
+        },
+        {
+          "source": "./files.js",
+          "specifiers": [
+            "fileTools"
+          ]
+        },
+        {
+          "source": "./wikilinks.js",
+          "specifiers": [
+            "wikilinkTools"
+          ]
+        },
+        {
+          "source": "./semantic.js",
+          "specifiers": [
+            "semanticTools"
+          ]
+        },
+        {
+          "source": "./crossvault.js",
+          "specifiers": [
+            "crossVaultTools"
+          ]
+        },
+        {
+          "source": "./sections.js",
+          "specifiers": [
+            "sectionTools"
+          ]
+        },
+        {
+          "source": "./query.js",
+          "specifiers": [
+            "queryTools"
+          ]
+        },
+        {
+          "source": "./analytics.js",
+          "specifiers": [
+            "analyticsTools"
+          ]
+        },
+        {
+          "source": "./fs-promoted.js",
+          "specifiers": [
+            "fsPromotedTools"
+          ]
+        },
+        {
+          "source": "./cli-tools.js",
+          "specifiers": [
+            "cliTools"
+          ]
+        }
+      ],
+      "exports": [
+        "CATEGORY_LABELS",
+        "getToolCategory",
+        "categorize",
+        "categorySummary",
+        "CLI_TIER_LABEL"
+      ],
+      "totalLines": 118,
+      "hasStructuralAnalysis": true
+    },
+    "src/tools/cli-tools.ts": {
+      "filePath": "src/tools/cli-tools.ts",
+      "contentHash": "e0633a7e2512f61d039a4cb36c86f899ad5b35d53f125c0ff083601eadead138",
+      "functions": [
+        {
+          "name": "withCliCheck",
+          "params": [
+            "handler"
+          ],
+          "returnType": "(...args: any[]) => Promise<ToolResponse>",
+          "exported": false,
+          "lineCount": 12
+        },
+        {
+          "name": "createCliHandlers",
+          "params": [
+            "config"
+          ],
+          "returnType": "Record<string, (args: any) => Promise<ToolResponse>>",
+          "exported": true,
+          "lineCount": 213
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "@modelcontextprotocol/sdk/types.js",
+          "specifiers": [
+            "Tool"
+          ]
+        },
+        {
+          "source": "../config.js",
+          "specifiers": [
+            "Config"
+          ]
+        },
+        {
+          "source": "../types/index.js",
+          "specifiers": [
+            "ToolResponse"
+          ]
+        },
+        {
+          "source": "../cli/bridge.js",
+          "specifiers": [
+            "execCli",
+            "execCliForVault",
+            "evalInObsidian",
+            "isCliAvailable"
+          ]
+        },
+        {
+          "source": "./schema-helpers.js",
+          "specifiers": [
+            "vaultParam"
+          ]
+        }
+      ],
+      "exports": [
+        "cliTools",
+        "createCliHandlers"
+      ],
+      "totalLines": 617,
+      "hasStructuralAnalysis": true
+    },
+    "src/tools/crossvault.ts": {
+      "filePath": "src/tools/crossvault.ts",
+      "contentHash": "744245135ecdb6fcba51961017f8457df93627e95398a2a810edb10cbaf43dbd",
+      "functions": [
+        {
+          "name": "getStorage",
+          "params": [
+            "vault"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "createCrossVaultHandlers",
+          "params": [
+            "config"
+          ],
+          "exported": true,
+          "lineCount": 308
+        },
+        {
+          "name": "searchVault",
+          "params": [
+            "vaultPath",
+            "regex",
+            "maxResults",
+            "results",
+            "currentDir"
+          ],
+          "returnType": "Promise<Array<{ path: string; matches: SearchMatch[] }>>",
+          "exported": false,
+          "lineCount": 36
+        },
+        {
+          "name": "findMatches",
+          "params": [
+            "content",
+            "regex"
+          ],
+          "returnType": "SearchMatch[]",
+          "exported": false,
+          "lineCount": 23
+        },
+        {
+          "name": "findNotesByName",
+          "params": [
+            "dirPath",
+            "vaultPath",
+            "vaultName",
+            "searchName",
+            "exactMatch",
+            "matches"
+          ],
+          "returnType": "Promise<void>",
+          "exported": false,
+          "lineCount": 46
+        },
+        {
+          "name": "countMarkdownFiles",
+          "params": [
+            "dirPath",
+            "vaultPath"
+          ],
+          "returnType": "Promise<number>",
+          "exported": false,
+          "lineCount": 21
+        },
+        {
+          "name": "buildNoteIndex",
+          "params": [
+            "dirPath",
+            "vaultPath",
+            "vaultName",
+            "index"
+          ],
+          "returnType": "Promise<void>",
+          "exported": false,
+          "lineCount": 26
+        },
+        {
+          "name": "findUnresolvedLinks",
+          "params": [
+            "dirPath",
+            "vaultPath",
+            "vaultName",
+            "noteIndex",
+            "results"
+          ],
+          "returnType": "Promise<void>",
+          "exported": false,
+          "lineCount": 48
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "fs/promises",
+          "specifiers": [
+            "* as fs"
+          ]
+        },
+        {
+          "source": "path",
+          "specifiers": [
+            "* as path"
+          ]
+        },
+        {
+          "source": "@modelcontextprotocol/sdk/types.js",
+          "specifiers": [
+            "Tool"
+          ]
+        },
+        {
+          "source": "../config.js",
+          "specifiers": [
+            "Config"
+          ]
+        },
+        {
+          "source": "../types/index.js",
+          "specifiers": [
+            "ToolResponse",
+            "SearchMatch",
+            "VaultConfig"
+          ]
+        },
+        {
+          "source": "../parsers/markdown.js",
+          "specifiers": [
+            "parseMarkdownFile",
+            "extractTitle"
+          ]
+        },
+        {
+          "source": "../parsers/wikilink.js",
+          "specifiers": [
+            "extractWikilinks"
+          ]
+        },
+        {
+          "source": "../embeddings/ollama.js",
+          "specifiers": [
+            "generateEmbedding",
+            "checkOllamaAvailability",
+            "cosineSimilarity",
+            "OllamaConfig"
+          ]
+        },
+        {
+          "source": "../embeddings/storage.js",
+          "specifiers": [
+            "getSharedStorage"
+          ]
+        }
+      ],
+      "exports": [
+        "crossVaultTools",
+        "createCrossVaultHandlers"
+      ],
+      "totalLines": 657,
+      "hasStructuralAnalysis": true
+    },
+    "src/tools/discover-tools.ts": {
+      "filePath": "src/tools/discover-tools.ts",
+      "contentHash": "09a806eeca32ba102e62556c49e61e2d4c3053e9712658a7f19a475924df0d1d",
+      "functions": [
+        {
+          "name": "deriveTier",
+          "params": [
+            "category"
+          ],
+          "returnType": "'cli' | 'filesystem'",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "createDiscoverToolsHandlers",
+          "params": [
+            "getTools"
+          ],
+          "returnType": "Record<string, (args: Record<string, unknown>) => Promise<ToolResponse>>",
+          "exported": true,
+          "lineCount": 43
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "@modelcontextprotocol/sdk/types.js",
+          "specifiers": [
+            "Tool"
+          ]
+        },
+        {
+          "source": "../types/index.js",
+          "specifiers": [
+            "ToolResponse"
+          ]
+        },
+        {
+          "source": "./categories.js",
+          "specifiers": [
+            "categorySummary",
+            "getToolCategory",
+            "CLI_TIER_LABEL"
+          ]
+        },
+        {
+          "source": "./schema-helpers.js",
+          "specifiers": [
+            "limitParam"
+          ]
+        }
+      ],
+      "exports": [
+        "discoverToolsTools",
+        "createDiscoverToolsHandlers"
+      ],
+      "totalLines": 102,
+      "hasStructuralAnalysis": true
+    },
+    "src/tools/files.ts": {
+      "filePath": "src/tools/files.ts",
+      "contentHash": "85e43f67f93e54c85d165aa42add82d0a92ae347c47d5de7eef0b3ea6cd2b9b8",
+      "functions": [
+        {
+          "name": "createFileHandlers",
+          "params": [
+            "config"
+          ],
+          "exported": true,
+          "lineCount": 347
+        },
+        {
+          "name": "collectNoteBasenames",
+          "params": [
+            "vaultPath",
+            "results",
+            "dirPath"
+          ],
+          "returnType": "Promise<string[]>",
+          "exported": false,
+          "lineCount": 31
+        },
+        {
+          "name": "updateWikilinksInVault",
+          "params": [
+            "vaultPath",
+            "oldName",
+            "newName",
+            "dirPath"
+          ],
+          "returnType": "Promise<number>",
+          "exported": false,
+          "lineCount": 36
+        },
+        {
+          "name": "escapeRegex",
+          "params": [
+            "str"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "listDirectory",
+          "params": [
+            "dirPath",
+            "vaultPath",
+            "recursive",
+            "results"
+          ],
+          "returnType": "Promise<FileEntry[]>",
+          "exported": false,
+          "lineCount": 31
+        },
+        {
+          "name": "searchFiles",
+          "params": [
+            "dirPath",
+            "vaultPath",
+            "regex",
+            "maxResults",
+            "results"
+          ],
+          "returnType": "Promise<SearchResult[]>",
+          "exported": false,
+          "lineCount": 37
+        },
+        {
+          "name": "findMatches",
+          "params": [
+            "content",
+            "regex"
+          ],
+          "returnType": "SearchMatch[]",
+          "exported": false,
+          "lineCount": 24
+        },
+        {
+          "name": "globToRegex",
+          "params": [
+            "glob"
+          ],
+          "returnType": "RegExp",
+          "exported": false,
+          "lineCount": 7
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "fs/promises",
+          "specifiers": [
+            "* as fs"
+          ]
+        },
+        {
+          "source": "path",
+          "specifiers": [
+            "* as path"
+          ]
+        },
+        {
+          "source": "@modelcontextprotocol/sdk/types.js",
+          "specifiers": [
+            "Tool"
+          ]
+        },
+        {
+          "source": "../config.js",
+          "specifiers": [
+            "Config",
+            "resolveVault",
+            "resolvePathInVault"
+          ]
+        },
+        {
+          "source": "../types/index.js",
+          "specifiers": [
+            "FileEntry",
+            "ToolResponse",
+            "SearchResult",
+            "SearchMatch"
+          ]
+        },
+        {
+          "source": "../parsers/markdown.js",
+          "specifiers": [
+            "parseMarkdownFile",
+            "createMarkdownFile",
+            "updateFrontmatter",
+            "fileExists",
+            "extractTitle"
+          ]
+        },
+        {
+          "source": "./schema-helpers.js",
+          "specifiers": [
+            "vaultParam"
+          ]
+        },
+        {
+          "source": "../resolver-hints.js",
+          "specifiers": [
+            "closestMatches",
+            "noteNotFoundHint"
+          ]
+        }
+      ],
+      "exports": [
+        "fileTools",
+        "createFileHandlers"
+      ],
+      "totalLines": 756,
+      "hasStructuralAnalysis": true
+    },
+    "src/tools/fs-promoted.ts": {
+      "filePath": "src/tools/fs-promoted.ts",
+      "contentHash": "301a8a1f9c79f2b98e31a91d6e4259e2695b516573c823d8a0e8942aa465eb29",
+      "functions": [
+        {
+          "name": "ok",
+          "params": [
+            "text"
+          ],
+          "returnType": "ToolResponse",
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "err",
+          "params": [
+            "text"
+          ],
+          "returnType": "ToolResponse",
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "readObsidianConfig",
+          "params": [
+            "vaultPath",
+            "configFile"
+          ],
+          "returnType": "Promise<any>",
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "writeObsidianConfig",
+          "params": [
+            "vaultPath",
+            "configFile",
+            "data"
+          ],
+          "returnType": "Promise<void>",
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "getDailyNotePath",
+          "params": [
+            "vaultPath",
+            "config"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "formatDate",
+          "params": [
+            "date",
+            "format"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 11
+        },
+        {
+          "name": "listMarkdownFiles",
+          "params": [
+            "dirPath",
+            "basePath"
+          ],
+          "returnType": "Promise<string[]>",
+          "exported": false,
+          "lineCount": 16
+        },
+        {
+          "name": "listAllFolders",
+          "params": [
+            "dirPath",
+            "basePath"
+          ],
+          "returnType": "Promise<string[]>",
+          "exported": false,
+          "lineCount": 15
+        },
+        {
+          "name": "readVaultFile",
+          "params": [
+            "vaultPath",
+            "filePath"
+          ],
+          "returnType": "Promise<string>",
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "writeVaultFile",
+          "params": [
+            "vaultPath",
+            "filePath",
+            "content"
+          ],
+          "returnType": "Promise<void>",
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "parseFrontmatter",
+          "params": [
+            "content"
+          ],
+          "returnType": "{ data: Record<string, any>; content: string }",
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "createFsPromotedHandlers",
+          "params": [
+            "config"
+          ],
+          "exported": true,
+          "lineCount": 1027
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "@modelcontextprotocol/sdk/types.js",
+          "specifiers": [
+            "Tool"
+          ]
+        },
+        {
+          "source": "../config.js",
+          "specifiers": [
+            "Config",
+            "resolveVault",
+            "resolvePathInVault",
+            "verifyPathAfterOpen"
+          ]
+        },
+        {
+          "source": "../types/index.js",
+          "specifiers": [
+            "ToolResponse"
+          ]
+        },
+        {
+          "source": "../parsers/markdown.js",
+          "specifiers": [
+            "parseMarkdownFile"
+          ]
+        },
+        {
+          "source": "fs/promises",
+          "specifiers": [
+            "* as fs"
+          ]
+        },
+        {
+          "source": "path",
+          "specifiers": [
+            "* as path"
+          ]
+        },
+        {
+          "source": "gray-matter",
+          "specifiers": [
+            "matter"
+          ]
+        },
+        {
+          "source": "./schema-helpers.js",
+          "specifiers": [
+            "vaultParam"
+          ]
+        },
+        {
+          "source": "../parsers/wikilink.js",
+          "specifiers": [
+            "buildFileIndex"
+          ]
+        },
+        {
+          "source": "../resolver-hints.js",
+          "specifiers": [
+            "closestMatches",
+            "noteNotFoundHint",
+            "formatVaultError"
+          ]
+        }
+      ],
+      "exports": [
+        "fsPromotedTools",
+        "createFsPromotedHandlers"
+      ],
+      "totalLines": 1636,
+      "hasStructuralAnalysis": true
+    },
+    "src/tools/get-started.ts": {
+      "filePath": "src/tools/get-started.ts",
+      "contentHash": "8f6a2e13dfc28e01f032b71ab5c54941282aa8a0a60c60ddb586a38078b0eefe",
+      "functions": [
+        {
+          "name": "createGetStartedHandlers",
+          "params": [
+            "config",
+            "getTools"
+          ],
+          "returnType": "Record<string, (args: Record<string, unknown>) => Promise<ToolResponse>>",
+          "exported": true,
+          "lineCount": 25
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "@modelcontextprotocol/sdk/types.js",
+          "specifiers": [
+            "Tool"
+          ]
+        },
+        {
+          "source": "../config.js",
+          "specifiers": [
+            "Config"
+          ]
+        },
+        {
+          "source": "../types/index.js",
+          "specifiers": [
+            "ToolResponse"
+          ]
+        },
+        {
+          "source": "./categories.js",
+          "specifiers": [
+            "categorySummary",
+            "CLI_TIER_LABEL"
+          ]
+        }
+      ],
+      "exports": [
+        "getStartedTools",
+        "STATIC_GUIDANCE",
+        "createGetStartedHandlers"
+      ],
+      "totalLines": 91,
+      "hasStructuralAnalysis": true
+    },
+    "src/tools/index.ts": {
+      "filePath": "src/tools/index.ts",
+      "contentHash": "87f3547d68820f81ffcb6af4337def48050cc860cd9c591d094c382c2dca52f1",
+      "functions": [
+        {
+          "name": "withVaultGuard",
+          "params": [
+            "config",
+            "handler"
+          ],
+          "returnType": "AnyHandler",
+          "exported": false,
+          "lineCount": 12
+        },
+        {
+          "name": "guardAll",
+          "params": [
+            "config",
+            "map"
+          ],
+          "returnType": "Record<string, AnyHandler>",
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "createAllHandlers",
+          "params": [
+            "config"
+          ],
+          "returnType": "Record<string, AnyHandler>",
+          "exported": true,
+          "lineCount": 31
+        },
+        {
+          "name": "getToolByName",
+          "params": [
+            "name"
+          ],
+          "returnType": "Tool | undefined",
+          "exported": true,
+          "lineCount": 3
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "@modelcontextprotocol/sdk/types.js",
+          "specifiers": [
+            "Tool"
+          ]
+        },
+        {
+          "source": "../config.js",
+          "specifiers": [
+            "Config",
+            "resolveVault"
+          ]
+        },
+        {
+          "source": "../types/index.js",
+          "specifiers": [
+            "ToolResponse"
+          ]
+        },
+        {
+          "source": "./schema-helpers.js",
+          "specifiers": [
+            "injectVaultEnum"
+          ]
+        },
+        {
+          "source": "../resolver-hints.js",
+          "specifiers": [
+            "formatVaultError"
+          ]
+        },
+        {
+          "source": "./files.js",
+          "specifiers": [
+            "fileTools",
+            "createFileHandlers"
+          ]
+        },
+        {
+          "source": "./wikilinks.js",
+          "specifiers": [
+            "wikilinkTools",
+            "createWikilinkHandlers"
+          ]
+        },
+        {
+          "source": "./semantic.js",
+          "specifiers": [
+            "semanticTools",
+            "createSemanticHandlers"
+          ]
+        },
+        {
+          "source": "./crossvault.js",
+          "specifiers": [
+            "crossVaultTools",
+            "createCrossVaultHandlers"
+          ]
+        },
+        {
+          "source": "./sections.js",
+          "specifiers": [
+            "sectionTools",
+            "createSectionHandlers"
+          ]
+        },
+        {
+          "source": "./query.js",
+          "specifiers": [
+            "queryTools",
+            "createQueryHandlers"
+          ]
+        },
+        {
+          "source": "./analytics.js",
+          "specifiers": [
+            "analyticsTools",
+            "createAnalyticsHandlers"
+          ]
+        },
+        {
+          "source": "./fs-promoted.js",
+          "specifiers": [
+            "fsPromotedTools",
+            "createFsPromotedHandlers"
+          ]
+        },
+        {
+          "source": "./cli-tools.js",
+          "specifiers": [
+            "cliTools",
+            "createCliHandlers"
+          ]
+        },
+        {
+          "source": "./get-started.js",
+          "specifiers": [
+            "getStartedTools",
+            "createGetStartedHandlers"
+          ]
+        },
+        {
+          "source": "./discover-tools.js",
+          "specifiers": [
+            "discoverToolsTools",
+            "createDiscoverToolsHandlers"
+          ]
+        }
+      ],
+      "exports": [
+        "allTools",
+        "createAllHandlers",
+        "getToolByName"
+      ],
+      "totalLines": 122,
+      "hasStructuralAnalysis": true
+    },
+    "src/tools/query.ts": {
+      "filePath": "src/tools/query.ts",
+      "contentHash": "e35b2682e3bf969235fa94bdd5db551256d483747f5dfd2f0afb4fb582f037b2",
+      "functions": [
+        {
+          "name": "matchesCondition",
+          "params": [
+            "frontmatter",
+            "condition"
+          ],
+          "returnType": "boolean",
+          "exported": false,
+          "lineCount": 65
+        },
+        {
+          "name": "projectFields",
+          "params": [
+            "frontmatter",
+            "fields"
+          ],
+          "returnType": "Record<string, unknown>",
+          "exported": false,
+          "lineCount": 13
+        },
+        {
+          "name": "createQueryHandlers",
+          "params": [
+            "config"
+          ],
+          "exported": true,
+          "lineCount": 85
+        },
+        {
+          "name": "collectMarkdownFiles",
+          "params": [
+            "dirPath",
+            "vaultPath",
+            "files"
+          ],
+          "returnType": "Promise<string[]>",
+          "exported": false,
+          "lineCount": 25
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "fs/promises",
+          "specifiers": [
+            "* as fs"
+          ]
+        },
+        {
+          "source": "path",
+          "specifiers": [
+            "* as path"
+          ]
+        },
+        {
+          "source": "@modelcontextprotocol/sdk/types.js",
+          "specifiers": [
+            "Tool"
+          ]
+        },
+        {
+          "source": "../config.js",
+          "specifiers": [
+            "Config",
+            "resolveVault",
+            "resolvePathInVault"
+          ]
+        },
+        {
+          "source": "../types/index.js",
+          "specifiers": [
+            "ToolResponse"
+          ]
+        },
+        {
+          "source": "../parsers/markdown.js",
+          "specifiers": [
+            "parseMarkdownFile",
+            "extractTitle"
+          ]
+        },
+        {
+          "source": "./schema-helpers.js",
+          "specifiers": [
+            "vaultParam",
+            "limitParam"
+          ]
+        }
+      ],
+      "exports": [
+        "queryTools",
+        "createQueryHandlers"
+      ],
+      "totalLines": 271,
+      "hasStructuralAnalysis": true
+    },
+    "src/tools/schema-helpers.ts": {
+      "filePath": "src/tools/schema-helpers.ts",
+      "contentHash": "7386cdea63cf7c545f0f638975908d73b07b7993863e993352f9028c3ec37451",
+      "functions": [
+        {
+          "name": "vaultParamWithEnum",
+          "params": [
+            "names"
+          ],
+          "returnType": "{\n  type: 'string';\n  description: string;\n  enum: string[];\n}",
+          "exported": true,
+          "lineCount": 12
+        },
+        {
+          "name": "injectVaultEnum",
+          "params": [
+            "tools",
+            "names"
+          ],
+          "returnType": "void",
+          "exported": true,
+          "lineCount": 13
+        },
+        {
+          "name": "limitParam",
+          "params": [
+            "defaultVal",
+            "description"
+          ],
+          "returnType": "{ type: 'number'; description: string; default: number }",
+          "exported": true,
+          "lineCount": 10
+        }
+      ],
+      "classes": [],
+      "imports": [],
+      "exports": [
+        "vaultParam",
+        "vaultParamWithEnum",
+        "injectVaultEnum",
+        "limitParam"
+      ],
+      "totalLines": 90,
+      "hasStructuralAnalysis": true
+    },
+    "src/tools/sections.ts": {
+      "filePath": "src/tools/sections.ts",
+      "contentHash": "0fac94cc84631e5abeed60677ee91d478e9d7d462aab3df6e948393e9bac3127",
+      "functions": [
+        {
+          "name": "createSectionHandlers",
+          "params": [
+            "config"
+          ],
+          "exported": true,
+          "lineCount": 129
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "@modelcontextprotocol/sdk/types.js",
+          "specifiers": [
+            "Tool"
+          ]
+        },
+        {
+          "source": "../config.js",
+          "specifiers": [
+            "Config",
+            "resolveVault"
+          ]
+        },
+        {
+          "source": "../types/index.js",
+          "specifiers": [
+            "ToolResponse"
+          ]
+        },
+        {
+          "source": "../parsers/markdown.js",
+          "specifiers": [
+            "appendToSection",
+            "prependToSection",
+            "replaceSection"
+          ]
+        },
+        {
+          "source": "./schema-helpers.js",
+          "specifiers": [
+            "vaultParam"
+          ]
+        }
+      ],
+      "exports": [
+        "sectionTools",
+        "createSectionHandlers"
+      ],
+      "totalLines": 226,
+      "hasStructuralAnalysis": true
+    },
+    "src/tools/semantic.ts": {
+      "filePath": "src/tools/semantic.ts",
+      "contentHash": "90f0340f1104d1034552e18196538067d1f20039ec7c91656eb135f5d4289029",
+      "functions": [
+        {
+          "name": "getStorage",
+          "params": [
+            "vaultPath"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "hashContent",
+          "params": [
+            "content"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "expandQuery",
+          "params": [
+            "query",
+            "ollamaConfig"
+          ],
+          "returnType": "Promise<string[]>",
+          "exported": false,
+          "lineCount": 36
+        },
+        {
+          "name": "createSemanticHandlers",
+          "params": [
+            "config"
+          ],
+          "exported": true,
+          "lineCount": 559
+        },
+        {
+          "name": "collectMarkdownFiles",
+          "params": [
+            "dirPath",
+            "vaultPath",
+            "files"
+          ],
+          "returnType": "Promise<string[]>",
+          "exported": false,
+          "lineCount": 22
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "fs/promises",
+          "specifiers": [
+            "* as fs"
+          ]
+        },
+        {
+          "source": "path",
+          "specifiers": [
+            "* as path"
+          ]
+        },
+        {
+          "source": "crypto",
+          "specifiers": [
+            "* as crypto"
+          ]
+        },
+        {
+          "source": "@modelcontextprotocol/sdk/types.js",
+          "specifiers": [
+            "Tool"
+          ]
+        },
+        {
+          "source": "../config.js",
+          "specifiers": [
+            "Config",
+            "resolveVault",
+            "resolvePathInVault"
+          ]
+        },
+        {
+          "source": "../types/index.js",
+          "specifiers": [
+            "ToolResponse"
+          ]
+        },
+        {
+          "source": "../parsers/markdown.js",
+          "specifiers": [
+            "parseMarkdownFile",
+            "extractTitle",
+            "extractSections"
+          ]
+        },
+        {
+          "source": "../embeddings/ollama.js",
+          "specifiers": [
+            "generateEmbedding",
+            "checkOllamaAvailability",
+            "OllamaConfig"
+          ]
+        },
+        {
+          "source": "../embeddings/storage.js",
+          "specifiers": [
+            "getSharedStorage"
+          ]
+        },
+        {
+          "source": "./schema-helpers.js",
+          "specifiers": [
+            "vaultParam"
+          ]
+        }
+      ],
+      "exports": [
+        "semanticTools",
+        "createSemanticHandlers"
+      ],
+      "totalLines": 764,
+      "hasStructuralAnalysis": true
+    },
+    "src/tools/wikilinks.ts": {
+      "filePath": "src/tools/wikilinks.ts",
+      "contentHash": "4e0859c3abd378f3ca4735ce5e53af89603129aafa1d0d9cb32e669ed8160e6e",
+      "functions": [
+        {
+          "name": "getFileIndex",
+          "params": [
+            "vaultPath"
+          ],
+          "returnType": "Promise<Map<string, string>>",
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "createWikilinkHandlers",
+          "params": [
+            "config"
+          ],
+          "exported": true,
+          "lineCount": 213
+        },
+        {
+          "name": "searchForBacklinks",
+          "params": [
+            "dirPath",
+            "vaultPath",
+            "targetPath",
+            "targetName",
+            "includeContext",
+            "backlinks"
+          ],
+          "returnType": "Promise<void>",
+          "exported": false,
+          "lineCount": 58
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "fs/promises",
+          "specifiers": [
+            "* as fs"
+          ]
+        },
+        {
+          "source": "path",
+          "specifiers": [
+            "* as path"
+          ]
+        },
+        {
+          "source": "@modelcontextprotocol/sdk/types.js",
+          "specifiers": [
+            "Tool"
+          ]
+        },
+        {
+          "source": "../config.js",
+          "specifiers": [
+            "Config",
+            "resolveVault"
+          ]
+        },
+        {
+          "source": "../types/index.js",
+          "specifiers": [
+            "WikiLink",
+            "BacklinkEntry",
+            "ToolResponse"
+          ]
+        },
+        {
+          "source": "../parsers/markdown.js",
+          "specifiers": [
+            "parseMarkdownFile",
+            "extractTitle"
+          ]
+        },
+        {
+          "source": "../parsers/wikilink.js",
+          "specifiers": [
+            "extractWikilinks",
+            "resolveWikilink",
+            "buildFileIndex",
+            "getWikilinkLineNumber",
+            "getWikilinkContext"
+          ]
+        },
+        {
+          "source": "./schema-helpers.js",
+          "specifiers": [
+            "vaultParam"
+          ]
+        },
+        {
+          "source": "../resolver-hints.js",
+          "specifiers": [
+            "closestMatches",
+            "noteNotFoundHint"
+          ]
+        }
+      ],
+      "exports": [
+        "wikilinkTools",
+        "createWikilinkHandlers"
+      ],
+      "totalLines": 399,
+      "hasStructuralAnalysis": true
+    },
+    "src/types/index.ts": {
+      "filePath": "src/types/index.ts",
+      "contentHash": "7f725aff9381fbdb34bd625bfdbcf0a5ee73023630fbba708b22ccfe8119839a",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 92,
+      "hasStructuralAnalysis": true
+    },
+    "test/analytics.test.mjs": {
+      "filePath": "test/analytics.test.mjs",
+      "contentHash": "409c80d1b8b939016017749dbec8451320454ab9c7d5be9971e65b54da7e1e54",
+      "functions": [
+        {
+          "name": "assertNonError",
+          "params": [
+            "res",
+            "label"
+          ],
+          "exported": false,
+          "lineCount": 11
+        },
+        {
+          "name": "parseResult",
+          "params": [
+            "res"
+          ],
+          "exported": false,
+          "lineCount": 3
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test",
+            "describe",
+            "before",
+            "after"
+          ]
+        },
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "node:fs",
+          "specifiers": [
+            "fs"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "./helpers.mjs",
+          "specifiers": [
+            "createTempVault",
+            "cleanup"
+          ]
+        },
+        {
+          "source": "../dist/config.js",
+          "specifiers": [
+            "loadConfig"
+          ]
+        },
+        {
+          "source": "../dist/tools/analytics.js",
+          "specifiers": [
+            "createAnalyticsHandlers"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 599,
+      "hasStructuralAnalysis": true
+    },
+    "test/cli-tools.test.mjs": {
+      "filePath": "test/cli-tools.test.mjs",
+      "contentHash": "88e2c32016821c33155f1572992c5b41fbb37bb356978cd1568bb46927b6394f",
+      "functions": [
+        {
+          "name": "resetMockState",
+          "params": [],
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "assertOk",
+          "params": [
+            "res",
+            "label"
+          ],
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "assertError",
+          "params": [
+            "res",
+            "label"
+          ],
+          "exported": false,
+          "lineCount": 7
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test",
+            "describe",
+            "mock",
+            "before",
+            "after",
+            "beforeEach"
+          ]
+        },
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "./helpers.mjs",
+          "specifiers": [
+            "createTempVault",
+            "cleanup"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 1007,
+      "hasStructuralAnalysis": true
+    },
+    "test/config.test.mjs": {
+      "filePath": "test/config.test.mjs",
+      "contentHash": "14772f444db8f812e55372043d2a0c298bcc3c5d3bfe59f11ea53f0b8fb5aeaf",
+      "functions": [
+        {
+          "name": "withEnv",
+          "params": [
+            "vars",
+            "fn"
+          ],
+          "exported": false,
+          "lineCount": 23
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test",
+            "beforeEach",
+            "afterEach"
+          ]
+        },
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "../dist/config.js",
+          "specifiers": [
+            "loadConfig",
+            "resolveVault",
+            "resolvePathInVault"
+          ]
+        },
+        {
+          "source": "./helpers.mjs",
+          "specifiers": [
+            "createTempVault",
+            "cleanup"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 453,
+      "hasStructuralAnalysis": true
+    },
+    "test/crossvault.test.mjs": {
+      "filePath": "test/crossvault.test.mjs",
+      "contentHash": "fdb016f81e0cf8b1a33af525f509af0ebd9711724acce586d0184bf52fad1654",
+      "functions": [
+        {
+          "name": "payload",
+          "params": [
+            "res"
+          ],
+          "exported": false,
+          "lineCount": 13
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test",
+            "describe",
+            "before",
+            "after"
+          ]
+        },
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "./helpers.mjs",
+          "specifiers": [
+            "createTempVault",
+            "cleanup"
+          ]
+        },
+        {
+          "source": "../dist/config.js",
+          "specifiers": [
+            "loadConfig"
+          ]
+        },
+        {
+          "source": "../dist/tools/crossvault.js",
+          "specifiers": [
+            "createCrossVaultHandlers"
+          ]
+        },
+        {
+          "source": "../dist/embeddings/ollama.js",
+          "specifiers": [
+            "checkOllamaAvailability"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 734,
+      "hasStructuralAnalysis": true
+    },
+    "test/discover-tools.test.mjs": {
+      "filePath": "test/discover-tools.test.mjs",
+      "contentHash": "667f8e8cc6a2b66eae7c0eea19476290cba1ab15c6f5e7bdbe00bab45f0cc59d",
+      "functions": [
+        {
+          "name": "callDiscover",
+          "params": [],
+          "exported": false,
+          "lineCount": 5
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test",
+            "before",
+            "after"
+          ]
+        },
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "./helpers.mjs",
+          "specifiers": [
+            "createTempVault",
+            "cleanup"
+          ]
+        },
+        {
+          "source": "../dist/config.js",
+          "specifiers": [
+            "loadConfig"
+          ]
+        },
+        {
+          "source": "../dist/tools/index.js",
+          "specifiers": [
+            "createAllHandlers"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 247,
+      "hasStructuralAnalysis": true
+    },
+    "test/files.test.mjs": {
+      "filePath": "test/files.test.mjs",
+      "contentHash": "4d7eb44ac73a24d469e09fb21da4588a4bf5f00af0858427562b219c7d5e5b3b",
+      "functions": [
+        {
+          "name": "makeHandlers",
+          "params": [
+            "vaultDir"
+          ],
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "parse",
+          "params": [
+            "res"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "assertOk",
+          "params": [
+            "res"
+          ],
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "assertErr",
+          "params": [
+            "res"
+          ],
+          "exported": false,
+          "lineCount": 7
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test",
+            "describe",
+            "before",
+            "after",
+            "beforeEach"
+          ]
+        },
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "node:fs",
+          "specifiers": [
+            "fs"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "./helpers.mjs",
+          "specifiers": [
+            "createTempVault",
+            "cleanup"
+          ]
+        },
+        {
+          "source": "../dist/config.js",
+          "specifiers": [
+            "loadConfig"
+          ]
+        },
+        {
+          "source": "../dist/tools/files.js",
+          "specifiers": [
+            "createFileHandlers"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 1006,
+      "hasStructuralAnalysis": true
+    },
+    "test/fs-promoted-a.test.mjs": {
+      "filePath": "test/fs-promoted-a.test.mjs",
+      "contentHash": "a1256d1ad4e2691b14ddbcfbb450d698a9d11018e0482fdc8c8322f44cb2265c",
+      "functions": [
+        {
+          "name": "text",
+          "params": [
+            "res"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "assertOk",
+          "params": [
+            "res",
+            "label"
+          ],
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "assertErr",
+          "params": [
+            "res",
+            "label"
+          ],
+          "exported": false,
+          "lineCount": 3
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test",
+            "describe",
+            "before",
+            "after",
+            "beforeEach"
+          ]
+        },
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "node:fs",
+          "specifiers": [
+            "fs"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "./helpers.mjs",
+          "specifiers": [
+            "createTempVault",
+            "cleanup"
+          ]
+        },
+        {
+          "source": "../dist/config.js",
+          "specifiers": [
+            "loadConfig"
+          ]
+        },
+        {
+          "source": "../dist/tools/index.js",
+          "specifiers": [
+            "createAllHandlers"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 1157,
+      "hasStructuralAnalysis": true
+    },
+    "test/fs-promoted-b.test.mjs": {
+      "filePath": "test/fs-promoted-b.test.mjs",
+      "contentHash": "1039b8726e374bf4358a9ee1444938be8dbb9b94f9ebfb9055c0bd82108a81f9",
+      "functions": [
+        {
+          "name": "setup",
+          "params": [
+            "files"
+          ],
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "text",
+          "params": [
+            "res"
+          ],
+          "exported": false,
+          "lineCount": 1
+        },
+        {
+          "name": "assertOk",
+          "params": [
+            "res",
+            "label"
+          ],
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "assertErr",
+          "params": [
+            "res",
+            "label"
+          ],
+          "exported": false,
+          "lineCount": 3
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test",
+            "describe",
+            "before",
+            "after"
+          ]
+        },
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "node:fs",
+          "specifiers": [
+            "fs"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "./helpers.mjs",
+          "specifiers": [
+            "createTempVault",
+            "cleanup"
+          ]
+        },
+        {
+          "source": "../dist/config.js",
+          "specifiers": [
+            "loadConfig"
+          ]
+        },
+        {
+          "source": "../dist/tools/fs-promoted.js",
+          "specifiers": [
+            "createFsPromotedHandlers"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 1350,
+      "hasStructuralAnalysis": true
+    },
+    "test/get-started.test.mjs": {
+      "filePath": "test/get-started.test.mjs",
+      "contentHash": "923092bf29870900ac08ffbdc46d22764a6fdb5b319c9561d0614c5747414aa3",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test",
+            "before",
+            "after"
+          ]
+        },
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "./helpers.mjs",
+          "specifiers": [
+            "createTempVault",
+            "cleanup"
+          ]
+        },
+        {
+          "source": "../dist/config.js",
+          "specifiers": [
+            "loadConfig"
+          ]
+        },
+        {
+          "source": "../dist/tools/index.js",
+          "specifiers": [
+            "createAllHandlers"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 163,
+      "hasStructuralAnalysis": true
+    },
+    "test/handler-smoke.test.mjs": {
+      "filePath": "test/handler-smoke.test.mjs",
+      "contentHash": "9b1d62e4575a363d2bef114dce2c46e02eecb2f9dd030ce5f2d32ed01f3ecff2",
+      "functions": [
+        {
+          "name": "assertNonError",
+          "params": [
+            "res",
+            "label"
+          ],
+          "exported": false,
+          "lineCount": 11
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test",
+            "describe",
+            "before",
+            "after"
+          ]
+        },
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "./helpers.mjs",
+          "specifiers": [
+            "createTempVault",
+            "cleanup"
+          ]
+        },
+        {
+          "source": "../dist/config.js",
+          "specifiers": [
+            "loadConfig"
+          ]
+        },
+        {
+          "source": "../dist/tools/index.js",
+          "specifiers": [
+            "createAllHandlers"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 156,
+      "hasStructuralAnalysis": true
+    },
+    "test/helpers.mjs": {
+      "filePath": "test/helpers.mjs",
+      "contentHash": "3666249af3c48b04a1825616ff2df37bad63f2d71ef15ae34bd5be6a0d24f9a8",
+      "functions": [
+        {
+          "name": "createTempVault",
+          "params": [],
+          "exported": true,
+          "lineCount": 9
+        },
+        {
+          "name": "cleanup",
+          "params": [
+            "dir"
+          ],
+          "exported": true,
+          "lineCount": 3
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:fs",
+          "specifiers": [
+            "fs"
+          ]
+        },
+        {
+          "source": "node:os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        }
+      ],
+      "exports": [
+        "createTempVault",
+        "cleanup"
+      ],
+      "totalLines": 27,
+      "hasStructuralAnalysis": true
+    },
+    "test/markdown.test.mjs": {
+      "filePath": "test/markdown.test.mjs",
+      "contentHash": "0268fab40baf90c6dcf6579d23f9c62de2c2b18b6dd680748b9b4c5ce636a9ae",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test"
+          ]
+        },
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "node:fs",
+          "specifiers": [
+            "fs"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "./helpers.mjs",
+          "specifiers": [
+            "createTempVault",
+            "cleanup"
+          ]
+        },
+        {
+          "source": "../dist/parsers/markdown.js",
+          "specifiers": [
+            "parseMarkdownFile",
+            "createMarkdownFile",
+            "updateFrontmatter"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 215,
+      "hasStructuralAnalysis": true
+    },
+    "test/resolver-hints.test.mjs": {
+      "filePath": "test/resolver-hints.test.mjs",
+      "contentHash": "e4aecd654af6d9af89d9e502ae8e15cfcdfd16a7973e9c10c4a32873f4cf7118",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test",
+            "before",
+            "after"
+          ]
+        },
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "./helpers.mjs",
+          "specifiers": [
+            "createTempVault",
+            "cleanup"
+          ]
+        },
+        {
+          "source": "../dist/config.js",
+          "specifiers": [
+            "resolveVault"
+          ]
+        },
+        {
+          "source": "../dist/resolver-hints.js",
+          "specifiers": [
+            "VAULT_NOT_FOUND_HINT",
+            "NOTE_NOT_FOUND_HINT",
+            "closestMatches",
+            "editDistance"
+          ]
+        },
+        {
+          "source": "../dist/config.js",
+          "specifiers": [
+            "loadConfig"
+          ]
+        },
+        {
+          "source": "../dist/tools/index.js",
+          "specifiers": [
+            "createAllHandlers"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 339,
+      "hasStructuralAnalysis": true
+    },
+    "test/schema-helpers.test.mjs": {
+      "filePath": "test/schema-helpers.test.mjs",
+      "contentHash": "a97270438fc0def57785f3a1511d64be6730d3c133f21c7ba94df48aa986f438",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test"
+          ]
+        },
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 193,
+      "hasStructuralAnalysis": true
+    },
+    "test/sections-query.test.mjs": {
+      "filePath": "test/sections-query.test.mjs",
+      "contentHash": "ddcd921c67fbc6be4ab60d55b6fc087c38748f7692765dc6fa5c8d44b3625bc3",
+      "functions": [
+        {
+          "name": "makeSectionNote",
+          "params": [],
+          "exported": false,
+          "lineCount": 22
+        },
+        {
+          "name": "assertNonError",
+          "params": [
+            "res"
+          ],
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "assertIsError",
+          "params": [
+            "res"
+          ],
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "readVaultFile",
+          "params": [
+            "vaultDir",
+            "relPath"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "makeHandlers",
+          "params": [
+            "vaultDir"
+          ],
+          "exported": false,
+          "lineCount": 18
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test",
+            "describe",
+            "before",
+            "after",
+            "beforeEach",
+            "afterEach"
+          ]
+        },
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "node:fs",
+          "specifiers": [
+            "fs"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "./helpers.mjs",
+          "specifiers": [
+            "createTempVault",
+            "cleanup"
+          ]
+        },
+        {
+          "source": "../dist/config.js",
+          "specifiers": [
+            "loadConfig"
+          ]
+        },
+        {
+          "source": "../dist/tools/index.js",
+          "specifiers": [
+            "createAllHandlers"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 811,
+      "hasStructuralAnalysis": true
+    },
+    "test/semantic.test.mjs": {
+      "filePath": "test/semantic.test.mjs",
+      "contentHash": "f3fa56f4fde8542a5b5d09a33c1ef483918e8b0f1bf658a9735c1212d9d183c5",
+      "functions": [
+        {
+          "name": "parseJson",
+          "params": [
+            "res"
+          ],
+          "exported": false,
+          "lineCount": 6
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test",
+            "describe",
+            "before",
+            "after"
+          ]
+        },
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "./helpers.mjs",
+          "specifiers": [
+            "createTempVault",
+            "cleanup"
+          ]
+        },
+        {
+          "source": "../dist/config.js",
+          "specifiers": [
+            "loadConfig"
+          ]
+        },
+        {
+          "source": "../dist/tools/semantic.js",
+          "specifiers": [
+            "createSemanticHandlers"
+          ]
+        },
+        {
+          "source": "../dist/embeddings/ollama.js",
+          "specifiers": [
+            "checkOllamaAvailability"
+          ]
+        },
+        {
+          "source": "../dist/embeddings/storage.js",
+          "specifiers": [
+            "EmbeddingStorage"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 465,
+      "hasStructuralAnalysis": true
+    },
+    "test/tool-surface.test.mjs": {
+      "filePath": "test/tool-surface.test.mjs",
+      "contentHash": "ef274ec1b886296e0d26efec84beaa41e6695825ae828fcc24936b5f6c1051eb",
+      "functions": [
+        {
+          "name": "makeConfig",
+          "params": [
+            "vaultPath"
+          ],
+          "exported": false,
+          "lineCount": 6
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test"
+          ]
+        },
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "node:os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "node:fs",
+          "specifiers": [
+            "fs"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "./helpers.mjs",
+          "specifiers": [
+            "createTempVault",
+            "cleanup"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 1697,
+      "hasStructuralAnalysis": true
+    },
+    "test/wikilink.test.mjs": {
+      "filePath": "test/wikilink.test.mjs",
+      "contentHash": "aba76e61543e64bae57f7faf24e64cbbb590307fd0b837d0efcd485f8bbf7071",
+      "functions": [
+        {
+          "name": "makeConfig",
+          "params": [
+            "vaultPath"
+          ],
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "payload",
+          "params": [
+            "res"
+          ],
+          "exported": false,
+          "lineCount": 4
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test",
+            "after",
+            "before"
+          ]
+        },
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "node:url",
+          "specifiers": [
+            "fileURLToPath"
+          ]
+        },
+        {
+          "source": "./helpers.mjs",
+          "specifiers": [
+            "createTempVault",
+            "cleanup"
+          ]
+        },
+        {
+          "source": "../dist/parsers/wikilink.js",
+          "specifiers": [
+            "extractWikilinks",
+            "resolveWikilink",
+            "buildFileIndex",
+            "resolveAllWikilinks",
+            "parseCrossVaultLink",
+            "getWikilinkLineNumber",
+            "getWikilinkContext"
+          ]
+        },
+        {
+          "source": "../dist/tools/wikilinks.js",
+          "specifiers": [
+            "createWikilinkHandlers"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 360,
+      "hasStructuralAnalysis": true
+    },
+    "tsconfig.json": {
+      "filePath": "tsconfig.json",
+      "contentHash": "f426ea14c21b0c5a644d58f3560bb8e34d599278140353a51cb952c8fe85c115",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 19,
+      "hasStructuralAnalysis": true
+    }
+  }
+}
