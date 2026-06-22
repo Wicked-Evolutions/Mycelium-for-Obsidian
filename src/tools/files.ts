@@ -17,11 +17,12 @@ import {
 } from '../parsers/markdown.js';
 import { vaultParam } from './schema-helpers.js';
 import { closestMatches, noteNotFoundHint } from '../resolver-hints.js';
+import { withAnnotations, ToolAnnotations } from './safety.js';
 
 /**
  * Tool definitions for file operations
  */
-export const fileTools: Tool[] = [
+const rawFileTools: Tool[] = [
   {
     name: 'list_files',
     description: 'List files and folders in an Obsidian vault directory. Returns name, path, type (file/folder), size, and modification date.',
@@ -206,6 +207,40 @@ export const fileTools: Tool[] = [
 ];
 
 /**
+ * Per-tool MCP behaviour-hint annotations (co-located with the definitions
+ * above — single source of truth for Track C's read-only guard).
+ */
+const fileAnnotations: Record<string, ToolAnnotations> = {
+  list_files: { readOnlyHint: true },
+  read_file: { readOnlyHint: true },
+  create_file: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+  update_file: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+  delete_file: { readOnlyHint: false, destructiveHint: true, idempotentHint: true },
+  get_frontmatter: { readOnlyHint: true },
+  update_frontmatter: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+  search_content: { readOnlyHint: true },
+  move_note: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+};
+
+export const fileTools: Tool[] = withAnnotations(rawFileTools, fileAnnotations);
+
+/**
+ * Byte-delta telemetry helper: the on-disk UTF-8 size of a vault file, or 0 if
+ * the file does not exist (e.g. a freshly-created file's "previous" size, or a
+ * deleted file's "current" size). Never throws — telemetry must not break a
+ * successful mutation.
+ */
+async function fileSizeInBytes(vaultPath: string, relPath: string): Promise<number> {
+  try {
+    const absolute = resolvePathInVault(vaultPath, relPath);
+    const stats = await fs.stat(absolute);
+    return stats.size;
+  } catch {
+    return 0;
+  }
+}
+
+/**
  * Handler functions for file tools
  */
 export function createFileHandlers(config: Config) {
@@ -314,13 +349,17 @@ export function createFileHandlers(config: Config) {
           args.frontmatter || {}
         );
 
+        const currentSizeInBytes = await fileSizeInBytes(vault.path, parsed.path);
+
         return {
           content: [{
             type: 'text',
             text: JSON.stringify({
               created: true,
               path: parsed.path,
-              frontmatter: parsed.frontmatter
+              frontmatter: parsed.frontmatter,
+              previousSizeInBytes: 0,
+              currentSizeInBytes
             }, null, 2)
           }],
           isError: false
@@ -342,6 +381,8 @@ export function createFileHandlers(config: Config) {
       try {
         const vault = resolveVault(config, args.vault);
 
+        const previousSizeInBytes = await fileSizeInBytes(vault.path, args.path);
+
         // Read existing file to preserve frontmatter if not provided
         let finalFrontmatter = args.frontmatter;
         if (!finalFrontmatter) {
@@ -361,12 +402,16 @@ export function createFileHandlers(config: Config) {
           finalFrontmatter
         );
 
+        const currentSizeInBytes = await fileSizeInBytes(vault.path, parsed.path);
+
         return {
           content: [{
             type: 'text',
             text: JSON.stringify({
               updated: true,
-              path: parsed.path
+              path: parsed.path,
+              previousSizeInBytes,
+              currentSizeInBytes
             }, null, 2)
           }],
           isError: false
@@ -383,12 +428,18 @@ export function createFileHandlers(config: Config) {
       try {
         const vault = resolveVault(config, args.vault);
         const absolutePath = resolvePathInVault(vault.path, args.path);
+        const previousSizeInBytes = await fileSizeInBytes(vault.path, args.path);
         await fs.unlink(absolutePath);
 
         return {
           content: [{
             type: 'text',
-            text: JSON.stringify({ deleted: true, path: args.path }, null, 2)
+            text: JSON.stringify({
+              deleted: true,
+              path: args.path,
+              previousSizeInBytes,
+              currentSizeInBytes: 0
+            }, null, 2)
           }],
           isError: false
         };
@@ -430,7 +481,9 @@ export function createFileHandlers(config: Config) {
     }): Promise<ToolResponse> => {
       try {
         const vault = resolveVault(config, args.vault);
+        const previousSizeInBytes = await fileSizeInBytes(vault.path, args.path);
         const parsed = await updateFrontmatter(args.path, vault.path, args.updates);
+        const currentSizeInBytes = await fileSizeInBytes(vault.path, parsed.path);
 
         return {
           content: [{
@@ -438,7 +491,9 @@ export function createFileHandlers(config: Config) {
             text: JSON.stringify({
               updated: true,
               path: parsed.path,
-              frontmatter: parsed.frontmatter
+              frontmatter: parsed.frontmatter,
+              previousSizeInBytes,
+              currentSizeInBytes
             }, null, 2)
           }],
           isError: false

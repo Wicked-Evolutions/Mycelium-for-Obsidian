@@ -17,11 +17,12 @@ import {
   OllamaConfig
 } from '../embeddings/ollama.js';
 import { getSharedStorage } from '../embeddings/storage.js';
+import { withAnnotations, ToolAnnotations } from './safety.js';
 
 /**
  * Tool definitions for cross-vault operations
  */
-export const crossVaultTools: Tool[] = [
+const rawCrossVaultTools: Tool[] = [
   {
     name: 'search_all_vaults',
     description: 'Search for text or regex pattern across ALL configured vaults. Returns results grouped by vault.',
@@ -111,6 +112,17 @@ export const crossVaultTools: Tool[] = [
     }
   }
 ];
+
+/** Per-tool annotations — all cross-vault tools are read-only. */
+const crossVaultAnnotations: Record<string, ToolAnnotations> = {
+  search_all_vaults: { readOnlyHint: true },
+  semantic_search_all: { readOnlyHint: true },
+  find_note_by_name: { readOnlyHint: true },
+  get_ecosystem_stats: { readOnlyHint: true },
+  get_cross_vault_links: { readOnlyHint: true },
+};
+
+export const crossVaultTools: Tool[] = withAnnotations(rawCrossVaultTools, crossVaultAnnotations);
 
 /**
  * Get storage instance for a vault (shared singleton per vault path)

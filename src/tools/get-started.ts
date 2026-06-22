@@ -12,6 +12,7 @@ import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { Config } from '../config.js';
 import { ToolResponse } from '../types/index.js';
 import { categorySummary, CLI_TIER_LABEL } from './categories.js';
+import { withAnnotations, ToolAnnotations } from './safety.js';
 
 // We need access to allTools at call time to count/categorize. Because importing
 // allTools from index.ts would create a cycle (index.ts → get-started.ts →
@@ -19,7 +20,7 @@ import { categorySummary, CLI_TIER_LABEL } from './categories.js';
 // The factory is called from createAllHandlers() in index.ts after allTools is
 // stable, so the count is accurate at the time of each tool call.
 
-export const getStartedTools: Tool[] = [
+const rawGetStartedTools: Tool[] = [
   {
     name: 'get_started',
     description:
@@ -30,6 +31,13 @@ export const getStartedTools: Tool[] = [
     },
   },
 ];
+
+/** get_started is a read-only orientation guide. */
+const getStartedAnnotations: Record<string, ToolAnnotations> = {
+  get_started: { readOnlyHint: true },
+};
+
+export const getStartedTools: Tool[] = withAnnotations(rawGetStartedTools, getStartedAnnotations);
 
 /**
  * Static orientation guidance included in every get_started response.

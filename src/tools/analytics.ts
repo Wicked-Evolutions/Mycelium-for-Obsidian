@@ -16,11 +16,12 @@ import {
   buildMultiFileIndex
 } from '../parsers/wikilink.js';
 import { vaultParam, limitParam } from './schema-helpers.js';
+import { withAnnotations, ToolAnnotations } from './safety.js';
 
 /**
  * Tool definitions
  */
-export const analyticsTools: Tool[] = [
+const rawAnalyticsTools: Tool[] = [
   {
     name: 'get_vault_health',
     description: 'Comprehensive vault health report: orphan notes, broken links, stale notes, and file stats. Runs all analytics in one pass.',
@@ -89,6 +90,16 @@ export const analyticsTools: Tool[] = [
     }
   }
 ];
+
+/** All analytics tools are read-only reports. */
+const analyticsAnnotations: Record<string, ToolAnnotations> = {
+  get_vault_health: { readOnlyHint: true },
+  get_orphan_notes: { readOnlyHint: true },
+  get_broken_links: { readOnlyHint: true },
+  get_stale_notes: { readOnlyHint: true },
+};
+
+export const analyticsTools: Tool[] = withAnnotations(rawAnalyticsTools, analyticsAnnotations);
 
 /**
  * Collect all markdown files with metadata

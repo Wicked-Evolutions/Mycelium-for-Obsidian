@@ -6,8 +6,9 @@
  * loading/sending entire file content.
  */
 
+import * as fs from 'fs/promises';
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
-import { Config, resolveVault } from '../config.js';
+import { Config, resolveVault, resolvePathInVault } from '../config.js';
 import { ToolResponse } from '../types/index.js';
 import {
   appendToSection,
@@ -15,11 +16,26 @@ import {
   replaceSection
 } from '../parsers/markdown.js';
 import { vaultParam } from './schema-helpers.js';
+import { withAnnotations, ToolAnnotations } from './safety.js';
+
+/**
+ * Byte-delta telemetry helper: on-disk UTF-8 size of a vault file, or 0 if
+ * missing. Never throws — telemetry must not break a successful mutation.
+ */
+async function fileSizeInBytes(vaultPath: string, relPath: string): Promise<number> {
+  try {
+    const absolute = resolvePathInVault(vaultPath, relPath);
+    const stats = await fs.stat(absolute);
+    return stats.size;
+  } catch {
+    return 0;
+  }
+}
 
 /**
  * Tool definitions for section operations
  */
-export const sectionTools: Tool[] = [
+const rawSectionTools: Tool[] = [
   {
     name: 'append_to_section',
     description: 'Append content to the end of a markdown section (before the next heading of same or higher level). Useful for adding entries to Progress Logs, adding items to lists, etc. without sending the entire file.',
@@ -92,6 +108,19 @@ export const sectionTools: Tool[] = [
 ];
 
 /**
+ * Per-tool MCP behaviour-hint annotations (co-located with the definitions).
+ * All three are non-destructive vault-content mutators. append/prepend are not
+ * idempotent (re-running adds again); update_section replaces (idempotent).
+ */
+const sectionAnnotations: Record<string, ToolAnnotations> = {
+  append_to_section: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+  prepend_to_section: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+  update_section: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+};
+
+export const sectionTools: Tool[] = withAnnotations(rawSectionTools, sectionAnnotations);
+
+/**
  * Handler functions for section tools
  */
 export function createSectionHandlers(config: Config) {
@@ -104,6 +133,7 @@ export function createSectionHandlers(config: Config) {
     }): Promise<ToolResponse> => {
       try {
         const vault = resolveVault(config, args.vault);
+        const previousSizeInBytes = await fileSizeInBytes(vault.path, args.path);
         const result = await appendToSection(
           args.path,
           vault.path,
@@ -118,6 +148,8 @@ export function createSectionHandlers(config: Config) {
           };
         }
 
+        const currentSizeInBytes = await fileSizeInBytes(vault.path, args.path);
+
         return {
           content: [{
             type: 'text',
@@ -125,7 +157,9 @@ export function createSectionHandlers(config: Config) {
               success: true,
               path: args.path,
               section: args.heading,
-              operation: 'append'
+              operation: 'append',
+              previousSizeInBytes,
+              currentSizeInBytes
             }, null, 2)
           }],
           isError: false
@@ -146,6 +180,7 @@ export function createSectionHandlers(config: Config) {
     }): Promise<ToolResponse> => {
       try {
         const vault = resolveVault(config, args.vault);
+        const previousSizeInBytes = await fileSizeInBytes(vault.path, args.path);
         const result = await prependToSection(
           args.path,
           vault.path,
@@ -160,6 +195,8 @@ export function createSectionHandlers(config: Config) {
           };
         }
 
+        const currentSizeInBytes = await fileSizeInBytes(vault.path, args.path);
+
         return {
           content: [{
             type: 'text',
@@ -167,7 +204,9 @@ export function createSectionHandlers(config: Config) {
               success: true,
               path: args.path,
               section: args.heading,
-              operation: 'prepend'
+              operation: 'prepend',
+              previousSizeInBytes,
+              currentSizeInBytes
             }, null, 2)
           }],
           isError: false
@@ -188,6 +227,7 @@ export function createSectionHandlers(config: Config) {
     }): Promise<ToolResponse> => {
       try {
         const vault = resolveVault(config, args.vault);
+        const previousSizeInBytes = await fileSizeInBytes(vault.path, args.path);
         const result = await replaceSection(
           args.path,
           vault.path,
@@ -202,6 +242,8 @@ export function createSectionHandlers(config: Config) {
           };
         }
 
+        const currentSizeInBytes = await fileSizeInBytes(vault.path, args.path);
+
         return {
           content: [{
             type: 'text',
@@ -209,7 +251,9 @@ export function createSectionHandlers(config: Config) {
               success: true,
               path: args.path,
               section: args.heading,
-              operation: 'replace'
+              operation: 'replace',
+              previousSizeInBytes,
+              currentSizeInBytes
             }, null, 2)
           }],
           isError: false

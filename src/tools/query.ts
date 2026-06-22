@@ -10,6 +10,7 @@ import { Config, resolveVault, resolvePathInVault } from '../config.js';
 import { ToolResponse } from '../types/index.js';
 import { parseMarkdownFile, extractTitle } from '../parsers/markdown.js';
 import { vaultParam, limitParam } from './schema-helpers.js';
+import { withAnnotations, ToolAnnotations } from './safety.js';
 
 /**
  * Supported filter operators
@@ -25,7 +26,7 @@ export interface FilterCondition {
 /**
  * Tool definitions
  */
-export const queryTools: Tool[] = [
+const rawQueryTools: Tool[] = [
   {
     name: 'query_notes',
     description: 'Query vault notes by frontmatter fields. Like Dataview but without needing Obsidian. Filter by type, status, tags, dates, or any frontmatter field.',
@@ -64,6 +65,13 @@ export const queryTools: Tool[] = [
     }
   }
 ];
+
+/** query_notes is a read-only query over frontmatter. */
+const queryAnnotations: Record<string, ToolAnnotations> = {
+  query_notes: { readOnlyHint: true },
+};
+
+export const queryTools: Tool[] = withAnnotations(rawQueryTools, queryAnnotations);
 
 /**
  * Apply a single filter condition to a frontmatter value.

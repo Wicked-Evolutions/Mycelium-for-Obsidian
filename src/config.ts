@@ -16,6 +16,19 @@ export interface Config {
     model: string;
   };
   disabledTools: Set<string>;
+  /** Global read-only mode: refuse vault/app-state mutators (OBSIDIAN_READ_ONLY). */
+  readOnly: boolean;
+  /** Wrap reader output in untrusted-content markers (OBSIDIAN_WRAP_UNTRUSTED). Default OFF. */
+  wrapUntrusted: boolean;
+}
+
+/**
+ * Parse a boolean-ish env var. Truthy when set to 1/true/yes/on (case-insensitive).
+ * Unset or any other value is false.
+ */
+function envFlag(value: string | undefined): boolean {
+  if (!value) return false;
+  return ['1', 'true', 'yes', 'on'].includes(value.trim().toLowerCase());
 }
 
 export function loadConfig(): Config {
@@ -26,6 +39,10 @@ export function loadConfig(): Config {
       .map(t => t.trim())
       .filter(Boolean)
   );
+
+  // Track C safety flags (read at config load; default OFF).
+  const readOnly = envFlag(process.env.OBSIDIAN_READ_ONLY);
+  const wrapUntrusted = envFlag(process.env.OBSIDIAN_WRAP_UNTRUSTED);
 
   // Check for multi-vault mode first
   const vaultsJson = process.env.OBSIDIAN_VAULTS;
@@ -49,7 +66,9 @@ export function loadConfig(): Config {
           host: process.env.OLLAMA_HOST || 'http://localhost:11434',
           model: process.env.OLLAMA_EMBEDDING_MODEL || 'nomic-embed-text'
         },
-        disabledTools
+        disabledTools,
+        readOnly,
+        wrapUntrusted
       };
     } catch (e) {
       console.error('Failed to parse OBSIDIAN_VAULTS:', e);
@@ -72,7 +91,9 @@ export function loadConfig(): Config {
       host: process.env.OLLAMA_HOST || 'http://localhost:11434',
       model: process.env.OLLAMA_EMBEDDING_MODEL || 'nomic-embed-text'
     },
-    disabledTools
+    disabledTools,
+    readOnly,
+    wrapUntrusted
   };
 }
 
