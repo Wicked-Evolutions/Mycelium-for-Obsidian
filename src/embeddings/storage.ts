@@ -324,6 +324,23 @@ export class EmbeddingStorage {
   }
 
   /**
+   * Fetch the full passage TEXT for a candidate by (file_path, block_id).
+   *
+   * Used by the reranker SEAM (issue #27): the fused top-K candidates are keyed
+   * by `${filePath}:${blockId}`, and the reranker must score the REAL passage
+   * text (the full chunk stored in content_fts), not the 200-char preview.
+   * `blockId` is normalized to '' (whole-file) the same way `store` writes it.
+   * Returns null when no FTS row exists (e.g. content was never passed to store).
+   */
+  getContent(filePath: string, blockId: string | null = null): string | null {
+    const normalizedBlockId = blockId || '';
+    const row = this.db.prepare(`
+      SELECT content FROM content_fts WHERE file_path = ? AND block_id = ?
+    `).get(filePath, normalizedBlockId) as { content: string } | undefined;
+    return row?.content ?? null;
+  }
+
+  /**
    * Keyword search result
    */
   keywordSearch(query: string, limit: number = 10): Array<{

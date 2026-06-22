@@ -20,6 +20,12 @@ import { reciprocalRankFusion, RRF_K } from '../embeddings/rrf.js';
 import { vaultParam } from './schema-helpers.js';
 import { withAnnotations, ToolAnnotations } from './safety.js';
 import { attachGraphSignals } from './graph-annotate.js';
+import {
+  Reranker,
+  getReranker,
+  getActiveRerankerName,
+  applyRerank
+} from '../embeddings/reranker.js';
 
 /**
  * Get storage instance for a vault (shared singleton per vault path)
@@ -105,6 +111,15 @@ const rawSemanticTools: Tool[] = [
           type: 'boolean',
           description: 'Expand query into multiple variants for better recall',
           default: false
+        },
+        rerank: {
+          type: 'boolean',
+          description: 'Re-rank the fused top-K with the active reranker backend (default OFF). When OFF (or the backend is unavailable) ordering is unchanged and reranker_score stays null.',
+          default: false
+        },
+        hypotheticalAnswer: {
+          type: 'string',
+          description: 'Optional HyDE hypothetical answer. When set, its embedding drives the SEMANTIC ranking (keyword/BM25 stays on the original query). With expand=true it becomes one more embeddings variant.'
         }
       },
       required: ['query']
@@ -207,6 +222,12 @@ export function createSemanticHandlers(config: Config) {
       limit?: number;
       minSimilarity?: number;
       expand?: boolean;
+      rerank?: boolean;
+      hypotheticalAnswer?: string;
+      // Injectable reranker backend — for tests ONLY (mirrors graph-annotate's
+      // injectable getSignals). Production resolves the active backend from the
+      // registry. Never part of the public input schema.
+      _rerankerBackend?: Reranker;
     }): Promise<ToolResponse> => {
       try {
         const vault = resolveVault(config, args.vault);
@@ -244,6 +265,19 @@ export function createSemanticHandlers(config: Config) {
           ? await expandQuery(args.query, ollamaConfig)
           : [args.query];
 
+        // HyDE (#27): decouple the two text sets. The hypothetical answer drives
+        // the EMBEDDINGS ranking ONLY (it is one more embeddings variant, folded
+        // into the SAME bestSemantic/embeddingsRanking collapse below — NOT a
+        // third RRF list). BM25 stays on the original query variants. With no
+        // hypotheticalAnswer the two sets are identical → the accumulation order
+        // is byte-identical to pre-#27 (two sequential loops over `queries`).
+        const hyde = typeof args.hypotheticalAnswer === 'string'
+          && args.hypotheticalAnswer.trim().length > 0
+          ? args.hypotheticalAnswer
+          : null;
+        const embeddingTexts = hyde ? [...queries, hyde] : queries;
+        const bm25Texts = queries;
+
         // Collect results from all query variants
         const allSemanticResults: Array<{
           filePath: string;
@@ -257,8 +291,9 @@ export function createSemanticHandlers(config: Config) {
           score: number;
         }> = [];
 
-        for (const q of queries) {
-          // Generate embedding for this query variant
+        // Embeddings pass (includes the HyDE hypothetical when present).
+        for (const q of embeddingTexts) {
+          // Generate embedding for this variant
           const queryResult = await generateEmbedding(q, ollamaConfig);
 
           // Semantic search. `minSimilarity` acts ONLY as the embeddings
@@ -272,8 +307,10 @@ export function createSemanticHandlers(config: Config) {
             minSimilarity  // Embeddings candidate-floor (cosine cutoff)
           );
           allSemanticResults.push(...semResults);
+        }
 
-          // Keyword search
+        // BM25/keyword pass — ORIGINAL query variants only (never the hypothetical).
+        for (const q of bm25Texts) {
           const kwResults = store.keywordSearch(q, limit * 2);
           allKeywordResults.push(...kwResults);
         }
@@ -377,6 +414,51 @@ export function createSemanticHandlers(config: Config) {
           if (results.length >= limit) break;
         }
 
+        // ---------------------------------------------------------------
+        // Reranker SEAM (#27, PR-B). The ONE stage that REORDERS.
+        //
+        // OFF by default (args.rerank falsy) → this block is a strict pass-through:
+        //   - `results` is untouched (ordering stays fusionScore),
+        //   - `rerankerScores` is empty → every reranker_score stays the literal
+        //     null already in fusionFields,
+        //   - NO rerankerAvailable key is emitted (gated on args.rerank below) →
+        //     default-OFF output is byte-identical to pre-#27.
+        //
+        // ON (args.rerank truthy): pull each candidate's REAL passage text from
+        // content_fts by (file_path, block_id) — full chunk, not the 200-char
+        // preview — and run the active backend via the PURE applyRerank. A working
+        // backend re-sorts the top-K by reranker_score and populates the score map;
+        // `none`/unavailable/malformed → ordering UNCHANGED, scores empty,
+        // rerankerAvailable:false + reason (mirrors the graphAvailable SHAPE).
+        // ---------------------------------------------------------------
+        const resultKey = (r: { filePath: string; blockId: string | null }) =>
+          `${r.filePath}:${r.blockId || ''}`;
+        let rankedResults = results;
+        let rerankerScores = new Map<string, number>();
+        let rerankerAvailable: boolean | null = null;
+        let rerankerUnavailableReason: string | undefined;
+        let rerankerBackendName: string | undefined;
+
+        if (args.rerank) {
+          const backend = args._rerankerBackend ?? getReranker(getActiveRerankerName());
+          rerankerBackendName = backend.name;
+          const reranked = await applyRerank(
+            args.query,
+            results,
+            resultKey,
+            (r) => store.getContent(r.filePath, r.blockId) ?? '',
+            (r) => r.fusionScore,
+            backend
+          );
+          // applyRerank returns the SAME items (re-sorted only on success);
+          // reassign (never mutate `results` in place — the no-op branch returns
+          // the very same array reference, so `results.length = 0` would empty it).
+          rankedResults = reranked.results;
+          rerankerScores = reranked.scores;
+          rerankerAvailable = reranked.rerankerAvailable;
+          rerankerUnavailableReason = reranked.rerankerUnavailableReason;
+        }
+
         // Enrich results with file titles.
         // Response contract: `similarity`/`semanticScore`/`keywordScore` keep their
         // existing numeric meanings (back-compat). Additive fusion fields:
@@ -386,7 +468,7 @@ export function createSemanticHandlers(config: Config) {
         //   rrf_term        — per-signal 1/(k+rank) contributions + k (reconstructs fusionScore)
         //   reranker_score  — null (clean hook; cross-encoder reranker not built)
         const round3 = (n: number) => Math.round(n * 1000) / 1000;
-        const enrichedResults = await Promise.all(results.map(async r => {
+        const enrichedResults = await Promise.all(rankedResults.map(async r => {
           const bm25 = r.perSignal.bm25 ?? { rank: null, term: 0 };
           const embeddings = r.perSignal.embeddings ?? { rank: null, term: 0 };
           const fusionFields = {
@@ -404,7 +486,8 @@ export function createSemanticHandlers(config: Config) {
               bm25: bm25.term,
               embeddings: embeddings.term,
             },
-            reranker_score: null,
+            // null unless a working reranker backend scored this candidate.
+            reranker_score: rerankerScores.get(resultKey(r)) ?? null,
           };
           try {
             const parsed = await parseMarkdownFile(r.filePath, vault.path);
@@ -460,6 +543,18 @@ export function createSemanticHandlers(config: Config) {
                     usedDefaultExclude: graphAttach.usedDefaultExclude
                   }
                 : { graphUnavailableReason: graphAttach.graphUnavailableReason }),
+              // Reranker SEAM (#27): emitted ONLY when rerank was requested, so
+              // default-OFF output stays byte-identical. Mirrors graphAvailable's
+              // SHAPE ({boolean + reason}) but is NOT always-present.
+              ...(args.rerank
+                ? {
+                    rerankerBackend: rerankerBackendName,
+                    rerankerAvailable: rerankerAvailable === true,
+                    ...(rerankerAvailable === true
+                      ? {}
+                      : { rerankerUnavailableReason: rerankerUnavailableReason })
+                  }
+                : {}),
               results: graphAttach.results
             }, null, 2)
           }],
