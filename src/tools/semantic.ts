@@ -19,6 +19,7 @@ import { getSharedStorage } from '../embeddings/storage.js';
 import { reciprocalRankFusion, RRF_K } from '../embeddings/rrf.js';
 import { vaultParam } from './schema-helpers.js';
 import { withAnnotations, ToolAnnotations } from './safety.js';
+import { attachGraphSignals } from './graph-annotate.js';
 
 /**
  * Get storage instance for a vault (shared singleton per vault path)
@@ -423,15 +424,41 @@ export function createSemanticHandlers(config: Config) {
           }
         }));
 
+        // ---------------------------------------------------------------
+        // Convergence (#23): graph-aware annotation (Level A + Level B).
+        //
+        // ONE guarded getGraphSignals(config, vault, undefined) call (DEFAULT_EXCLUDE
+        // — so `level` means the same as analyze_link_hierarchy) enriches each hit
+        // with a nested additive `graph` block (raw signals only). Ordering NEVER
+        // changes (still fusionScore); zero new input params, zero existing-field
+        // churn. On global graph-build failure the hits are returned un-annotated
+        // with graphAvailable:false + a reason — search NEVER errors on this.
+        //
+        // Join is on the VAULT-RELATIVE path (with .md), NFC-normalized both sides.
+        // A per-hit miss (path not in the map) yields that hit's `graph: null`.
+        // ---------------------------------------------------------------
+        const graphAttach = await attachGraphSignals({
+          config,
+          vault: args.vault,
+          results: enrichedResults
+        });
+
         return {
           content: [{
             type: 'text',
             text: JSON.stringify({
               query: args.query,
               queriesUsed: queries,  // Show expanded queries if any
-              resultCount: enrichedResults.length,
+              resultCount: graphAttach.results.length,
               searchType: args.expand ? 'hybrid+expansion' : 'hybrid',
-              results: enrichedResults
+              graphAvailable: graphAttach.graphAvailable,
+              ...(graphAttach.graphAvailable
+                ? {
+                    activeExclude: graphAttach.activeExclude,
+                    usedDefaultExclude: graphAttach.usedDefaultExclude
+                  }
+                : { graphUnavailableReason: graphAttach.graphUnavailableReason }),
+              results: graphAttach.results
             }, null, 2)
           }],
           isError: false
