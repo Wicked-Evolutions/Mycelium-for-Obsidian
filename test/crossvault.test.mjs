@@ -30,6 +30,7 @@ import assert from 'node:assert/strict';
 import { createTempVault, cleanup } from './helpers.mjs';
 import { loadConfig } from '../dist/config.js';
 import { createCrossVaultHandlers } from '../dist/tools/crossvault.js';
+import { createSemanticHandlers } from '../dist/tools/semantic.js';
 import { checkOllamaAvailability } from '../dist/embeddings/ollama.js';
 
 // ─── Vault fixtures ──────────────────────────────────────────────────────────
@@ -729,5 +730,83 @@ describe('semantic_search_all', () => {
       res.isError === true || (typeof res.content[0].text === 'string' && res.content[0].text.toLowerCase().includes('ollama')),
       `expected error about Ollama unavailability — got: ${res.content[0]?.text}`,
     );
+  });
+});
+
+// ─── semantic_search_all graph annotation (PR-A / #25) — Ollama-gated ─────────
+//
+// Indexes BOTH vaults, runs semantic_search_all, and asserts the per-hit `graph`
+// block + the per-vault `graphByVault` map. Skip-gated on Ollama: when Ollama is
+// unavailable the embeddings path can't produce hits to annotate.
+
+describe('semantic_search_all — graph annotation (PR-A #25)', () => {
+  test('each hit carries graph (object|null), ordering unchanged, per-vault map + provider', async (t) => {
+    if (!ollamaReady) {
+      t.skip('Ollama not available — skipping cross-vault graph annotation test');
+      return;
+    }
+
+    // Index both vaults so semantic_search_all has hits to annotate.
+    const config = loadConfig();
+    const semantic = createSemanticHandlers(config);
+    await semantic.index_vault({ vault: 'VaultA', force: true });
+    await semantic.index_vault({ vault: 'VaultB', force: true });
+
+    const res = await handlers.semantic_search_all({
+      query: 'alpha beta vault content notes',
+      limit: 10,
+    });
+    const data = payload(res, 'semantic_search_all graph annotation');
+
+    // graphByVault is a PER-VAULT MAP (not a single global flag).
+    assert.equal(typeof data.graphByVault, 'object', 'graphByVault is an object');
+    assert.ok(!Array.isArray(data.graphByVault), 'graphByVault is a map, not an array');
+
+    if (data.results.length === 0) {
+      // Nothing indexed/matched — still a valid (non-error) shape.
+      assert.deepEqual(data.graphByVault, {}, 'no hits → empty per-vault map');
+      return;
+    }
+
+    // Every hit carries a `graph` key — object OR null (single-vault parity),
+    // for hits from a vault whose graph build SUCCEEDED. (A vault that failed
+    // its build would yield un-annotated hits; on a healthy fixture all succeed.)
+    for (const hit of data.results) {
+      const meta = data.graphByVault[hit.vault];
+      assert.ok(meta, `graphByVault has an entry for hit vault "${hit.vault}"`);
+      if (meta.graphAvailable) {
+        assert.ok('graph' in hit, `annotated hit (${hit.vault}:${hit.path}) carries the graph key`);
+        assert.ok(
+          hit.graph === null || typeof hit.graph === 'object',
+          'graph is an object or null',
+        );
+        if (hit.graph) {
+          assert.ok('level' in hit.graph, 'graph block has level');
+          assert.ok('pagerank' in hit.graph, 'graph block has pagerank');
+          assert.ok('excluded' in hit.graph, 'graph block has excluded flag');
+        }
+      }
+    }
+
+    // Per-vault map entries carry graphAvailable + provider (on success).
+    for (const [vaultName, meta] of Object.entries(data.graphByVault)) {
+      assert.equal(typeof meta.graphAvailable, 'boolean', `${vaultName}.graphAvailable is a boolean`);
+      if (meta.graphAvailable) {
+        assert.ok(
+          meta.provider === 'obsidian' || meta.provider === 'filesystem',
+          `${vaultName}.provider is obsidian|filesystem — got: ${meta.provider}`,
+        );
+      } else {
+        assert.equal(typeof meta.graphUnavailableReason, 'string', `${vaultName} has a reason when unavailable`);
+      }
+    }
+
+    // Ordering is STILL similarity desc (graph annotation never reorders).
+    for (let i = 1; i < data.results.length; i++) {
+      assert.ok(
+        data.results[i - 1].similarity >= data.results[i].similarity,
+        `ordering preserved (similarity desc) at ${i}`,
+      );
+    }
   });
 });

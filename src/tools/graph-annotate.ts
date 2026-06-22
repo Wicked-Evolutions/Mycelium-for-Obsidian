@@ -82,6 +82,12 @@ export interface GraphAttachMeta {
   graphAvailable: boolean;
   /** Why graph signals are unavailable (only when graphAvailable is false). */
   graphUnavailableReason?: string;
+  /**
+   * Which provider built the graph: "obsidian" (eval bridge) or "filesystem".
+   * Present ONLY on success — on the failure branch the provider is genuinely
+   * unknown (the build threw before a provider was selected), so it is omitted.
+   */
+  provider?: 'obsidian' | 'filesystem';
   /** The exclusion predicate actually applied (only when available). */
   activeExclude?: FilterCondition[];
   /** Whether DEFAULT_EXCLUDE was used (only when available). */
@@ -126,6 +132,7 @@ export async function attachGraphSignals<T extends PathBearing>(opts: {
     return {
       results: annotated,
       graphAvailable: true,
+      provider: signals.provider,
       activeExclude: signals.activeExclude,
       usedDefaultExclude: signals.usedDefaultExclude
     };
@@ -139,4 +146,111 @@ export async function attachGraphSignals<T extends PathBearing>(opts: {
       }`
     };
   }
+}
+
+// ─── Cross-vault orchestration (PR-A / issue #25) ────────────────────────────
+
+/** A cross-vault hit must carry a vault-relative `path` AND its source `vault`. */
+interface VaultPathBearing extends PathBearing {
+  vault: string;
+}
+
+/** Per-vault graph availability — the cross-vault map (NOT a single global flag). */
+export interface PerVaultGraphMeta {
+  graphAvailable: boolean;
+  graphUnavailableReason?: string;
+  provider?: 'obsidian' | 'filesystem';
+}
+
+export interface CrossVaultGraphResult<T> {
+  /**
+   * SAME length + SAME order as the input results (global similarity-desc is
+   * never touched). Each hit from a vault WITH a successful graph build carries
+   * a `graph` block (object | null per the single-vault miss semantics); hits
+   * from a vault whose build failed are returned UN-annotated (no `graph` key).
+   */
+  results: Array<T & { graph?: GraphBlock }>;
+  /** Per-vault map: { vaultName → { graphAvailable, graphUnavailableReason?, provider } }. */
+  graphByVault: Record<string, PerVaultGraphMeta>;
+}
+
+/**
+ * Cross-vault graph annotation for `semantic_search_all`.
+ *
+ * RATIFIED CONTRACT (PR-A, issue #25):
+ *   - Calls getGraphSignals (via the guarded `attachGraphSignals`) ONCE PER
+ *     VAULT THAT HAS HITS — a cost-minimizer that skips hit-less vaults entirely.
+ *   - Each per-vault build is wrapped in try/catch (inherited from
+ *     attachGraphSignals) so ONE vault's failure cannot blank the others'.
+ *   - Ordering is NEVER changed: the returned array preserves the exact input
+ *     order (the caller's similarity-desc slice). Annotated copies are merged
+ *     back by OBJECT IDENTITY — never by path — so duplicate filenames across
+ *     vaults (e.g. Alpha.md in two vaults) never cross-annotate.
+ *   - Per-hit `graph: null` semantics are identical to single-vault (a miss in a
+ *     successfully-built vault's signal map → null, key always present).
+ *   - `graphAvailable` is surfaced as a PER-VAULT MAP so a degraded vault is
+ *     visible; `provider` is surfaced per vault (additive).
+ *
+ * Pure orchestration over an injectable `getSignals` → fully testable headless
+ * (no Ollama, no real graph build).
+ */
+export async function annotateCrossVault<T extends VaultPathBearing>(opts: {
+  config: Config;
+  results: T[];
+  getSignals?: (
+    config: Config,
+    vaultName?: string,
+    exclude?: undefined
+  ) => Promise<GraphSignals>;
+}): Promise<CrossVaultGraphResult<T>> {
+  const { config, results } = opts;
+
+  // Group hits by source vault, PRESERVING each original object reference so we
+  // can merge annotated copies back by identity. Insertion order tracks the
+  // first appearance of each vault in the (already similarity-sorted) results.
+  const byVault = new Map<string, T[]>();
+  for (const r of results) {
+    let group = byVault.get(r.vault);
+    if (!group) {
+      group = [];
+      byVault.set(r.vault, group);
+    }
+    group.push(r);
+  }
+
+  const graphByVault: Record<string, PerVaultGraphMeta> = {};
+  // identity → annotated copy (only for vaults whose build succeeded).
+  const annotatedByRef = new Map<T, T & { graph: GraphBlock }>();
+
+  // One getGraphSignals call per vault WITH hits (hit-less vaults → zero calls).
+  for (const [vaultName, group] of byVault) {
+    const attach = await attachGraphSignals({
+      config,
+      vault: vaultName,
+      results: group,
+      getSignals: opts.getSignals
+    });
+
+    graphByVault[vaultName] = {
+      graphAvailable: attach.graphAvailable,
+      ...(attach.graphAvailable
+        ? { provider: attach.provider }
+        : { graphUnavailableReason: attach.graphUnavailableReason })
+    };
+
+    if (attach.graphAvailable) {
+      // attach.results is index-aligned with `group` (annotateWithGraph maps in
+      // order). Pair each original ref to its annotated copy by index.
+      for (let i = 0; i < group.length; i++) {
+        annotatedByRef.set(group[i], attach.results[i] as T & { graph: GraphBlock });
+      }
+    }
+    // On per-vault failure: leave its hits un-annotated (no map entry → emitted as-is).
+  }
+
+  // Rebuild in the ORIGINAL order: annotated copy where the vault built, else
+  // the original (un-annotated) reference.
+  const merged = results.map((r) => annotatedByRef.get(r) ?? r);
+
+  return { results: merged, graphByVault };
 }

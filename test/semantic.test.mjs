@@ -283,6 +283,13 @@ describe('semantic_search (Ollama-gated)', () => {
       // Available → activeExclude + usedDefaultExclude echoed.
       assert.ok(Array.isArray(data.activeExclude), 'activeExclude echoed when available');
       assert.equal(typeof data.usedDefaultExclude, 'boolean', 'usedDefaultExclude echoed');
+
+      // PR-A (#25): provider surfaced TOP-LEVEL on semantic_search (additive).
+      assert.ok('provider' in data, 'top-level provider key present when graphAvailable');
+      assert.ok(
+        data.provider === 'obsidian' || data.provider === 'filesystem',
+        `provider is obsidian|filesystem — got: ${data.provider}`,
+      );
     }
   });
 

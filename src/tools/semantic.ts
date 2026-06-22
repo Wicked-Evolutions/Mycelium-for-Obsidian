@@ -454,6 +454,8 @@ export function createSemanticHandlers(config: Config) {
               graphAvailable: graphAttach.graphAvailable,
               ...(graphAttach.graphAvailable
                 ? {
+                    // PR-A (#25): surface the graph provider additively (top-level).
+                    provider: graphAttach.provider,
                     activeExclude: graphAttach.activeExclude,
                     usedDefaultExclude: graphAttach.usedDefaultExclude
                   }
