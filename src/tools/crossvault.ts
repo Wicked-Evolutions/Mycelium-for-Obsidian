@@ -18,6 +18,7 @@ import {
 } from '../embeddings/ollama.js';
 import { getSharedStorage } from '../embeddings/storage.js';
 import { withAnnotations, ToolAnnotations } from './safety.js';
+import { annotateCrossVault } from './graph-annotate.js';
 
 /**
  * Tool definitions for cross-vault operations
@@ -259,6 +260,19 @@ export function createCrossVaultHandlers(config: Config) {
           return s.getStats().totalEmbeddings > 0;
         }).length;
 
+        // ---------------------------------------------------------------
+        // PR-A (#25): graph-aware annotation, cross-vault.
+        //
+        // Calls getGraphSignals ONCE PER VAULT THAT HAS HITS (a cost-minimizer
+        // that skips hit-less vaults), each per-vault build try/caught so one
+        // vault's failure can't blank the others. ORDERING IS UNCHANGED (still
+        // similarity desc — the sliced `topResults` order is preserved exactly);
+        // per-hit `graph: null` semantics are identical to single-vault.
+        // `graphAvailable` is a PER-VAULT MAP (provider surfaced per vault).
+        // This does NOT add RRF/fusion to cross-vault (no scope creep).
+        // ---------------------------------------------------------------
+        const annotated = await annotateCrossVault({ config, results: topResults });
+
         return {
           content: [{
             type: 'text',
@@ -266,8 +280,9 @@ export function createCrossVaultHandlers(config: Config) {
               query: args.query,
               vaultsSearched: config.vaults.length,
               vaultsIndexed: indexedVaults,
-              resultCount: topResults.length,
-              results: topResults
+              resultCount: annotated.results.length,
+              graphByVault: annotated.graphByVault,
+              results: annotated.results
             }, null, 2)
           }],
           isError: false

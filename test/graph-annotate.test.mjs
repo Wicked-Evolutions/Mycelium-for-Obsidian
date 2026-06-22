@@ -21,7 +21,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-const { annotateWithGraph, attachGraphSignals } = await import(
+const { annotateWithGraph, attachGraphSignals, annotateCrossVault } = await import(
   '../dist/tools/graph-annotate.js'
 );
 
@@ -246,5 +246,235 @@ describe('attachGraphSignals — global failure graceful degrade', () => {
     assert.equal(out.results[0].graph.pagerank, 0.5, 'pagerank joined');
     assert.ok(Array.isArray(out.activeExclude), 'activeExclude echoed');
     assert.equal(out.usedDefaultExclude, true, 'usedDefaultExclude echoed');
+    // PR-A (#25): provider surfaced additively on success.
+    assert.equal(out.provider, 'filesystem', 'provider surfaced on success');
+  });
+
+  test('failure path: provider is OMITTED (genuinely unknown when build threw)', async () => {
+    const out = await attachGraphSignals({
+      config: {},
+      vault: 'TestVault',
+      results: [{ path: 'Hub.md' }],
+      getSignals: async () => { throw new Error('boom'); },
+    });
+    assert.equal(out.graphAvailable, false, 'graphAvailable false on failure');
+    assert.ok(!('provider' in out), 'provider key omitted on failure (unknown)');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Provider-key contract — Obsidian-eval provider key form
+//
+// Both providers emit vault-relative `.md` keys; the Obsidian-eval provider
+// keys nodes via `app.vault.getMarkdownFiles().map(f => f.path)` (vault-relative
+// with .md, INCLUDING subfolder paths). This is a regression guard that the
+// JOIN resolves for that exact key form — with TEETH (level + pagerank non-null),
+// and a representative SUBFOLDER path so a flat-name shortcut can't pass it.
+// ---------------------------------------------------------------------------
+
+describe('annotateWithGraph — Obsidian-eval provider-key contract (headless, mocked)', () => {
+  test('join resolves for getMarkdownFiles().path key form incl. a subfolder path', () => {
+    // Mocked eval-provider signals map: keys are EXACTLY the form
+    // app.vault.getMarkdownFiles().map(f => f.path) returns — vault-relative .md,
+    // forward-slash separators, subfolders included.
+    const signalsMap = new Map([
+      ['Hub.md', normalSig({ level: 0, pagerank: 0.42 })],
+      ['Sub/Folder/Deep Note.md', normalSig({ level: 2, pagerank: 0.07 })],
+    ]);
+    // Hits as semantic_search_all would emit them: the stored vault-relative path.
+    const results = [
+      { path: 'Hub.md', title: 'Hub' },
+      { path: 'Sub/Folder/Deep Note.md', title: 'Deep Note' },
+    ];
+
+    const out = annotateWithGraph(results, signalsMap);
+
+    // Flat path join-with-teeth.
+    assert.ok(out[0].graph, 'flat path joined to a graph block');
+    assert.notEqual(out[0].graph.level, null, 'flat: level not null');
+    assert.equal(out[0].graph.level, 0, 'flat: level value');
+    assert.notEqual(out[0].graph.pagerank, null, 'flat: pagerank not null');
+    assert.equal(out[0].graph.pagerank, 0.42, 'flat: pagerank value');
+
+    // Subfolder path join-with-teeth (the representative case).
+    assert.ok(out[1].graph, 'subfolder path joined to a graph block');
+    assert.notEqual(out[1].graph.level, null, 'subfolder: level not null');
+    assert.equal(out[1].graph.level, 2, 'subfolder: level value');
+    assert.notEqual(out[1].graph.pagerank, null, 'subfolder: pagerank not null');
+    assert.equal(out[1].graph.pagerank, 0.07, 'subfolder: pagerank value');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Cross-vault orchestration (PR-A / #25) — annotateCrossVault
+//
+// Headless: injects a fake/spy getSignals. No Ollama, no real graph build.
+//   1. cost-minimizer  — getSignals called ONLY for vaults WITH hits
+//   2. isolation       — one vault's getSignals throws → that vault un-annotated
+//                        with its OWN reason, OTHER vaults still annotated
+//   3. ordering        — global (similarity-desc) order preserved exactly
+//   4. duplicate path  — Alpha.md in two vaults never cross-annotates (identity)
+//   5. per-vault map   — graphByVault carries graphAvailable + provider per vault
+// ---------------------------------------------------------------------------
+
+describe('annotateCrossVault — cost-minimizer + isolation + per-vault map', () => {
+  test('getSignals is called ONCE PER VAULT WITH HITS (hit-less vault → zero calls)', async () => {
+    // Two vaults appear in results; a THIRD configured vault has no hits and must
+    // never be queried. The spy records every vault name it is called with.
+    const calledFor = [];
+    const spyGetSignals = async (_config, vaultName) => {
+      calledFor.push(vaultName);
+      return {
+        vault: vaultName,
+        provider: 'filesystem',
+        signals: new Map([['x.md', normalSig()]]),
+        activeExclude: [],
+        usedDefaultExclude: true,
+        excludedCount: 0,
+        totalNodes: 1,
+        smallVault: false,
+      };
+    };
+
+    const results = [
+      { vault: 'VaultA', path: 'a1.md', similarity: 0.9 },
+      { vault: 'VaultB', path: 'b1.md', similarity: 0.8 },
+      { vault: 'VaultA', path: 'a2.md', similarity: 0.7 },
+    ];
+
+    const out = await annotateCrossVault({ config: {}, results, getSignals: spyGetSignals });
+
+    // EXACTLY one call per distinct vault WITH hits — VaultA once, VaultB once.
+    assert.equal(calledFor.length, 2, 'one getSignals call per vault with hits');
+    assert.deepEqual([...calledFor].sort(), ['VaultA', 'VaultB'], 'only hit-bearing vaults queried');
+    // A vault that never appears in results (e.g. "VaultC") got ZERO calls — implicit
+    // in the count above (it is not in `calledFor`).
+    assert.ok(!calledFor.includes('VaultC'), 'hit-less vault never queried');
+  });
+
+  test('one vault throwing isolates: that vault un-annotated (own reason), others annotated', async () => {
+    const getSignals = async (_config, vaultName) => {
+      if (vaultName === 'VaultB') {
+        throw new Error('VaultB graph build exploded');
+      }
+      return {
+        vault: vaultName,
+        provider: 'obsidian',
+        signals: new Map([
+          ['a1.md', normalSig({ level: 1, pagerank: 0.3 })],
+        ]),
+        activeExclude: [],
+        usedDefaultExclude: true,
+        excludedCount: 0,
+        totalNodes: 1,
+        smallVault: false,
+      };
+    };
+
+    const results = [
+      { vault: 'VaultA', path: 'a1.md', similarity: 0.9 },
+      { vault: 'VaultB', path: 'b1.md', similarity: 0.8 },
+    ];
+
+    const out = await annotateCrossVault({ config: {}, results, getSignals });
+
+    // VaultA hit is annotated (its build succeeded).
+    const aHit = out.results.find((r) => r.vault === 'VaultA');
+    assert.ok('graph' in aHit, 'VaultA hit annotated (graph key present)');
+    assert.ok(aHit.graph, 'VaultA graph block present');
+    assert.equal(aHit.graph.level, 1, 'VaultA level joined');
+
+    // VaultB hit is UN-annotated (no graph key) — its own failure.
+    const bHit = out.results.find((r) => r.vault === 'VaultB');
+    assert.ok(!('graph' in bHit), 'VaultB hit un-annotated (no graph key) on its own failure');
+
+    // Per-vault map reflects each vault's own state.
+    assert.equal(out.graphByVault.VaultA.graphAvailable, true, 'VaultA graphAvailable true');
+    assert.equal(out.graphByVault.VaultA.provider, 'obsidian', 'VaultA provider surfaced');
+    assert.equal(out.graphByVault.VaultB.graphAvailable, false, 'VaultB graphAvailable false');
+    assert.equal(typeof out.graphByVault.VaultB.graphUnavailableReason, 'string', 'VaultB has a reason');
+    assert.ok(
+      out.graphByVault.VaultB.graphUnavailableReason.includes('VaultB graph build exploded'),
+      'VaultB reason surfaces its OWN underlying error',
+    );
+    assert.ok(!('provider' in out.graphByVault.VaultB), 'failed vault omits provider (unknown)');
+  });
+
+  test('ordering is preserved byte-identical (global similarity-desc untouched)', async () => {
+    const getSignals = async (_config, vaultName) => ({
+      vault: vaultName,
+      provider: 'filesystem',
+      signals: new Map([
+        ['a1.md', normalSig({ pagerank: 0.01 })],
+        ['b1.md', normalSig({ pagerank: 0.99 })],
+      ]),
+      activeExclude: [],
+      usedDefaultExclude: true,
+      excludedCount: 0,
+      totalNodes: 2,
+      smallVault: false,
+    });
+
+    // Interleaved vaults; high-pagerank node sits in the MIDDLE of the order.
+    const results = [
+      { vault: 'VaultA', path: 'a1.md', similarity: 0.9 },
+      { vault: 'VaultB', path: 'b1.md', similarity: 0.8 },
+      { vault: 'VaultA', path: 'miss.md', similarity: 0.5 },
+    ];
+    const before = results.map((r) => `${r.vault}:${r.path}`);
+
+    const out = await annotateCrossVault({ config: {}, results, getSignals });
+    const after = out.results.map((r) => `${r.vault}:${r.path}`);
+
+    assert.deepEqual(after, before, 'order unchanged (no graph reorder)');
+    assert.equal(out.results.length, results.length, 'no hide/filter — same length');
+    // miss within a successfully-built vault → graph: null (key present).
+    const miss = out.results.find((r) => r.path === 'miss.md');
+    assert.ok('graph' in miss, 'miss carries the graph key');
+    assert.equal(miss.graph, null, 'miss → graph null (single-vault parity)');
+  });
+
+  test('duplicate filename across vaults never cross-annotates (identity merge)', async () => {
+    // Alpha.md exists in BOTH vaults; each vault has its OWN signals for Alpha.md.
+    const getSignals = async (_config, vaultName) => {
+      const level = vaultName === 'VaultA' ? 0 : 5;
+      const pagerank = vaultName === 'VaultA' ? 0.9 : 0.1;
+      return {
+        vault: vaultName,
+        provider: 'filesystem',
+        signals: new Map([['Alpha.md', normalSig({ level, pagerank })]]),
+        activeExclude: [],
+        usedDefaultExclude: true,
+        excludedCount: 0,
+        totalNodes: 1,
+        smallVault: false,
+      };
+    };
+
+    const results = [
+      { vault: 'VaultA', path: 'Alpha.md', similarity: 0.9 },
+      { vault: 'VaultB', path: 'Alpha.md', similarity: 0.8 },
+    ];
+
+    const out = await annotateCrossVault({ config: {}, results, getSignals });
+
+    const a = out.results.find((r) => r.vault === 'VaultA');
+    const b = out.results.find((r) => r.vault === 'VaultB');
+    assert.equal(a.graph.level, 0, 'VaultA Alpha gets VaultA signals');
+    assert.equal(a.graph.pagerank, 0.9, 'VaultA Alpha pagerank from VaultA');
+    assert.equal(b.graph.level, 5, 'VaultB Alpha gets VaultB signals (no cross-annotate)');
+    assert.equal(b.graph.pagerank, 0.1, 'VaultB Alpha pagerank from VaultB');
+  });
+
+  test('empty results → no getSignals calls, empty per-vault map', async () => {
+    let calls = 0;
+    const out = await annotateCrossVault({
+      config: {},
+      results: [],
+      getSignals: async () => { calls++; return {}; },
+    });
+    assert.equal(calls, 0, 'no calls for zero results');
+    assert.deepEqual(out.results, [], 'empty results passthrough');
+    assert.deepEqual(out.graphByVault, {}, 'empty per-vault map');
   });
 });
