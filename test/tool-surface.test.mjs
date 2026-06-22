@@ -323,6 +323,8 @@ const SCHEMA_SNAPSHOT = [
         limit: { type: 'number', description: 'Maximum results to return', default: 10 },
         minSimilarity: { type: 'number', description: 'Minimum similarity score (0-1)', default: 0.5 },
         expand: { type: 'boolean', description: 'Expand query into multiple variants for better recall', default: false },
+        rerank: { type: 'boolean', description: 'Re-rank the fused top-K with the active reranker backend (default OFF). When OFF (or the backend is unavailable) ordering is unchanged and reranker_score stays null.', default: false },
+        hypotheticalAnswer: { type: 'string', description: 'Optional HyDE hypothetical answer. When set, its embedding drives the SEMANTIC ranking (keyword/BM25 stays on the original query). With expand=true it becomes one more embeddings variant.' },
       },
       required: ['query'],
     },
