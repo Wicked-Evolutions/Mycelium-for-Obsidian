@@ -17,6 +17,7 @@ import { crossVaultTools, createCrossVaultHandlers } from './crossvault.js';
 import { sectionTools, createSectionHandlers } from './sections.js';
 import { queryTools, createQueryHandlers } from './query.js';
 import { analyticsTools, createAnalyticsHandlers } from './analytics.js';
+import { graphTools, createGraphHandlers } from './graph.js';
 import { fsPromotedTools, createFsPromotedHandlers } from './fs-promoted.js';
 import { cliTools, createCliHandlers } from './cli-tools.js';
 import { getStartedTools, createGetStartedHandlers } from './get-started.js';
@@ -33,6 +34,7 @@ const rawTools: Tool[] = [
   ...sectionTools,
   ...queryTools,
   ...analyticsTools,
+  ...graphTools,
   ...fsPromotedTools,
   ...cliTools,
   ...getStartedTools,
@@ -90,6 +92,7 @@ export function createAllHandlers(config: Config): Record<string, AnyHandler> {
     ...createSectionHandlers(config),
     ...createQueryHandlers(config),
     ...createAnalyticsHandlers(config),
+    ...createGraphHandlers(config),
     ...createFsPromotedHandlers(config),
     ...createCliHandlers(config),
     ...createGetStartedHandlers(config, () => allTools),

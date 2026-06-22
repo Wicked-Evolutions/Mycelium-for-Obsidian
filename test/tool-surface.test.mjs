@@ -53,6 +53,7 @@ const SNAPSHOT = [
   { name: 'get_orphan_notes', description: 'Find notes with zero inbound wikilinks (not linked to by any other note).' },
   { name: 'get_broken_links', description: 'Find all wikilinks that point to non-existent notes.' },
   { name: 'get_stale_notes', description: 'Find notes not modified within a given number of days.' },
+  { name: 'analyze_link_hierarchy', description: 'Orientation leveling over the vault link graph. Ranks notes by PageRank + degree on the wikilink graph (Obsidian-authoritative when running, filesystem fallback otherwise), prunes declared/generated/index/archive notes before ranking, and assigns structural levels L0 (top hubs) to L5 (leaves). Returns a level histogram, per-node signals, and a contributor breakdown. Levels are structural orientation, not importance.' },
   { name: 'daily_read', description: "Read today's daily note contents." },
   { name: 'daily_append', description: "Append content to today's daily note. Creates the note if it doesn't exist." },
   { name: 'daily_prepend', description: "Prepend content to today's daily note. Creates the note if it doesn't exist." },
@@ -543,6 +544,38 @@ const SCHEMA_SNAPSHOT = [
         type_filter: { type: 'string', description: 'Only include notes with this frontmatter type (e.g., "PROJECT")' },
         exclude_patterns: { type: 'array', description: 'Directory patterns to exclude', items: { type: 'string' } },
         limit: { type: 'number', description: 'Maximum results', default: 50 },
+      },
+    },
+  },
+  {
+    name: 'analyze_link_hierarchy',
+    description: 'Orientation leveling over the vault link graph. Ranks notes by PageRank + degree on the wikilink graph (Obsidian-authoritative when running, filesystem fallback otherwise), prunes declared/generated/index/archive notes before ranking, and assigns structural levels L0 (top hubs) to L5 (leaves). Returns a level histogram, per-node signals, and a contributor breakdown. Levels are structural orientation, not importance.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        vault: { type: 'string', description: 'Vault name. Defaults to first configured vault if omitted.' },
+        scope: { type: 'string', description: 'Directory prefix to filter the OUTPUT only (e.g., "03 Projects"). Ranking always uses the whole-vault graph minus exclusions.' },
+        limit: { type: 'number', description: 'Maximum ranked nodes to return in the detail list', default: 50 },
+        compact: { type: 'boolean', description: 'Omit the per-node contributor breakdown for a smaller response', default: false },
+        exclude: {
+          type: 'object',
+          description: 'Declared exclusion that PRUNES notes before ranking (reuses query_notes filter shape). Default (if omitted): mycelium_exclude == true OR node_type in [generated, archive, index, log]. Pass {"where": []} to disable defaults and rank everything.',
+          properties: {
+            where: {
+              type: 'array',
+              description: 'Filter conditions (field, op, value). A note is excluded when it matches ALL conditions. Operators match query_notes.',
+              items: {
+                type: 'object',
+                properties: {
+                  field: { type: 'string', description: 'Frontmatter field name' },
+                  op: { type: 'string', description: 'Operator: equals, not_equals, contains, not_contains, in, not_in, exists, not_exists, greater_than, less_than' },
+                  value: { description: 'Value to compare against (not needed for exists/not_exists)' },
+                },
+                required: ['field', 'op'],
+              },
+            },
+          },
+        },
       },
     },
   },

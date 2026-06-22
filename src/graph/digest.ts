@@ -1,0 +1,62 @@
+/**
+ * Stat-digest for the session-scoped graph cache.
+ *
+ * The base graph is cached by `vault + graph-version`, where graph-version is a
+ * digest over the vault's markdown files (path + mtime + size). Any add/remove/
+ * edit changes the digest and invalidates the cache — no persistent store, no
+ * watcher (that's the v2 upgrade per the brief / DR-5).
+ */
+
+import * as fs from 'fs/promises';
+import * as path from 'path';
+import { createHash } from 'crypto';
+
+/**
+ * Walk the vault for .md files and accumulate a stable digest of their
+ * path/mtime/size. Hidden files and dotfolders (.obsidian) are skipped to
+ * mirror the rest of the codebase.
+ */
+export async function computeGraphDigest(vaultPath: string): Promise<string> {
+  const entries: string[] = [];
+
+  async function walk(dir: string): Promise<void> {
+    let dirents;
+    try {
+      dirents = await fs.readdir(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const d of dirents) {
+      if (d.name.startsWith('.')) continue;
+      const full = path.join(dir, d.name);
+      if (d.isDirectory()) {
+        await walk(full);
+      } else if (d.isFile() && d.name.endsWith('.md')) {
+        try {
+          const st = await fs.stat(full);
+          const rel = path.relative(vaultPath, full);
+          entries.push(`${rel}\u0000${st.mtimeMs}\u0000${st.size}`);
+        } catch {
+          // file vanished between readdir and stat — ignore
+        }
+      }
+    }
+  }
+
+  await walk(vaultPath);
+  entries.sort();
+  const h = createHash('sha1');
+  h.update(entries.join('\n'));
+  return h.digest('hex');
+}
+
+/**
+ * Deterministic hash of an exclusion predicate so ranked signals can be cached
+ * per (vault + graph-version + exclude-hash). Order-insensitive over conditions
+ * is NOT required — we hash the JSON as-given, which is stable for a given call.
+ */
+export function hashExclude(value: unknown): string {
+  const h = createHash('sha1');
+  h.update(JSON.stringify(value ?? null));
+  return h.digest('hex');
+}

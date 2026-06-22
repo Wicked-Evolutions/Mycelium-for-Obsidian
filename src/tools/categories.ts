@@ -18,6 +18,7 @@ import { crossVaultTools } from './crossvault.js';
 import { sectionTools } from './sections.js';
 import { queryTools } from './query.js';
 import { analyticsTools } from './analytics.js';
+import { graphTools } from './graph.js';
 import { fsPromotedTools } from './fs-promoted.js';
 import { cliTools } from './cli-tools.js';
 
@@ -32,6 +33,7 @@ export const CATEGORY_LABELS: Record<string, string> = {
   sections: 'Sections',
   query: 'Frontmatter Queries',
   analytics: 'Analytics',
+  graph: 'Graph Orientation',
   'fs-promoted': 'Vault Utilities',
   'cli-tools': 'Obsidian App (CLI)',
   'get-started': 'Getting Started',
@@ -52,6 +54,7 @@ function buildModuleIndex(): Map<string, string> {
     ['sections', sectionTools],
     ['query', queryTools],
     ['analytics', analyticsTools],
+    ['graph', graphTools],
     ['fs-promoted', fsPromotedTools],
     ['cli-tools', cliTools],
   ];
