@@ -237,6 +237,55 @@ describe('semantic_search (Ollama-gated)', () => {
     assert.ok(data.results.length <= 1, `results must be <= limit=1; got ${data.results.length}`);
   });
 
+  // Convergence (#23) additive smoke: graph annotation is present on hits.
+  test('hits carry a graph key (object|null) and top-level graphAvailable is present', async (t) => {
+    if (!ollamaAvailable) { t.skip('Ollama not available'); return; }
+
+    // Index so there is something to search + annotate.
+    await handlers.index_vault({ vault: 'TestVault', force: true });
+
+    const res = await handlers.semantic_search({
+      vault: 'TestVault',
+      query: 'marketing strategy brand awareness',
+      limit: 5,
+    });
+    assert.equal(res.isError, false, `search failed: ${res.content[0].text}`);
+    const data = parseJson(res);
+
+    // Top-level graphAvailable always present (boolean), additive — never errors.
+    assert.ok('graphAvailable' in data, 'top-level graphAvailable key present');
+    assert.equal(typeof data.graphAvailable, 'boolean', 'graphAvailable is a boolean');
+
+    if (data.graphAvailable) {
+      // When available, each hit carries a `graph` block: object (NodeSignals) or null.
+      for (const r of data.results) {
+        assert.ok('graph' in r, 'each hit has a graph key when graphAvailable');
+        assert.ok(
+          r.graph === null || typeof r.graph === 'object',
+          'graph is an object or null',
+        );
+        if (r.graph !== null) {
+          assert.ok('level' in r.graph, 'graph block has level');
+          assert.ok('excluded' in r.graph, 'graph block has excluded flag');
+          assert.equal(typeof r.graph.excluded, 'boolean', 'excluded is a boolean');
+        }
+      }
+      // JOIN-WITH-TEETH (real sources): store.search filePath vs getGraphSignals
+      // map keys must actually join. A silent all-miss would leave every hit
+      // graph:null while the "key present" checks above still pass — guard it.
+      // Marketing.md / Engineering.md have no frontmatter → not excluded → ranked
+      // → pagerank is non-null (teleport baseline even on a 0-edge 2-node graph).
+      // (level can be coarse-band/leaf on a tiny vault, so key the teeth on pagerank.)
+      const joined = data.results.find((r) => r.graph !== null);
+      assert.ok(joined, 'at least one hit joined to graph signals (join is not silently all-miss)');
+      assert.notEqual(joined.graph.pagerank, null, 'a non-excluded joined hit carries a real pagerank');
+
+      // Available → activeExclude + usedDefaultExclude echoed.
+      assert.ok(Array.isArray(data.activeExclude), 'activeExclude echoed when available');
+      assert.equal(typeof data.usedDefaultExclude, 'boolean', 'usedDefaultExclude echoed');
+    }
+  });
+
   test('expand=false sets searchType to "hybrid" and queriesUsed has exactly 1 entry', async (t) => {
     if (!ollamaAvailable) { t.skip('Ollama not available'); return; }
 
