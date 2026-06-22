@@ -110,6 +110,9 @@ export interface ApplyRerankResult<T> {
  *     rerankerAvailable:false + reason. The ONE no-op contract.
  *   - Backend throws / returns malformed → graceful degrade: input UNCHANGED,
  *     rerankerAvailable:false + reason. NEVER throws.
+ *   - Backend returns a non-empty array that joins ZERO valid scores (all
+ *     invalid OR all ids hallucinated) → degrade too (rerankerAvailable:false).
+ *     A zero-join result must NOT look like a real rerank (GPT-5.5 hardening).
  *   - Backend available + scores → re-sort by reranker_score DESC (stable for
  *     ties: original fusion order preserved), score map populated.
  *
@@ -162,11 +165,35 @@ export async function applyRerank<T>(
     };
   }
 
+  // Join scores back to candidates by id. A score only counts when it (a) is a
+  // finite number AND (b) references an id that is ACTUALLY in the candidate set
+  // — a backend that hallucinates ids contributes nothing.
+  const candidateIds = new Set<string>(results.map((r) => getId(r)));
   const scores = new Map<string, number>();
   for (const s of scored) {
-    if (s && typeof s.id === 'string' && typeof s.reranker_score === 'number' && Number.isFinite(s.reranker_score)) {
+    if (
+      s &&
+      typeof s.id === 'string' &&
+      candidateIds.has(s.id) &&
+      typeof s.reranker_score === 'number' &&
+      Number.isFinite(s.reranker_score)
+    ) {
       scores.set(s.id, s.reranker_score);
     }
+  }
+
+  // HARDENING (GPT-5.5, #27): a non-empty array that joins ZERO valid scores
+  // must NOT masquerade as a successful rerank (which would leave every
+  // reranker_score null while claiming rerankerAvailable:true). Degrade instead:
+  // ordering unchanged, rerankerAvailable:false + reason. This is the general
+  // SEAM robustness guarantee for ANY backend, not just the LLM one.
+  if (scores.size === 0) {
+    return {
+      results,
+      scores: new Map(),
+      rerankerAvailable: false,
+      rerankerUnavailableReason: `reranker backend "${backend.name}" returned no valid scores joined to candidates`,
+    };
   }
 
   // Stable re-sort by reranker_score DESC. Candidates the backend did not score
