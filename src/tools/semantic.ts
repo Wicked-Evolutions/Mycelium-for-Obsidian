@@ -24,8 +24,16 @@ import {
   Reranker,
   getReranker,
   getActiveRerankerName,
-  applyRerank
+  applyRerank,
+  registerReranker
 } from '../embeddings/reranker.js';
+import { llmReranker } from '../embeddings/reranker-llm.js';
+
+// Register the built-in LLM-as-reranker backend (#27, PR-C). Registration is
+// INERT on the default path: the backend is only retrieved when the operator
+// sets RERANKER_BACKEND=llm AND the per-call `rerank` arg is true — so this line
+// does NOT change default-OFF behaviour (no rerank keys, no reorder).
+registerReranker(llmReranker);
 
 /**
  * Get storage instance for a vault (shared singleton per vault path)

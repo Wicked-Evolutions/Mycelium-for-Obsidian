@@ -45,6 +45,40 @@ export async function generateEmbedding(
 }
 
 /**
+ * Generate a text completion via Ollama's `/api/generate` (non-streaming).
+ *
+ * This is the SAME endpoint the query-expansion path uses. Factored here so the
+ * LLM-as-reranker backend (PR-C, #27) can call it AND tests can inject a fake
+ * `generate` instead of mocking the network. Returns the raw `response` string;
+ * the caller is responsible for parsing/validating it.
+ *
+ * `model` defaults to a GENERATION model (never the embedding model, which
+ * cannot emit text), overridable via OLLAMA_GENERATE_MODEL.
+ */
+export type GenerateFn = (prompt: string) => Promise<string>;
+
+export async function generateCompletion(
+  prompt: string,
+  config: { host: string; model?: string }
+): Promise<string> {
+  const model =
+    config.model || process.env.OLLAMA_GENERATE_MODEL || 'qwen2.5:7b';
+  const response = await fetch(`${config.host}/api/generate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model, prompt, stream: false }),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Ollama generate failed: ${response.status} ${error}`);
+  }
+
+  const data = (await response.json()) as { response?: string };
+  return data.response ?? '';
+}
+
+/**
  * Generate embeddings for multiple texts (batched)
  */
 export async function generateEmbeddings(
