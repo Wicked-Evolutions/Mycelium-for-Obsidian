@@ -218,6 +218,26 @@ test("honesty: /search has PERIPHERAL and no 'bridge'/'betweenness'", () => {
   assert.ok(!text.includes('betweenness'), "search must NOT reference 'betweenness' (not computed in v1)");
 });
 
+test("honesty: /search distinguishes a null graph block from excluded", () => {
+  // graph:null = the hit did not join to graph signals (role UNKNOWN); excluded
+  // notes carry a NON-null block with excluded:true (level/pagerank null). The
+  // wording must not conflate the two (regression guard for the P1 fix).
+  const text = textOf(getPromptMessages('search', { query: 'x' }));
+  assert.ok(
+    text.includes('UNAVAILABLE'),
+    'search must say a null graph block makes the structural role UNAVAILABLE'
+  );
+  assert.ok(
+    text.includes('NOT the same as excluded'),
+    'search must explicitly state a null graph block is not the same as excluded'
+  );
+  // The old conflating phrase must be gone.
+  assert.ok(
+    !text.includes('flag is true (or graph is null)'),
+    "search must NOT equate 'graph is null' with the excluded role"
+  );
+});
+
 test("honesty: /excluded uses the high limit (1000)", () => {
   const text = textOf(getPromptMessages('excluded', {}));
   assert.ok(text.includes('1000'), "excluded must use the high limit (1000) to avoid under-reporting");

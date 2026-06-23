@@ -117,7 +117,8 @@ export function getPromptMessages(
         `Do NOT silently reorder hits by centrality. Each hit carries an additive \`graph\` block with raw structural signals ` +
         `{ level (L0–L5, or null if pruned), pagerank, inDegree, outDegree, inOutRatio, archived, excluded }. ` +
         `Use that block to EXPLAIN each hit's structural ROLE next to it, using ONLY these honest labels: HUB = level L0–L1; MID = L2–L3; ` +
-        `PERIPHERAL = level L4–L5; EXCLUDED = the \`excluded\` flag is true (or graph is null). ` +
+        `PERIPHERAL = level L4–L5; EXCLUDED = the \`graph\` block is PRESENT and its \`excluded\` is true (its level and pagerank will be null). ` +
+        `A null \`graph\` block is NOT the same as excluded — it means this hit did not join to graph signals, so its structural role is UNAVAILABLE; say so for that hit and do NOT label it excluded. ` +
         `Do NOT invent any additional role beyond these four — there is no centrality/intermediary metric computed in v1, ` +
         `so never infer one from inOutRatio or degree. ` +
         `After the ranked list you MAY add a short 'central hits to notice' line pointing at which results are hubs worth opening first. ` +
