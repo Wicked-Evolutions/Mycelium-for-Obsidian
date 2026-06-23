@@ -157,6 +157,11 @@ export function createGraphHandlers(config: Config) {
         const payload = {
           vault: result.vault,
           provider: result.provider,
+          // Observability for the silent Obsidian→filesystem degrade (#32):
+          // present ONLY on the attempted-then-failed Obsidian path.
+          ...(result.providerFallbackReason
+            ? { providerFallbackReason: result.providerFallbackReason }
+            : {}),
           totalNodes: result.totalNodes,
           rankedNodes: ranked.length,
           excludedNodes: result.excludedCount,

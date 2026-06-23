@@ -37,6 +37,13 @@ export interface BaseGraph {
   outDegree: Map<string, number>;
   /** Which provider built this graph: "obsidian" (eval) or "filesystem". */
   provider: 'obsidian' | 'filesystem';
+  /**
+   * Present ONLY when the Obsidian provider was selected/attempted, threw, and
+   * we degraded to the filesystem approximation (issue #32). A short, sanitized,
+   * path-free, bounded-length note. ABSENT whenever the filesystem provider was
+   * selected normally (CLI unavailable or eval_obsidian disabled).
+   */
+  providerFallbackReason?: string;
 }
 
 /**
@@ -58,6 +65,13 @@ export interface NodeSignals {
 export interface GraphSignals {
   vault: string;
   provider: 'obsidian' | 'filesystem';
+  /**
+   * Present ONLY when the Obsidian provider was attempted and degraded to the
+   * filesystem approximation (issue #32). Threaded from buildVaultGraph through
+   * the two-tier cache so cache hits keep it. ABSENT on the normal-filesystem
+   * and normal-obsidian-success paths.
+   */
+  providerFallbackReason?: string;
   /** path → signals (every base-graph node present). */
   signals: Map<string, NodeSignals>;
   /** The exclusion predicate that was actually applied (defaults included). */

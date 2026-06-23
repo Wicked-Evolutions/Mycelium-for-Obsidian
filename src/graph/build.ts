@@ -28,15 +28,20 @@ export async function buildVaultGraph(
 ): Promise<BaseGraph> {
   let result: ProviderResult;
   let usedProvider: 'obsidian' | 'filesystem' = provider.name;
+  let providerFallbackReason: string | undefined;
 
   try {
     result = await provider.build(vaultPath);
   } catch (err) {
     if (provider.name === 'obsidian') {
       // Graceful degradation: Obsidian unreachable / eval failed → filesystem.
+      // Capture a SANITIZED reason so the silent degrade (issue #32) becomes
+      // observable. This branch is the ONLY place providerFallbackReason is set:
+      // a filesystem provider selected normally never reaches here.
       const fs = new FilesystemProvider();
       result = await fs.build(vaultPath);
       usedProvider = 'filesystem';
+      providerFallbackReason = sanitizeFallbackReason(err);
     } else {
       throw err;
     }
@@ -47,7 +52,38 @@ export async function buildVaultGraph(
   void config;
   void vaultName;
 
-  return normalize(result, usedProvider);
+  const graph = normalize(result, usedProvider);
+  if (providerFallbackReason) {
+    graph.providerFallbackReason = providerFallbackReason;
+  }
+  return graph;
+}
+
+/** Max length of the sanitized fallback reason (bounded payload). */
+const MAX_FALLBACK_REASON_LEN = 200;
+
+/**
+ * Build a short, safe, path-free reason for an Obsidian→filesystem degrade.
+ *
+ * The raw error can carry the full CLI/eval error (with stderr) and may embed
+ * absolute filesystem paths or large payload fragments. We take the FIRST LINE
+ * only, REDACT any absolute path, and TRUNCATE to a bounded length, then wrap
+ * it so the message always mentions the Obsidian failure and the fallback.
+ */
+export function sanitizeFallbackReason(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err);
+  // First line only — the CLI error appends `\n${stderr}`.
+  const firstLine = raw.split('\n')[0] ?? '';
+  // Redact absolute POSIX paths (/Users/…, /home/…, /var/…, any leading-slash
+  // segment run) so no filesystem path leaks into the response.
+  const noPaths = firstLine.replace(/\/(?:[^\s/]+\/)*[^\s/]*/g, '[path]');
+  const collapsed = noPaths.replace(/\s+/g, ' ').trim();
+  const truncated =
+    collapsed.length > MAX_FALLBACK_REASON_LEN
+      ? collapsed.slice(0, MAX_FALLBACK_REASON_LEN - 1).trimEnd() + '…'
+      : collapsed;
+  const short = truncated.length > 0 ? truncated : 'unknown error';
+  return `Obsidian graph provider failed: ${short}; used filesystem approximation`;
 }
 
 /**

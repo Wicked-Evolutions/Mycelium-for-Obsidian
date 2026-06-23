@@ -7,6 +7,20 @@
 import { execFile } from 'child_process';
 import { Config } from '../config.js';
 
+/**
+ * Maximum stdout buffer for an Obsidian CLI invocation.
+ *
+ * Node's `execFile` default `maxBuffer` is exactly 1 MB. The Obsidian graph
+ * eval (`app.metadataCache.resolvedLinks` serialized to JSON) is ~1.17 MB for a
+ * real ~1,700-note vault — which overruns the 1 MB ceiling, makes `execFile`
+ * fail with ENOBUFS, and causes the graph layer to silently degrade from the
+ * Obsidian provider to the filesystem approximation (issue #32). A generous
+ * 256 MB ceiling keeps exact-graph parity on large vaults while still bounding
+ * a runaway payload. Exported so tests can assert both the value and that
+ * `execCli` actually passes it.
+ */
+export const OBSIDIAN_CLI_MAX_BUFFER = 256 * 1024 * 1024;
+
 // Map our MCP vault paths to Obsidian CLI vault names
 // CLI uses the folder name as vault name, we use short aliases
 let cliVaultNameCache: Map<string, string> | null = null;
@@ -44,6 +58,7 @@ export function execCli(args: string[], timeoutMs: number = 10000): Promise<stri
     execFile('obsidian', args, {
       timeout: timeoutMs,
       encoding: 'utf8',
+      maxBuffer: OBSIDIAN_CLI_MAX_BUFFER,
       env: { ...process.env, PATH: `${process.env.PATH}:/Applications/Obsidian.app/Contents/MacOS` }
     }, (error, stdout, stderr) => {
       if (error) {

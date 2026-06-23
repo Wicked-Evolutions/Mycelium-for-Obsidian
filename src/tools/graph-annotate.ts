@@ -88,6 +88,13 @@ export interface GraphAttachMeta {
    * unknown (the build threw before a provider was selected), so it is omitted.
    */
   provider?: 'obsidian' | 'filesystem';
+  /**
+   * Present ONLY when the graph built (graphAvailable:true) BUT the Obsidian
+   * provider was attempted and degraded to the filesystem approximation (#32).
+   * Sits NEXT TO `provider` on the SUCCESS branch — it is NOT graphUnavailable
+   * (the graph is usable, just from the fallback provider).
+   */
+  providerFallbackReason?: string;
   /** The exclusion predicate actually applied (only when available). */
   activeExclude?: FilterCondition[];
   /** Whether DEFAULT_EXCLUDE was used (only when available). */
@@ -133,6 +140,10 @@ export async function attachGraphSignals<T extends PathBearing>(opts: {
       results: annotated,
       graphAvailable: true,
       provider: signals.provider,
+      // Additive (#32): only when the Obsidian provider degraded to filesystem.
+      ...(signals.providerFallbackReason
+        ? { providerFallbackReason: signals.providerFallbackReason }
+        : {}),
       activeExclude: signals.activeExclude,
       usedDefaultExclude: signals.usedDefaultExclude
     };
@@ -160,6 +171,12 @@ export interface PerVaultGraphMeta {
   graphAvailable: boolean;
   graphUnavailableReason?: string;
   provider?: 'obsidian' | 'filesystem';
+  /**
+   * Per-vault Obsidian→filesystem degrade reason (#32). Present ONLY when that
+   * vault's graph built via the fallback provider (sits with `provider` on the
+   * graphAvailable:true branch).
+   */
+  providerFallbackReason?: string;
 }
 
 export interface CrossVaultGraphResult<T> {
@@ -234,7 +251,13 @@ export async function annotateCrossVault<T extends VaultPathBearing>(opts: {
     graphByVault[vaultName] = {
       graphAvailable: attach.graphAvailable,
       ...(attach.graphAvailable
-        ? { provider: attach.provider }
+        ? {
+            provider: attach.provider,
+            // Additive (#32): per-vault Obsidian→filesystem degrade reason.
+            ...(attach.providerFallbackReason
+              ? { providerFallbackReason: attach.providerFallbackReason }
+              : {})
+          }
         : { graphUnavailableReason: attach.graphUnavailableReason })
     };
 
