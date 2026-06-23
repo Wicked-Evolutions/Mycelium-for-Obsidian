@@ -7,8 +7,16 @@ on:
 jobs:
   add-to-project:
     runs-on: ubuntu-latest
+    # Map the secret to env so the step `if` can test it: when ADD_TO_PROJECT_PAT
+    # is not configured, the step is skipped and the job stays green instead of
+    # red-failing on every issue/PR. Set the secret (a PAT with `project` scope)
+    # to enable the automation.
+    env:
+      ADD_TO_PROJECT_PAT: ${{ secrets.ADD_TO_PROJECT_PAT }}
     steps:
-      - uses: actions/add-to-project@v2
+      - name: Add to project (skipped unless ADD_TO_PROJECT_PAT is configured)
+        if: ${{ env.ADD_TO_PROJECT_PAT != '' }}
+        uses: actions/add-to-project@v2
         with:
           project-url: https://github.com/orgs/Wicked-Evolutions/projects/4
           github-token: ${{ secrets.ADD_TO_PROJECT_PAT }}
