@@ -159,7 +159,7 @@ export function createLlmReranker(options: LlmRerankerOptions = {}): Reranker {
         const idx = typeof e.id === 'number' ? e.id : Number(e.id);
         const score = typeof e.score === 'number' ? e.score : Number(e.score);
         if (!Number.isInteger(idx) || idx < 1 || idx > windowed.length) continue;
-        if (!Number.isFinite(score)) continue;
+        if (!Number.isFinite(score) || score < 0 || score > 1) continue; // (P2) reject out-of-[0,1] per the 0..1 prompt contract
         out.push({ id: windowed[idx - 1].id, reranker_score: score });
       }
 

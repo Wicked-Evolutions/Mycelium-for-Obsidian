@@ -146,6 +146,37 @@ describe('createLlmReranker (mocked generate)', () => {
     assert.deepEqual(out.results, rows, 'ordering unchanged on malformed output');
   });
 
+  test('(P2) scores outside [0,1] are rejected — a 99 cannot dominate', async () => {
+    // The prompt contract is 0..1; a model emitting 99 / -4 violated it. Those
+    // must NOT join (so they can't dominate ordering); only the in-range score does.
+    const generate = async () =>
+      JSON.stringify([
+        { id: 1, score: 0.7 }, // in range → joins
+        { id: 2, score: 99 },  // out of range → rejected
+        { id: 3, score: -4 },  // out of range → rejected
+      ]);
+    const backend = createLlmReranker({ generate });
+    const out = await applyRerank('q', rows, getId, getText, getFusion, backend);
+    assert.equal(out.rerankerAvailable, true, 'one in-range score is a real (partial) rerank');
+    assert.equal(out.scores.get('a.md:'), 0.7, 'in-range score joined');
+    assert.equal(out.scores.has('b.md:'), false, 'score 99 rejected — did not join');
+    assert.equal(out.scores.has('c.md:'), false, 'score -4 rejected — did not join');
+  });
+
+  test('(P2) ALL scores out of [0,1] → zero valid → rerankerAvailable:false', async () => {
+    const generate = async () =>
+      JSON.stringify([
+        { id: 1, score: 99 },
+        { id: 2, score: -1 },
+        { id: 3, score: 1.5 },
+      ]);
+    const backend = createLlmReranker({ generate });
+    const out = await applyRerank('q', rows, getId, getText, getFusion, backend);
+    assert.equal(out.rerankerAvailable, false, 'all out-of-range → degrade, not fake success');
+    assert.equal(out.scores.size, 0, 'no scores joined');
+    assert.deepEqual(out.results, rows, 'ordering unchanged');
+  });
+
   test('generate throwing → graceful fallback, never throws', async () => {
     const generate = async () => { throw new Error('connection refused'); };
     const backend = createLlmReranker({ generate });
