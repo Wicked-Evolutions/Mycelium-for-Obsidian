@@ -19,10 +19,13 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
   ListToolsRequestSchema,
-  CallToolRequestSchema
+  CallToolRequestSchema,
+  ListPromptsRequestSchema,
+  GetPromptRequestSchema
 } from '@modelcontextprotocol/sdk/types.js';
 import { loadConfig, Config } from './config.js';
 import { allTools, createAllHandlers } from './tools/index.js';
+import { allPrompts, getPromptMessages } from './prompts/index.js';
 import { createVaultWatcher, VaultWatcher } from './embeddings/watcher.js';
 import { createHttpServer } from './http-server.js';
 
@@ -48,7 +51,8 @@ const server = new Server(
   },
   {
     capabilities: {
-      tools: {}
+      tools: {},
+      prompts: {}
     }
   }
 );
@@ -100,6 +104,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       isError: true
     } as const;
   }
+});
+
+// Handle prompt listing (MCP prompts capability — #14)
+server.setRequestHandler(ListPromptsRequestSchema, async () => {
+  return { prompts: allPrompts };
+});
+
+// Handle a single prompt fetch — returns primed user messages (never executes a tool)
+server.setRequestHandler(GetPromptRequestSchema, async (request) => {
+  return getPromptMessages(request.params.name, request.params.arguments ?? {});
 });
 
 // Graceful shutdown (idempotent) — used by signals AND client-disconnect detection
