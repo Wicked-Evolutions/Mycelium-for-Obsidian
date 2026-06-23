@@ -171,6 +171,11 @@ export async function getGraphSignals(
   const signals: GraphSignals = {
     vault: vault.name,
     provider: graph.provider,
+    // Carry the Obsidian→filesystem degrade reason (issue #32) through the
+    // ranked cache so cache hits keep it. Only present when set on the base graph.
+    ...(graph.providerFallbackReason
+      ? { providerFallbackReason: graph.providerFallbackReason }
+      : {}),
     signals: signalsMap,
     activeExclude: resolved.activeExclude,
     usedDefaultExclude: resolved.usedDefault,
