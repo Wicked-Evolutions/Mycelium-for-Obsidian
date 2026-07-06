@@ -2,6 +2,34 @@
 
 All notable changes to mcp-obsidian are documented here.
 
+## [1.4.0] - 2026-07-06
+
+A two-pillar release: **graph orientation** (the vault's link graph) alongside the existing **semantic retrieval** (embeddings). Everything below was developed since 1.3.0.
+
+### Added
+
+- **Graph orientation — `analyze_link_hierarchy`** — ranks the vault's wikilink graph by PageRank + degree and assigns structural levels L0 (top hubs) → L5 (leaves), pruning declared / generated / index / archive notes before ranking. Obsidian-authoritative when the app is running (exact `resolvedLinks`), filesystem approximation otherwise. Backed by a reusable `getGraphSignals`. (#19)
+- **Graph-aware search** — every `semantic_search` hit now carries an additive `graph` block describing its structural role; extended to cross-vault `semantic_search_all`. Ordering is unchanged — the graph block is a compass, not a re-ranker. (#24, #26)
+- **Hybrid retrieval** — Reciprocal Rank Fusion (RRF) over embeddings + BM25, an eval harness (Recall@K / NDCG@K / MRR), and per-signal observability. (#18)
+- **Opt-in reranker + HyDE** — an LLM-as-reranker backend over Ollama (default **OFF**; ordering unchanged when off) and a `hypotheticalAnswer` (HyDE) argument for `semantic_search`. (#28, #29)
+- **Slash commands (MCP prompts)** — five read-only, human-triggered commands that prime the assistant over the shipped tools: `/orient`, `/search`, `/excluded`, `/vault-health`, `/get-started`. (#14)
+- **Safety / trust surface** — global read-only mode (`OBSIDIAN_READ_ONLY`), untrusted-content markers (`OBSIDIAN_WRAP_UNTRUSTED`), per-tool MCP annotations (readOnly / destructive / idempotent / openWorld hints), and byte-delta telemetry on writes. (#20)
+- **Concept-link visibility** — `analyze_link_hierarchy` now reports `resolvedEdgeCount`, `unresolvedLinkCount`, and `distinctUnresolvedTargets`, and `/orient` distinguishes a genuinely unstructured vault from a **concept-first** one (many `[[concept]]` links to notes that don't exist yet) instead of claiming "no structure." (#37)
+
+### Changed
+
+- **`analyze_link_hierarchy` now requires an explicit `vault`.** The authoritative orientation map no longer silently defaults to the first configured vault — omitting `vault` returns a structured error listing the configured vaults. A valid but empty vault returns a clear `emptyVault` response instead of a hollow all-zero map. (#33)
+
+### Fixed
+
+- **Obsidian graph provider silently degraded to the filesystem approximation on larger vaults.** The CLI eval output exceeded Node's default 1 MB `execFile` buffer, so vaults with more than ~1 MB of resolved links quietly lost exact-graph parity and reported `provider: "filesystem"`. Raised the buffer and surfaced a `providerFallbackReason` so any degrade is now visible rather than silent. (#32)
+
+### Infrastructure
+
+- **Continuous integration** — the full test suite now runs on every pull request and push across Node 20 and 22; `main` is branch-protected on those checks; baseline coverage (c8) is reported. (#39)
+- **Live end-to-end lane** — an operator-run `test:live` suite exercises the real Obsidian provider and real Ollama embeddings before each release (`docs/live-e2e.md`). (#40)
+- Project-board automation CI hygiene. (#22, #31)
+
 ## [1.3.0] - 2026-06-19
 
 ### Added
