@@ -15,7 +15,7 @@
     "test:headless": "node --experimental-test-module-mocks --test test/*.test.mjs",
     "test": "npm run build && npm run test:headless",
     "test:coverage": "c8 --reporter=text --reporter=lcov node --experimental-test-module-mocks --test test/*.test.mjs",
-    "test:live": "npm run build && node --test test/*.test.mjs"
+    "test:live": "npm run build && node --experimental-test-module-mocks --test test/live/*.live.mjs"
   },
   "files": [
     "dist/",
