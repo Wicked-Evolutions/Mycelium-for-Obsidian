@@ -129,21 +129,54 @@ test('orient interpolates the named-vault clause and arg (vault given)', () => {
   assert.ok(!text.includes('default configured vault'), 'no default-vault wording when vault given');
 });
 
-test('orient emits default-vault wording with NO dangling vault arg (vault omitted)', () => {
+// #37: WITH-vault branch primes analyze_link_hierarchy AND the concept-link
+// interpretation (edgeless resolved graph + high unresolved links ≠ no structure).
+test('orient WITH vault primes analyze_link_hierarchy + concept-link interpretation (#37)', () => {
+  const text = textOf(getPromptMessages('orient', { vault: 'Foo' }));
+  assert.ok(text.includes('`analyze_link_hierarchy` with vault "Foo"'), 'primes the tool WITH the vault');
+  // Concept-link honesty wording.
+  assert.ok(text.includes('resolvedEdgeCount'), 'names resolvedEdgeCount signal');
+  assert.ok(text.includes('unresolvedLinkCount'), 'names unresolvedLinkCount signal');
+  assert.ok(text.includes('UNRESOLVED concept-links'), 'explains the unresolved concept-link case');
+  assert.ok(text.includes("NOT 'no structure'"), "must reject the 'no structure' misnarration");
+  assert.ok(text.includes('get_broken_links'), 'offers get_broken_links for the top concepts');
+});
+
+// #33-B + #37: WITHOUT a vault, analyze_link_hierarchy now REQUIRES a vault, so
+// the prompt must NOT call it blind — it lists the vaults and ASKS which one.
+test('orient WITHOUT vault asks which vault; does NOT call the tool blind (#33-B)', () => {
   const text = textOf(getPromptMessages('orient', {}));
+  // Drives get_started to enumerate the configured vaults.
+  assert.ok(text.includes('get_started'), 'must drive get_started to list the vaults');
+  // Explicitly asks the user to choose.
   assert.ok(
-    text.includes('this vault (the default configured vault)'),
-    'must use the default-vault clause'
+    text.includes('ASK me which vault'),
+    'must ask which vault to orient instead of guessing'
   );
+  // Must NOT instruct calling the tool blind (no bare "then call analyze_link_hierarchy.").
+  assert.ok(
+    !text.includes('then call `analyze_link_hierarchy`.'),
+    'must NOT call analyze_link_hierarchy without a vault (it is now required)'
+  );
+  // States the required-vault reason so the guidance is grounded.
+  assert.ok(text.includes('REQUIRES'), 'must state analyze_link_hierarchy requires a vault');
   // No leftover placeholder token and no empty `with vault ""`.
   assert.ok(!text.includes('{VAULT_ARG}'), 'no unresolved {VAULT_ARG} placeholder');
   assert.ok(!text.includes('{VAULT_CLAUSE}'), 'no unresolved {VAULT_CLAUSE} placeholder');
   assert.ok(!text.includes('with vault ""'), 'no dangling empty vault arg');
-  // The tool call should be flush against the period (no trailing vault arg).
-  assert.ok(
-    text.includes('then call `analyze_link_hierarchy`.'),
-    'analyze_link_hierarchy call must end cleanly with no vault arg'
-  );
+});
+
+// #37: the "resolved graph empty, unresolved concept-links present" wording is
+// present in BOTH branches (checklist item 9).
+test('orient explains edgeless-resolved-but-unresolved-present in both branches (#37)', () => {
+  for (const args of [{ vault: 'Foo' }, {}]) {
+    const text = textOf(getPromptMessages('orient', args));
+    assert.ok(
+      text.includes('resolvedEdgeCount 0 or low') && text.includes('unresolvedLinkCount'),
+      'must describe the edgeless-resolved-graph + unresolved-concept-links case'
+    );
+    assert.ok(text.includes("NOT 'no structure'"), "must reject the 'no structure' framing");
+  }
 });
 
 test('search interpolates the query (query given)', () => {

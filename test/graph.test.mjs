@@ -151,12 +151,12 @@ describe('analyze_link_hierarchy — synthetic topology (filesystem provider)', 
   });
 
   test('uses filesystem provider when eval_obsidian disabled', async () => {
-    const p = parse(await h.analyze_link_hierarchy({}));
+    const p = parse(await h.analyze_link_hierarchy({ vault: 'Vault' }));
     assert.equal(p.provider, 'filesystem');
   });
 
   test('default exclusion prunes the generated cluster and echoes activeExclude', async () => {
-    const p = parse(await h.analyze_link_hierarchy({}));
+    const p = parse(await h.analyze_link_hierarchy({ vault: 'Vault' }));
     assert.equal(p.usedDefaultExclude, true);
     // 5 generated nodes (manifest + g1..g4) pruned.
     assert.equal(p.excludedNodes, 5, `expected 5 excluded, got ${p.excludedNodes}`);
@@ -169,7 +169,7 @@ describe('analyze_link_hierarchy — synthetic topology (filesystem provider)', 
   });
 
   test('the spine (Hub + Mid) lands in the top bands', async () => {
-    const p = parse(await h.analyze_link_hierarchy({}));
+    const p = parse(await h.analyze_link_hierarchy({ vault: 'Vault' }));
     const hub = p.nodes.find((n) => n.path === 'Hub.md');
     const mid = p.nodes.find((n) => n.path === 'Mid.md');
     assert.ok(hub && mid, 'Hub and Mid must be present in the ranked output');
@@ -183,7 +183,7 @@ describe('analyze_link_hierarchy — synthetic topology (filesystem provider)', 
   });
 
   test('embeds + duplicate + heading links all credit Hub via contributor edge counts', async () => {
-    const p = parse(await h.analyze_link_hierarchy({}));
+    const p = parse(await h.analyze_link_hierarchy({ vault: 'Vault' }));
     const hub = p.nodes.find((n) => n.path === 'Hub.md');
     const fromL1 = hub.topContributors.find((c) => c.source === 'L1.md');
     assert.ok(fromL1, 'L1 must be a contributor to Hub');
@@ -192,14 +192,14 @@ describe('analyze_link_hierarchy — synthetic topology (filesystem provider)', 
   });
 
   test('leaves with no inbound are L5 (leaf floor)', async () => {
-    const p = parse(await h.analyze_link_hierarchy({}));
+    const p = parse(await h.analyze_link_hierarchy({ vault: 'Vault' }));
     const l1 = p.nodes.find((n) => n.path === 'L1.md');
     assert.ok(l1, 'L1 present');
     assert.equal(l1.level, 5, 'leaf with zero inbound is L5');
   });
 
   test('excluded nodes can be surfaced with {where: []} (defaults off)', async () => {
-    const p = parse(await h.analyze_link_hierarchy({ exclude: { where: [] } }));
+    const p = parse(await h.analyze_link_hierarchy({ vault: 'Vault', exclude: { where: [] } }));
     assert.equal(p.usedDefaultExclude, false);
     assert.equal(p.excludedNodes, 0, 'no exclusions when where:[] passed');
     const paths = p.nodes.map((n) => n.path);
@@ -209,6 +209,7 @@ describe('analyze_link_hierarchy — synthetic topology (filesystem provider)', 
   test('custom exclude (AND semantics) prunes by frontmatter', async () => {
     const p = parse(
       await h.analyze_link_hierarchy({
+        vault: 'Vault',
         exclude: { where: [{ field: 'node_type', op: 'equals', value: 'generated' }] },
       })
     );
@@ -218,8 +219,8 @@ describe('analyze_link_hierarchy — synthetic topology (filesystem provider)', 
   });
 
   test('scope filters OUTPUT only, not ranking', async () => {
-    const full = parse(await h.analyze_link_hierarchy({}));
-    const scoped = parse(await h.analyze_link_hierarchy({ scope: 'Hub' }));
+    const full = parse(await h.analyze_link_hierarchy({ vault: 'Vault' }));
+    const scoped = parse(await h.analyze_link_hierarchy({ vault: 'Vault', scope: 'Hub' }));
     // Ranking population is identical; only the returned detail is filtered.
     assert.equal(scoped.rankedNodes, full.rankedNodes, 'ranking uses whole graph regardless of scope');
     assert.ok(scoped.nodes.every((n) => n.path.startsWith('Hub')), 'scoped output only includes Hub*');
@@ -227,21 +228,92 @@ describe('analyze_link_hierarchy — synthetic topology (filesystem provider)', 
   });
 
   test('compact omits contributor breakdown', async () => {
-    const p = parse(await h.analyze_link_hierarchy({ compact: true }));
+    const p = parse(await h.analyze_link_hierarchy({ vault: 'Vault', compact: true }));
     assert.ok(p.nodes.every((n) => n.topContributors === undefined), 'compact has no topContributors');
   });
 
   test('response carries the orientation note and level bands', async () => {
-    const p = parse(await h.analyze_link_hierarchy({}));
+    const p = parse(await h.analyze_link_hierarchy({ vault: 'Vault' }));
     assert.equal(p.note, 'levels are structural orientation, not importance.');
     assert.equal(p.levelBands.L0, '>= p99 (top hubs)');
     assert.equal(p.levelBands.L5, 'post-exclusion in-degree 0 (leaf floor)');
   });
 
   test('histogram counts sum to ranked + excluded', async () => {
-    const p = parse(await h.analyze_link_hierarchy({}));
+    const p = parse(await h.analyze_link_hierarchy({ vault: 'Vault' }));
     const sum = p.histogram.reduce((s, b) => s + b.count, 0);
     assert.equal(sum, p.totalNodes, 'histogram (incl. excluded bucket) sums to total nodes');
+  });
+
+  // #37: link-resolution aggregates ALWAYS present in the output. The synthetic
+  // vault has exactly one unresolved wikilink: Hub.md → [[Missing Note]].
+  test('output always carries resolved/unresolved link counts (#37)', async () => {
+    const p = parse(await h.analyze_link_hierarchy({ vault: 'Vault' }));
+    assert.equal(typeof p.resolvedEdgeCount, 'number', 'resolvedEdgeCount present');
+    assert.equal(typeof p.unresolvedLinkCount, 'number', 'unresolvedLinkCount present');
+    assert.equal(typeof p.distinctUnresolvedTargets, 'number', 'distinctUnresolvedTargets present');
+    assert.ok(p.resolvedEdgeCount > 0, 'vault has resolved edges');
+    // Only [[Missing Note]] is unresolved → 1 occurrence across 1 distinct target.
+    assert.equal(p.unresolvedLinkCount, 1, 'exactly one unresolved occurrence');
+    assert.equal(p.distinctUnresolvedTargets, 1, 'exactly one distinct unresolved target');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// #33-B required vault + PART D empty-vault guard (analyze_link_hierarchy)
+// ---------------------------------------------------------------------------
+describe('analyze_link_hierarchy — required vault + empty-vault guard', () => {
+  let dir, h;
+
+  before(() => {
+    graphMod.clearGraphCaches();
+    dir = createTempVault(buildVault());
+    h = makeHandlers(dir);
+  });
+
+  after(() => {
+    if (dir) cleanup(dir);
+    graphMod.clearGraphCaches();
+  });
+
+  test('missing vault → STRUCTURED error (configured vaults + hint), not a raw string', async () => {
+    const res = await h.analyze_link_hierarchy({});
+    assert.equal(res.isError, true, 'missing vault is an error');
+    const body = JSON.parse(res.content[0].text);
+    assert.ok(typeof body.error === 'string' && body.error.length > 0, 'has an error message');
+    assert.ok(Array.isArray(body.closest_matches), 'has closest_matches array');
+    assert.ok(typeof body.hint === 'string' && body.hint.length > 0, 'has a hint');
+    // Lists the configured vault(s) so the AI can retry with a valid one.
+    assert.ok(body.error.includes('Vault'), 'error names the configured vault');
+    assert.ok(body.hint.includes('get_started'), 'hint points at get_started');
+  });
+
+  test('unknown vault → STRUCTURED error with closest_matches', async () => {
+    const res = await h.analyze_link_hierarchy({ vault: 'Vaultt' });
+    assert.equal(res.isError, true);
+    const body = JSON.parse(res.content[0].text);
+    assert.ok(body.error.includes('Unknown vault'), 'reports the unknown vault');
+    assert.ok(body.closest_matches.includes('Vault'), 'suggests the near-match vault');
+    assert.ok(body.hint.includes('get_started'));
+  });
+
+  test('empty (valid) vault → emptyVault:true SUCCESS (not isError)', async () => {
+    const emptyDir = createTempVault({});
+    const eh = makeHandlers(emptyDir);
+    try {
+      const res = await eh.analyze_link_hierarchy({ vault: 'Vault' });
+      assert.equal(res.isError, false, 'empty valid vault is a SUCCESS, not an error');
+      const body = JSON.parse(res.content[0].text);
+      assert.equal(body.emptyVault, true, 'emptyVault flag set');
+      assert.equal(body.totalNodes, 0, 'totalNodes is 0');
+      assert.equal(
+        body.message,
+        'This vault has 0 notes. Pick another configured vault.',
+        'self-explaining message'
+      );
+    } finally {
+      cleanup(emptyDir);
+    }
   });
 });
 

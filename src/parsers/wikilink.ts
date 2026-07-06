@@ -70,6 +70,45 @@ export function extractWikilinks(content: string): WikiLink[] {
 }
 
 /**
+ * Normalize a RAW wikilink target into the resolver-consistent, same-vault
+ * key used for unresolved-link aggregation, or `null` when the target is
+ * cross-vault (and therefore NOT a same-vault unresolved link).
+ *
+ * This is the SINGLE source of truth both graph providers use so that their
+ * unresolved-target counts agree BY CONSTRUCTION:
+ *   - The filesystem provider passes `link.rawTarget` (the verbatim inner
+ *     target, vault prefix + subpath intact).
+ *   - The Obsidian provider passes each RAW key from
+ *     `app.metadataCache.unresolvedLinks` (verbatim) after aggregating in eval.
+ *
+ * Contract (mirrors `link.path` semantics for same-vault targets):
+ *   - Cross-vault (`Vault:Target`, matches CROSS_VAULT_REGEX) → return `null`
+ *     (SKIP; never counted as a same-vault unresolved link).
+ *   - Otherwise strip an optional `|alias` (defensive — Obsidian's raw
+ *     unresolvedLinks keys already have the alias stripped) and a
+ *     `#heading` / `#^block` subpath, then return the remaining target.
+ *
+ * A note title that merely contains a space before a colon
+ * (e.g. `"Principle Keywords: Breathe"`) does NOT match CROSS_VAULT_REGEX
+ * (the vault segment forbids spaces), so it is a legitimate same-vault key
+ * and is still counted.
+ */
+export function normalizeUnresolvedKey(rawTarget: string): string | null {
+  const trimmed = rawTarget.trim();
+  // Cross-vault → not a same-vault unresolved link.
+  if (CROSS_VAULT_REGEX.test(trimmed)) {
+    return null;
+  }
+  // Defensive alias strip (`Target|alias` → `Target`).
+  const pipeIdx = trimmed.indexOf('|');
+  const withoutAlias = pipeIdx >= 0 ? trimmed.slice(0, pipeIdx) : trimmed;
+  // Subpath strip (`Target#heading` / `Target#^block` → `Target`).
+  const hashIdx = withoutAlias.indexOf('#');
+  const key = hashIdx >= 0 ? withoutAlias.slice(0, hashIdx) : withoutAlias;
+  return key.trim();
+}
+
+/**
  * Parse cross-vault link syntax
  */
 export function parseCrossVaultLink(link: string): { vault?: string; note: string } {

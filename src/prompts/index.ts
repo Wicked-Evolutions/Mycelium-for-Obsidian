@@ -100,13 +100,34 @@ export function getPromptMessages(
 
   switch (name) {
     case 'orient':
-      text =
-        `Orient me in ${VAULT_CLAUSE}. First call the \`get_started\` tool, then call \`analyze_link_hierarchy\`${VAULT_ARG}. ` +
-        `Using both results, give me a plain-language orientation: (1) the SHAPE of the vault (total notes, the level histogram L0→L5, ` +
-        `which provider built the graph — obsidian or filesystem); (2) the CENTRAL notes — list the top hubs (L0–L1 nodes, highest PageRank) by name; ` +
-        `(3) what was EXCLUDED from ranking and why (the excludedNodes count and the active exclusion rule); ` +
-        `(4) WHERE TO BEGIN — 2–4 concrete starting notes or entry points based on the hubs. ` +
-        `Keep it opinionated and oriented toward action, not a raw data dump. Remember: levels are structural orientation, not importance.`;
+      if (vault) {
+        // WITH vault: analyze_link_hierarchy REQUIRES an explicit vault (#33-B) —
+        // we have one, so prime the tool call and the concept-link interpretation.
+        text =
+          `Orient me in ${VAULT_CLAUSE}. First call the \`get_started\` tool, then call \`analyze_link_hierarchy\`${VAULT_ARG}. ` +
+          `Using both results, give me a plain-language orientation: (1) the SHAPE of the vault (total notes, the level histogram L0→L5, ` +
+          `which provider built the graph — obsidian or filesystem); (2) the CENTRAL notes — list the top hubs (L0–L1 nodes, highest PageRank) by name; ` +
+          `(3) what was EXCLUDED from ranking and why (the excludedNodes count and the active exclusion rule); ` +
+          `(4) WHERE TO BEGIN — 2–4 concrete starting notes or entry points based on the hubs. ` +
+          `If the resolved graph is edgeless/sparse (resolvedEdgeCount 0 or low) but unresolvedLinkCount is high, ` +
+          `explain that the vault has many UNRESOLVED concept-links (unresolvedLinkCount occurrences across distinctUnresolvedTargets targets) ` +
+          `with no resolved note-graph yet — this is NOT 'no structure' or 'standalone docs' — and offer to call \`get_broken_links\` for the top concepts. ` +
+          `Keep it opinionated and oriented toward action, not a raw data dump. Remember: levels are structural orientation, not importance.`;
+      } else {
+        // WITHOUT vault: analyze_link_hierarchy now REQUIRES a vault (#33-B), so do
+        // NOT call it blind. Guide to list the vaults and ASK which one — never dead-end.
+        text =
+          `Orient me in a vault. \`analyze_link_hierarchy\` now REQUIRES an explicit vault, so do NOT call it blind. ` +
+          `First call the \`get_started\` tool to list the configured vaults, then ASK me which vault to orient. ` +
+          `Once I pick one, call \`analyze_link_hierarchy\` with that vault and give me a plain-language orientation: ` +
+          `(1) the SHAPE of the vault (total notes, the level histogram L0→L5, which provider built the graph — obsidian or filesystem); ` +
+          `(2) the CENTRAL notes — the top hubs (L0–L1 nodes, highest PageRank) by name; ` +
+          `(3) what was EXCLUDED from ranking and why; (4) WHERE TO BEGIN — 2–4 concrete starting notes based on the hubs. ` +
+          `If the resolved graph is edgeless/sparse (resolvedEdgeCount 0 or low) but unresolvedLinkCount is high, ` +
+          `explain that the vault has many UNRESOLVED concept-links with no resolved note-graph yet — NOT 'no structure' — ` +
+          `and offer to call \`get_broken_links\` for the top concepts. ` +
+          `Keep it opinionated and oriented toward action. Remember: levels are structural orientation, not importance.`;
+      }
       break;
 
     case 'search': {

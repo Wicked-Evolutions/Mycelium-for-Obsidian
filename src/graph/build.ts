@@ -132,6 +132,12 @@ export function normalize(
     edges,
     inDegree,
     outDegree,
-    provider
+    provider,
+    // Vault-level link-resolution aggregates (issue #37). Come from whichever
+    // provider actually produced `result` — on the Obsidian→filesystem degrade
+    // (#32) these are the FILESYSTEM approximation's counts, matching provider.
+    resolvedEdgeCount: result.resolvedEdgeCount,
+    unresolvedLinkCount: result.unresolvedLinkCount,
+    distinctUnresolvedTargets: result.distinctUnresolvedTargets
   };
 }

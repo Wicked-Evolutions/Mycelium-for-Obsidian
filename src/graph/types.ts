@@ -44,6 +44,18 @@ export interface BaseGraph {
    * selected normally (CLI unavailable or eval_obsidian disabled).
    */
   providerFallbackReason?: string;
+  /**
+   * Vault-level link-resolution aggregates (issue #37). Provider-independent —
+   * both providers compute the SAME shape. Threaded like providerFallbackReason.
+   *
+   * resolvedEdgeCount: total RESOLVED same-vault wikilink OCCURRENCES that form
+   *   graph edges (sum of edge weights; excludes self-links and cross-vault).
+   * unresolvedLinkCount: total UNRESOLVED same-vault wikilink OCCURRENCES.
+   * distinctUnresolvedTargets: count of UNIQUE unresolved same-vault target keys.
+   */
+  resolvedEdgeCount: number;
+  unresolvedLinkCount: number;
+  distinctUnresolvedTargets: number;
 }
 
 /**
@@ -84,6 +96,15 @@ export interface GraphSignals {
   totalNodes: number;
   /** Whether small-vault coarse banding was used instead of percentiles. */
   smallVault: boolean;
+  /**
+   * Vault-level link-resolution aggregates (issue #37), threaded from the base
+   * graph through the two-tier cache so cache hits keep them. Surfaces the
+   * concept-first case (many [[Concept]] links to notes that don't exist) that
+   * an edgeless resolved graph would otherwise misnarrate as "no structure".
+   */
+  resolvedEdgeCount: number;
+  unresolvedLinkCount: number;
+  distinctUnresolvedTargets: number;
 }
 
 /**
@@ -104,4 +125,11 @@ export interface ProviderResult {
    * are NOT included here (they're out-only and don't create edges).
    */
   resolvedLinks: Map<string, Map<string, number>>;
+  /**
+   * Vault-level link-resolution aggregates (issue #37). See BaseGraph for the
+   * exact semantics — both providers compute the SAME shape.
+   */
+  resolvedEdgeCount: number;
+  unresolvedLinkCount: number;
+  distinctUnresolvedTargets: number;
 }
