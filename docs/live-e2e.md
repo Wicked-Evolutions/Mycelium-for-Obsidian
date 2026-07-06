@@ -83,7 +83,7 @@ npm run test:live
   with `resolvedEdgeCount > 0` on a linked vault, and (optionally) surfaces
   unresolved concept-links on a concept-first vault.
 - `test/live/semantic.live.mjs` — `index_vault` then `semantic_search` returns
-  ranked hits carrying a numeric `score`, a `filePath`, and the additive `graph`
-  block.
+  ranked hits carrying a `path`, a numeric `similarity` + `fusionScore`,
+  `fusionMethod: "rrf"`, and the additive `graph` block.
 
 Extend this lane whenever a behavior can only be proven against real Obsidian/Ollama.

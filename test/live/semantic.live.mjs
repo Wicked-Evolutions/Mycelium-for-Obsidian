@@ -44,8 +44,11 @@ describe('live: semantic search via real Ollama', { skip }, () => {
     assert.ok(out.results.length > 0, 'expected at least one semantic hit on a non-empty vault');
 
     const hit = out.results[0];
-    assert.equal(typeof hit.score, 'number', 'each hit carries a numeric score');
-    assert.ok(typeof hit.filePath === 'string' && hit.filePath.length > 0, 'each hit carries a filePath');
+    // Real semantic_search response contract (RRF fusion output — semantic.ts):
+    assert.ok(typeof hit.path === 'string' && hit.path.length > 0, 'each hit carries a path');
+    assert.equal(typeof hit.similarity, 'number', 'each hit carries a numeric similarity');
+    assert.equal(typeof hit.fusionScore, 'number', 'each hit carries a numeric fusionScore');
+    assert.equal(hit.fusionMethod, 'rrf', 'fusion method is rrf');
     // Convergence (#24) additive contract: the graph block key is always present (null if unjoined).
     assert.ok('graph' in hit, 'each hit carries the additive graph block (null when unjoined)');
   });
