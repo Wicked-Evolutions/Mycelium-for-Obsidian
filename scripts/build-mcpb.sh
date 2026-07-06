@@ -26,9 +26,19 @@ cp package.json "$BUILD_DIR/"
 cp LICENSE "$BUILD_DIR/"
 cp README.md "$BUILD_DIR/"
 
-# Install production dependencies only
+# Install production dependencies only.
+# NOTE: do NOT pass --ignore-scripts — that skips better-sqlite3's native build,
+# producing a bundle with no better_sqlite3.node that crashes at runtime on every
+# SQLite-backed tool (semantic search, indexing).
 cd "$BUILD_DIR"
-npm install --omit=dev --ignore-scripts 2>/dev/null
+npm install --omit=dev
+
+# Verify the native module actually compiled. A bundle missing better_sqlite3.node
+# is silently broken, so fail loudly here instead of shipping it.
+if ! ls node_modules/better-sqlite3/build/Release/*.node >/dev/null 2>&1; then
+  echo "ERROR: better-sqlite3 native module missing — the bundle would be broken at runtime. Aborting." >&2
+  exit 1
+fi
 
 # Create the bundle
 cd "$PROJECT_DIR"
