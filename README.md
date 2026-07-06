@@ -30,7 +30,7 @@ npx @wickedevolutions/mcp-obsidian
 
 ```bash
 git clone https://github.com/Wicked-Evolutions/Mycelium-for-Obsidian.git
-cd mcp-obsidian
+cd Mycelium-for-Obsidian
 npm install
 npm run build
 ```
@@ -96,7 +96,7 @@ Any AI client or IDE that supports the Model Context Protocol can use mcp-obsidi
 
 ### Multiple Vaults — One Server, All Vaults
 
-A single mcp-obsidian server handles all your vaults. Pass them as a JSON object in `OBSIDIAN_VAULTS` — every tool accepts an optional `vault` parameter to target a specific vault:
+A single mcp-obsidian server handles all your vaults. Pass them as a JSON object in `OBSIDIAN_VAULTS` — most tools accept an optional `vault` parameter to target a specific vault (authoritative graph orientation via `analyze_link_hierarchy` requires an explicit one):
 
 ```json
 {
@@ -172,7 +172,7 @@ Comma-separated list. Disabled tools are removed from both the tool list and han
 
 ## Features
 
-- **Unified Multi-Vault**: Single server process handles all vaults. Every tool accepts an optional `vault` parameter.
+- **Unified Multi-Vault**: Single server process handles all vaults. Most tools accept an optional `vault` parameter; authoritative graph orientation (`analyze_link_hierarchy`) requires an explicit one.
 - **Two-Tier Architecture**: 75 tools always available + 28 CLI tools when Obsidian 1.12+ is running
 - **Orientation & Self-Correction**: `get_started` and `discover_tools` map the server's surface; configured vault names surface as an `enum` in each tool's input schema; unknown vault/note names return closest-match suggestions instead of bare errors
 - **File Operations**: List, read, create, update, delete, move files with frontmatter support
@@ -206,7 +206,7 @@ If Obsidian is not running, CLI tools return a clear error message. All filesyst
 
 To use the 28 CLI-only tools, you need Obsidian 1.12+ with CLI enabled. In Obsidian: **Settings → General → Enable "Command line interface"**, then follow the prompt to register. See the [Obsidian CLI documentation](https://obsidian.md/help/cli) for install and troubleshooting details.
 
-## Available Tools (102)
+## Available Tools (103)
 
 ### Always Available (75 tools — no Obsidian required)
 
