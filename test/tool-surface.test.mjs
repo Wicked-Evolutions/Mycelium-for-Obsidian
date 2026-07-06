@@ -579,6 +579,7 @@ const SCHEMA_SNAPSHOT = [
           },
         },
       },
+      required: ['vault'],
     },
   },
   {

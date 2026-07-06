@@ -13,6 +13,7 @@
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { Config, resolveVault } from '../config.js';
 import { ToolResponse } from '../types/index.js';
+import { formatVaultError, VAULT_NOT_FOUND_HINT } from '../resolver-hints.js';
 import { vaultParam, limitParam } from './schema-helpers.js';
 import { getGraphSignals, getBaseGraph } from '../graph/signals.js';
 import { levelHistogram } from '../graph/levels.js';
@@ -68,7 +69,10 @@ export const graphTools: Tool[] = [
             }
           }
         }
-      }
+      },
+      // #33-B: the authoritative orientation map REQUIRES an explicit vault so it
+      // never silently ranks the default vault. get_vault_health stays defaulted.
+      required: ['vault']
     }
   }
 ];
@@ -83,11 +87,51 @@ export function createGraphHandlers(config: Config) {
       exclude?: { where?: import('../graph/exclude.js').ExcludeInput['where'] };
     }): Promise<ToolResponse> => {
       try {
+        // #33-B: vault is REQUIRED on the authoritative map. A missing vault at
+        // runtime returns a STRUCTURED error (configured vaults + hint), NOT a
+        // generic stringified error. resolveVault stays untouched (get_vault_health
+        // and every other tool keep defaulting), so we enforce it locally here.
+        if (!args.vault) {
+          const availableNames = config.vaults.map((v) => v.name);
+          const err = new Error(
+            `Missing required "vault". Available: ${availableNames.join(', ')}.`
+          ) as Error & { closest_matches: string[]; hint: string };
+          err.closest_matches = [];
+          err.hint = VAULT_NOT_FOUND_HINT;
+          return formatVaultError(err);
+        }
+
+        // Unknown vault throws a structured error (closest_matches + hint) that
+        // the catch below renders via formatVaultError.
         const vault = resolveVault(config, args.vault);
         const limit = args.limit ?? 50;
         const compact = args.compact === true;
 
         const result = await getGraphSignals(config, args.vault, args.exclude);
+
+        // PART D: empty-vault guard. A VALID vault with zero notes is a SUCCESS
+        // (not isError) that self-explains instead of returning an empty ranking.
+        if (result.totalNodes === 0) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify(
+                  {
+                    vault: result.vault,
+                    emptyVault: true,
+                    totalNodes: 0,
+                    message: 'This vault has 0 notes. Pick another configured vault.'
+                  },
+                  null,
+                  2
+                )
+              }
+            ],
+            isError: false
+          };
+        }
+
         const base = await getBaseGraph(config, args.vault, vault.path);
 
         // Build reverse adjacency (target → contributors) for the breakdown,
@@ -163,6 +207,12 @@ export function createGraphHandlers(config: Config) {
             ? { providerFallbackReason: result.providerFallbackReason }
             : {}),
           totalNodes: result.totalNodes,
+          // Link-resolution honesty (#37): surfaces the concept-first case where
+          // the RESOLVED graph is edgeless but the vault is full of [[Concept]]
+          // links to notes that don't exist yet. ALWAYS present.
+          resolvedEdgeCount: result.resolvedEdgeCount,
+          unresolvedLinkCount: result.unresolvedLinkCount,
+          distinctUnresolvedTargets: result.distinctUnresolvedTargets,
           rankedNodes: ranked.length,
           excludedNodes: result.excludedCount,
           smallVault: result.smallVault,
@@ -188,6 +238,13 @@ export function createGraphHandlers(config: Config) {
           isError: false
         };
       } catch (error) {
+        // Structured vault errors (unknown vault) carry closest_matches + hint →
+        // render them as actionable JSON via formatVaultError. Ordinary errors
+        // keep the original "Link hierarchy error:" prefix.
+        const err = error as Error & { closest_matches?: string[]; hint?: string };
+        if (err instanceof Error && Array.isArray(err.closest_matches) && err.hint) {
+          return formatVaultError(error);
+        }
         return {
           content: [{ type: 'text', text: `Link hierarchy error: ${error}` }],
           isError: true

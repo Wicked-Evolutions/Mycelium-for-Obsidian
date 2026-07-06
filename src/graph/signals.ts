@@ -181,7 +181,12 @@ export async function getGraphSignals(
     usedDefaultExclude: resolved.usedDefault,
     excludedCount: excludedSet.size,
     totalNodes: graph.nodes.length,
-    smallVault
+    smallVault,
+    // Vault-level link-resolution aggregates (issue #37), carried from the base
+    // graph so ranked-cache hits keep them (exclusion-independent).
+    resolvedEdgeCount: graph.resolvedEdgeCount,
+    unresolvedLinkCount: graph.unresolvedLinkCount,
+    distinctUnresolvedTargets: graph.distinctUnresolvedTargets
   };
 
   rankedCache.set(rankedKey, { signals });

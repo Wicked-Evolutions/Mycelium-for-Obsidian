@@ -60,6 +60,11 @@ export class FilesystemProvider implements GraphProvider {
     const multiIndex = await buildMultiFileIndex(vaultPath);
     const resolvedLinks = new Map<string, Map<string, number>>();
 
+    // Vault-level link-resolution aggregates (issue #37). SAME-VAULT only.
+    let resolvedEdgeCount = 0;
+    let unresolvedLinkCount = 0;
+    const unresolvedTargets = new Set<string>();
+
     for (const rel of nodes) {
       const sourceAbs = path.join(vaultPath, rel);
       let content: string;
@@ -72,7 +77,8 @@ export class FilesystemProvider implements GraphProvider {
       const targets = new Map<string, number>();
 
       for (const link of links) {
-        // Cross-vault links are EXTERNAL → out-only, never an internal edge.
+        // Cross-vault links are EXTERNAL → out-only, never an internal edge
+        // and never counted in the same-vault aggregates.
         if (link.vault) continue;
 
         // Resolve on the SUBPATH-STRIPPED path (graph-layer field), so
@@ -87,12 +93,20 @@ export class FilesystemProvider implements GraphProvider {
           sourceAbs,
           multiIndex
         );
-        if (!resolvedAbs) continue; // unresolved → out-only, no edge
+        if (!resolvedAbs) {
+          // Unresolved → out-only, no edge. Count the occurrence and record the
+          // stripped target key (same linkPath the resolver used) for distinct.
+          unresolvedLinkCount += 1;
+          unresolvedTargets.add(linkPath);
+          continue;
+        }
 
         const relTarget = path.relative(vaultPath, resolvedAbs);
-        // Self-links don't create graph edges.
+        // Self-links that RESOLVE don't create graph edges and are NOT counted
+        // as unresolved (excluded from both aggregates).
         if (relTarget === rel) continue;
         targets.set(relTarget, (targets.get(relTarget) || 0) + 1);
+        resolvedEdgeCount += 1;
       }
 
       if (targets.size > 0) {
@@ -100,7 +114,13 @@ export class FilesystemProvider implements GraphProvider {
       }
     }
 
-    return { nodes, resolvedLinks };
+    return {
+      nodes,
+      resolvedLinks,
+      resolvedEdgeCount,
+      unresolvedLinkCount,
+      distinctUnresolvedTargets: unresolvedTargets.size
+    };
   }
 }
 
@@ -116,7 +136,11 @@ export class ObsidianProvider implements GraphProvider {
   constructor(private config: Config, private vaultName?: string) {}
 
   async build(vaultPath: string): Promise<ProviderResult> {
-    // Build resolvedLinks + node set inside Obsidian in one eval round-trip.
+    // Build resolvedLinks + node set + unresolved aggregates inside Obsidian in
+    // one eval round-trip. app.metadataCache.unresolvedLinks is same-vault by
+    // nature and keyed source(.md) → { targetText → count } (issue #37). We
+    // aggregate the unresolved counts INSIDE the eval to keep the payload small
+    // (the #32 maxBuffer failure mode).
     const code = [
       '(() => {',
       '  const rl = app.metadataCache.resolvedLinks || {};',
@@ -131,8 +155,18 @@ export class ObsidianProvider implements GraphProvider {
       '    }',
       '    links[src] = tgts;',
       '  }',
+      '  const ul = app.metadataCache.unresolvedLinks || {};',
+      '  let unresolvedCount = 0;',
+      '  const distinct = new Set();',
+      '  for (const src of Object.keys(ul)) {',
+      '    const inner = ul[src];',
+      '    for (const t of Object.keys(inner)) {',
+      '      unresolvedCount += inner[t];',
+      '      distinct.add(t);',
+      '    }',
+      '  }',
       "  const nodes = app.vault.getMarkdownFiles().map(f => f.path);",
-      '  return JSON.stringify({ nodes, links });',
+      '  return JSON.stringify({ nodes, links, unresolvedCount, unresolvedDistinct: distinct.size });',
       '})()'
     ].join('\n');
 
@@ -142,17 +176,27 @@ export class ObsidianProvider implements GraphProvider {
     const nodes: string[] = Array.isArray(parsed.nodes) ? parsed.nodes : [];
     const resolvedLinks = new Map<string, Map<string, number>>();
     const links = (parsed.links || {}) as Record<string, Record<string, number>>;
+    // resolvedEdgeCount = sum of counts in the FILTERED resolvedLinks (after the
+    // .md filter above + the self-link exclusion below), so it matches the edges.
+    let resolvedEdgeCount = 0;
     for (const src of Object.keys(links)) {
       const inner = links[src];
       const m = new Map<string, number>();
       for (const t of Object.keys(inner)) {
         if (t === src) continue; // self-links excluded for parity with fs provider
         m.set(t, inner[t]);
+        resolvedEdgeCount += inner[t];
       }
       if (m.size > 0) resolvedLinks.set(src, m);
     }
 
-    return { nodes, resolvedLinks };
+    return {
+      nodes,
+      resolvedLinks,
+      resolvedEdgeCount,
+      unresolvedLinkCount: parsed.unresolvedCount ?? 0,
+      distinctUnresolvedTargets: parsed.unresolvedDistinct ?? 0
+    };
   }
 }
 
@@ -160,7 +204,12 @@ export class ObsidianProvider implements GraphProvider {
  * The eval bridge may wrap output in quotes or prefix it. Try to parse a JSON
  * object from the returned string robustly.
  */
-function parseEvalJson(raw: string): { nodes?: string[]; links?: Record<string, Record<string, number>> } {
+function parseEvalJson(raw: string): {
+  nodes?: string[];
+  links?: Record<string, Record<string, number>>;
+  unresolvedCount?: number;
+  unresolvedDistinct?: number;
+} {
   let s = raw.trim();
   // The eval result is a JS string literal containing JSON; it may itself be
   // wrapped in quotes (e.g. '"{...}"'). Unwrap one layer of quoting if present.

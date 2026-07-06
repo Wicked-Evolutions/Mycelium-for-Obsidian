@@ -92,7 +92,7 @@ describe('surface (a) analyze_link_hierarchy (#32)', { skip: !canMock ? 'require
     isCliAvailableReturn = true;
     evalShouldThrow = true;
     const h = createAllHandlers(loadConfig());
-    const p = parse(await h.analyze_link_hierarchy({}));
+    const p = parse(await h.analyze_link_hierarchy({ vault: 'Vault' }));
     assert.equal(p.provider, 'filesystem');
     assert.ok(p.providerFallbackReason, 'reason present on fallback');
     assert.match(p.providerFallbackReason, /Obsidian/);
@@ -106,7 +106,7 @@ describe('surface (a) analyze_link_hierarchy (#32)', { skip: !canMock ? 'require
     isCliAvailableReturn = true;
     evalShouldThrow = false;
     const h = createAllHandlers(loadConfig());
-    const p = parse(await h.analyze_link_hierarchy({}));
+    const p = parse(await h.analyze_link_hierarchy({ vault: 'Vault' }));
     assert.equal(p.provider, 'obsidian');
     assert.equal(p.providerFallbackReason, undefined, 'absent on obsidian success');
   });
@@ -116,7 +116,7 @@ describe('surface (a) analyze_link_hierarchy (#32)', { skip: !canMock ? 'require
     isCliAvailableReturn = false; // CLI down → filesystem selected normally
     evalShouldThrow = false;
     const h = createAllHandlers(loadConfig());
-    const p = parse(await h.analyze_link_hierarchy({}));
+    const p = parse(await h.analyze_link_hierarchy({ vault: 'Vault' }));
     assert.equal(p.provider, 'filesystem');
     assert.equal(p.providerFallbackReason, undefined, 'absent on normal filesystem');
   });
