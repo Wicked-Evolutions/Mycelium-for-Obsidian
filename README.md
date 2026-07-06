@@ -2,15 +2,15 @@
 
 Multi-vault Obsidian MCP server — full AI operations toolset for file management, wikilinks, semantic search, frontmatter queries, daily notes, tasks, properties, templates, and more.
 
-Two-tier architecture: 74 tools work without Obsidian running + 28 CLI tools access Obsidian's runtime API when the app is running with [CLI enabled](https://obsidian.md/help/cli) (1.12+).
+Two-tier architecture: 75 tools work without Obsidian running + 28 CLI tools access Obsidian's runtime API when the app is running with [CLI enabled](https://obsidian.md/help/cli) (1.12+).
 
-New in 1.3.0: orientation tools (`get_started`, `discover_tools`) so a client can map the server's surface up front; schema legibility (your configured vault names appear as an `enum` in every tool's input schema); and self-correcting resolution — an unknown vault or note name returns closest-match suggestions and a corrective hint instead of a bare error.
+New in 1.4.0: **graph orientation** — `analyze_link_hierarchy` ranks your vault's link graph into hub→leaf structural levels (Obsidian-authoritative when the app is running); **graph-aware search** — every `semantic_search` hit carries its structural role; **slash commands** — five human-triggered MCP prompts (`/orient`, `/search`, `/excluded`, `/vault-health`, `/get-started`); an opt-in **reranker + HyDE**; a **read-only / untrusted-content safety surface**; and honest **concept-link reporting** for vaults that link concepts before creating notes. See [CHANGELOG](CHANGELOG.md).
 
 ## Install
 
 ### Claude Desktop — one click
 
-Download [mcp-obsidian.mcpb](https://github.com/Wicked-Evolutions/mcp-obsidian/releases/latest/download/mcp-obsidian.mcpb), double-click, enter your vault paths. Done.
+Download [mcp-obsidian.mcpb](https://github.com/Wicked-Evolutions/Mycelium-for-Obsidian/releases/latest/download/mcp-obsidian.mcpb), double-click, enter your vault paths. Done.
 
 > The one-click bundle is built and tested on **macOS (Apple Silicon)** only — it ships a prebuilt native module for that platform. On Intel Mac, Windows, or Linux, install via **npm** below instead; it compiles the native module for your platform at install time. (A cross-platform bundle is tracked for a later release.)
 
@@ -29,7 +29,7 @@ npx @wickedevolutions/mcp-obsidian
 ### From source
 
 ```bash
-git clone https://github.com/Wicked-Evolutions/mcp-obsidian.git
+git clone https://github.com/Wicked-Evolutions/Mycelium-for-Obsidian.git
 cd mcp-obsidian
 npm install
 npm run build
@@ -173,7 +173,7 @@ Comma-separated list. Disabled tools are removed from both the tool list and han
 ## Features
 
 - **Unified Multi-Vault**: Single server process handles all vaults. Every tool accepts an optional `vault` parameter.
-- **Two-Tier Architecture**: 74 tools always available + 28 CLI tools when Obsidian 1.12+ is running
+- **Two-Tier Architecture**: 75 tools always available + 28 CLI tools when Obsidian 1.12+ is running
 - **Orientation & Self-Correction**: `get_started` and `discover_tools` map the server's surface; configured vault names surface as an `enum` in each tool's input schema; unknown vault/note names return closest-match suggestions instead of bare errors
 - **File Operations**: List, read, create, update, delete, move files with frontmatter support
 - **Wikilink Resolution**: Resolve `[[wikilinks]]`, get outlinks/backlinks, follow link chains
@@ -193,7 +193,7 @@ Comma-separated list. Disabled tools are removed from both the tool list and han
 
 | Tier | Tools | Requires | Always Available |
 |------|-------|----------|-----------------|
-| **Filesystem** | 74 tools | Node.js only | Yes — works without Obsidian running |
+| **Filesystem** | 75 tools | Node.js only | Yes — works without Obsidian running |
 | **CLI-only** | 28 tools | Obsidian 1.12+ running | No — graceful error if app not running |
 
 **Filesystem tools** read and write vault files directly. They work whether Obsidian is open or not.
@@ -208,7 +208,7 @@ To use the 28 CLI-only tools, you need Obsidian 1.12+ with CLI enabled. In Obsid
 
 ## Available Tools (102)
 
-### Always Available (74 tools — no Obsidian required)
+### Always Available (75 tools — no Obsidian required)
 
 #### Orientation (2)
 
@@ -569,15 +569,15 @@ src/
 
 Three tools can cause data loss if used incorrectly. Understand their behavior before use.
 
-### `search_replace_in_file` — fixed in v1.0.1 ([#4](https://github.com/Wicked-Evolutions/mcp-obsidian/issues/4))
+### `search_replace_in_file` — fixed in v1.0.1 ([#4](https://github.com/Wicked-Evolutions/Mycelium-for-Obsidian/issues/4))
 
 **Fixed.** Previously, when the search text was not found, the tool wrote the literal string `"NO_CHANGE"` as file content, destroying the original. Now it safely returns an error without modifying the file.
 
-### `update_section` on H1 headings — by design ([#5](https://github.com/Wicked-Evolutions/mcp-obsidian/issues/5))
+### `update_section` on H1 headings — by design ([#5](https://github.com/Wicked-Evolutions/Mycelium-for-Obsidian/issues/5))
 
 **Caution:** When targeting an H1 heading (`# Title`), the section scope extends to the end of the file — because no heading of equal or higher level exists to close the section. This replaces everything below the title. Use `update_section` only on H2 and lower headings. For H1-level content, use `update_file` with full content instead.
 
-### `update_file` — by design ([#6](https://github.com/Wicked-Evolutions/mcp-obsidian/issues/6))
+### `update_file` — by design ([#6](https://github.com/Wicked-Evolutions/Mycelium-for-Obsidian/issues/6))
 
 **Caution:** This tool replaces the entire file body (frontmatter is preserved if the `frontmatter` parameter is omitted). For partial updates, use `append_to_section`, `prepend_to_section`, `update_section`, or the CLI tools `file_append` and `file_prepend`.
 
