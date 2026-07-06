@@ -9,6 +9,7 @@ dist/
 .mcpb-build/
 .DS_Store
 data/*.db
+coverage/
 
 # IJFW local agent layer (team/charter/blackboard + Codex projection) — not committed
 .ijfw/
