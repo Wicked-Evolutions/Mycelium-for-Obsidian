@@ -20,7 +20,7 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { Config } from '../config.js';
-import { extractWikilinks, buildMultiFileIndex, resolveWikilink } from '../parsers/wikilink.js';
+import { extractWikilinks, buildMultiFileIndex, resolveWikilink, normalizeUnresolvedKey } from '../parsers/wikilink.js';
 import { evalInObsidian, isCliAvailable } from '../cli/bridge.js';
 import { GraphProvider, ProviderResult } from './types.js';
 
@@ -94,10 +94,16 @@ export class FilesystemProvider implements GraphProvider {
           multiIndex
         );
         if (!resolvedAbs) {
-          // Unresolved → out-only, no edge. Count the occurrence and record the
-          // stripped target key (same linkPath the resolver used) for distinct.
+          // Unresolved → out-only, no edge. Derive the distinct key + skip
+          // decision via the SHARED helper on the verbatim rawTarget, so the
+          // filesystem and Obsidian providers agree BY CONSTRUCTION. (Cross-vault
+          // is already skipped above via link.vault; the helper's null case is
+          // the same contract, and for same-vault targets the key equals the
+          // resolver's stripped linkPath — behavior unchanged.)
+          const key = normalizeUnresolvedKey(link.rawTarget ?? linkPath);
+          if (key === null) continue; // cross-vault → not a same-vault unresolved link
           unresolvedLinkCount += 1;
-          unresolvedTargets.add(linkPath);
+          unresolvedTargets.add(key);
           continue;
         }
 
@@ -136,11 +142,15 @@ export class ObsidianProvider implements GraphProvider {
   constructor(private config: Config, private vaultName?: string) {}
 
   async build(vaultPath: string): Promise<ProviderResult> {
-    // Build resolvedLinks + node set + unresolved aggregates inside Obsidian in
-    // one eval round-trip. app.metadataCache.unresolvedLinks is same-vault by
-    // nature and keyed source(.md) → { targetText → count } (issue #37). We
-    // aggregate the unresolved counts INSIDE the eval to keep the payload small
-    // (the #32 maxBuffer failure mode).
+    // Build resolvedLinks + node set + RAW unresolved aggregation inside Obsidian
+    // in one eval round-trip. app.metadataCache.unresolvedLinks is same-vault by
+    // nature and keyed source(.md) → { targetText → count } (issue #37). The eval
+    // returns the unresolved keys aggregated by RAW key (verbatim, summed across
+    // .md sources) — it does NOT normalize. Normalization (cross-vault skip +
+    // subpath/alias strip) happens below in TS via the SHARED
+    // normalizeUnresolvedKey helper, so it is testable and agrees with the
+    // filesystem provider BY CONSTRUCTION. Aggregating by key in eval keeps the
+    // payload bounded by the distinct-concept count (the #32 maxBuffer discipline).
     const code = [
       '(() => {',
       '  const rl = app.metadataCache.resolvedLinks || {};',
@@ -156,17 +166,16 @@ export class ObsidianProvider implements GraphProvider {
       '    links[src] = tgts;',
       '  }',
       '  const ul = app.metadataCache.unresolvedLinks || {};',
-      '  let unresolvedCount = 0;',
-      '  const distinct = new Set();',
+      '  const unresolvedRaw = {};',
       '  for (const src of Object.keys(ul)) {',
+      "    if (!src.endsWith('.md')) continue;",
       '    const inner = ul[src];',
       '    for (const t of Object.keys(inner)) {',
-      '      unresolvedCount += inner[t];',
-      '      distinct.add(t);',
+      '      unresolvedRaw[t] = (unresolvedRaw[t] || 0) + inner[t];',
       '    }',
       '  }',
       "  const nodes = app.vault.getMarkdownFiles().map(f => f.path);",
-      '  return JSON.stringify({ nodes, links, unresolvedCount, unresolvedDistinct: distinct.size });',
+      '  return JSON.stringify({ nodes, links, unresolvedRaw });',
       '})()'
     ].join('\n');
 
@@ -190,12 +199,26 @@ export class ObsidianProvider implements GraphProvider {
       if (m.size > 0) resolvedLinks.set(src, m);
     }
 
+    // Normalize the RAW unresolved keys in TS via the SHARED helper: cross-vault
+    // keys are skipped (null), heading/alias variants collapse to one distinct
+    // key, and their occurrence counts are summed. This honors the same
+    // "same-vault, resolver-consistent key" contract the filesystem provider uses.
+    const unresolvedRaw = (parsed.unresolvedRaw || {}) as Record<string, number>;
+    let unresolvedLinkCount = 0;
+    const distinctUnresolved = new Set<string>();
+    for (const rawKey of Object.keys(unresolvedRaw)) {
+      const key = normalizeUnresolvedKey(rawKey);
+      if (key === null) continue; // cross-vault → not a same-vault unresolved link
+      unresolvedLinkCount += unresolvedRaw[rawKey];
+      distinctUnresolved.add(key);
+    }
+
     return {
       nodes,
       resolvedLinks,
       resolvedEdgeCount,
-      unresolvedLinkCount: parsed.unresolvedCount ?? 0,
-      distinctUnresolvedTargets: parsed.unresolvedDistinct ?? 0
+      unresolvedLinkCount,
+      distinctUnresolvedTargets: distinctUnresolved.size
     };
   }
 }
@@ -207,8 +230,7 @@ export class ObsidianProvider implements GraphProvider {
 function parseEvalJson(raw: string): {
   nodes?: string[];
   links?: Record<string, Record<string, number>>;
-  unresolvedCount?: number;
-  unresolvedDistinct?: number;
+  unresolvedRaw?: Record<string, number>;
 } {
   let s = raw.trim();
   // The eval result is a JS string literal containing JSON; it may itself be
