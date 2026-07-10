@@ -11,13 +11,18 @@ dist/
 data/*.db
 coverage/
 
-# IJFW local agent layer (team/charter/blackboard + Codex projection) — not committed
-.ijfw/
-.codex/
+# Commit only the curated project-level Codex team configuration. Keep any
+# future generated or machine-local Codex artifacts ignored by default.
+.codex/*
+!.codex/config.toml
+!.codex/agents/
+.codex/agents/*
+!.codex/agents/mycelium-*.toml
 
 # Understand-Anything — commit the graph data (knowledge-graph.json, meta.json,
 # fingerprints.json, .understandignore) so the dashboard CI can publish it;
-# ignore scratch, local config, and any local static build.
+# ignore scratch, local config, and any local static build. This is development
+# visualization infrastructure, not part of the published Mycelium product.
 .understand-anything/intermediate/
 .understand-anything/tmp/
 .understand-anything/.trash-*/

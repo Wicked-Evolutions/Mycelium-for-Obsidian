@@ -16,7 +16,6 @@
 # .mcpb-build/
 # .DS_Store
 # data/*.db
-.ijfw/
 .codex/
 
 # --- Detected directories (uncomment to exclude) ---
