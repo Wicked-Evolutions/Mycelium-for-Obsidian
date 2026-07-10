@@ -5,6 +5,8 @@
 
 import * as path from 'path';
 import * as fs from 'fs';
+import { realpath, stat } from 'fs/promises';
+import type { FileHandle } from 'fs/promises';
 import { VaultConfig } from './types/index.js';
 import { closestMatches, VAULT_NOT_FOUND_HINT } from './resolver-hints.js';
 
@@ -195,16 +197,11 @@ export function resolvePathInVault(vaultPath: string, userPath: string): string 
 }
 
 /**
- * Verify that an open file descriptor's real path is still within the vault.
- * Call this AFTER opening a file to close the TOCTOU window between
- * resolvePathInVault() (which checks the symlink target) and the actual open().
- *
- * @param fd - The open file descriptor (from fs.open)
- * @param vaultPath - The absolute path to the vault root
- * @throws Error if the fd resolves outside the vault (symlink swapped between check and open)
+ * Re-check a pathname after an operation. This retains the historical helper
+ * contract, but cannot by itself prove which inode an already-open handle uses.
+ * New read paths should use verifyFileHandleInVault instead.
  */
 export async function verifyPathAfterOpen(fdPath: string, vaultPath: string): Promise<void> {
-  const { realpath } = await import('fs/promises');
   try {
     const realFilePath = await realpath(fdPath);
     const realVault = await realpath(vaultPath);
@@ -215,5 +212,36 @@ export async function verifyPathAfterOpen(fdPath: string, vaultPath: string): Pr
   } catch (e) {
     if (e instanceof Error && e.message.includes('TOCTOU')) throw e;
     // File may have been deleted between open and check — that's fine
+  }
+}
+
+/**
+ * Verify that an opened handle and its current pathname identify the same file
+ * and that the pathname resolves inside the configured vault.
+ *
+ * Comparing device + inode closes the swap-back race that pathname-only
+ * realpath checks miss: if a path is redirected for open and restored before
+ * verification, the opened handle and current path no longer identify the same
+ * filesystem object.
+ */
+export async function verifyFileHandleInVault(
+  handle: FileHandle,
+  openedPath: string,
+  vaultPath: string
+): Promise<void> {
+  const [realFilePath, realVault, handleStat, pathStat] = await Promise.all([
+    realpath(openedPath),
+    realpath(vaultPath),
+    handle.stat({ bigint: true }),
+    stat(openedPath, { bigint: true })
+  ]);
+
+  const realVaultPrefix = realVault.endsWith(path.sep) ? realVault : realVault + path.sep;
+  if (realFilePath !== realVault && !realFilePath.startsWith(realVaultPrefix)) {
+    throw new Error(`TOCTOU: opened file resolved outside vault. Real path: "${realFilePath}"`);
+  }
+
+  if (handleStat.dev !== pathStat.dev || handleStat.ino !== pathStat.ino) {
+    throw new Error('TOCTOU: opened file handle no longer matches its verified vault path.');
   }
 }
