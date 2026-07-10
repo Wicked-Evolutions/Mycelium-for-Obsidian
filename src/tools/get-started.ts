@@ -56,6 +56,7 @@ export const STATIC_GUIDANCE = {
     'Cross-vault links in note bodies use the Obsidian URI scheme:',
     'obsidian://open?vault=VaultName&file=Path%2FTo%2FNote',
     '(URL-encode the vault name and path; omit the .md extension).',
+    'Use get_cross_vault_links to inventory and validate these native cross-vault relationships without changing notes.',
   ].join(' '),
 
   tiers: [

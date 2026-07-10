@@ -301,8 +301,10 @@ Example:
 | `search_all_vaults` | Search across all configured vaults |
 | `semantic_search_all` | Semantic search across all configured vaults |
 | `find_note_by_name` | Find a note by name across vaults |
-| `get_cross_vault_links` | Find wikilinks between vaults |
+| `get_cross_vault_links` | Find legacy wikilink candidates and a bounded read-only inventory of labeled Markdown links to native `obsidian://open` note URIs |
 | `get_ecosystem_stats` | Statistics across the entire knowledge ecosystem (all vaults) |
+
+`get_cross_vault_links` preserves its original unresolved-wikilink candidate fields and adds a separate `nativeUriInventory`. This first slice recognizes the documented `[Label](obsidian://open?vault=...&file=...)` inline-link form; bare URI text and angle-bracket autolinks are not relationship declarations in this contract. The inventory scans Markdown notes only, ignores code and image embeds, retains each source occurrence, validates configured destination vaults and exact vault-relative note paths, and returns canonical URIs plus actionable diagnostics. Results distinguish valid, noncanonical, malformed, unsupported, unknown/ambiguous vault, invalid path, missing destination, and same-vault URI cases. It never rewrites a note.
 
 #### Daily Notes (4)
 
@@ -545,7 +547,8 @@ src/
 │   └── bridge.ts         # Obsidian CLI bridge (1.12+)
 ├── parsers/
 │   ├── markdown.ts       # Markdown/frontmatter parsing, section extraction
-│   └── wikilink.ts       # Wikilink parsing + resolution
+│   ├── wikilink.ts       # Wikilink parsing + resolution
+│   └── obsidian-uri.ts   # Native obsidian://open URI parsing + extraction
 ├── embeddings/
 │   ├── ollama.ts         # Ollama API client
 │   ├── storage.ts        # SQLite vector storage
