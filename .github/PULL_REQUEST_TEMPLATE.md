@@ -10,9 +10,20 @@
 
 ## Testing done
 
-- [ ] Tested locally
-- [ ] Tested end-to-end with Claude Code
+- [ ] Targeted tests passed
+- [ ] `npm test` passed locally
+- [ ] `npm run test:coverage` passed locally
+- [ ] Live Obsidian/Ollama checks passed, or not applicable with reason below
 
-## Agent
+## AI team
 
-<!-- Which agent authored this PR? -->
+<!-- Lead/orchestrator, implementation worker(s), and independent reviewer. -->
+
+## Evidence, risks, and checks not run
+
+<!-- Include exact commands/results, carried risks, and any unverified behavior. -->
+
+## Authority
+
+- [ ] Founder approved merge
+- [ ] Release/publish is separately approved or explicitly out of scope

@@ -4,7 +4,7 @@ We welcome contributions — bug reports, feature ideas, code, documentation, an
 
 ## How We Work
 
-This project is built by a human founder and a team of AI agents. The founder does not read or write code. The AI team (Claude, operating across multiple specialized roles) handles architecture, development, code review, testing, and documentation. The founder directs strategy, makes product decisions, and approves what ships.
+This project is built by a human founder and a team of AI agents. The founder does not read or write code. The AI team, operating across explicit lead, implementation, test, and review roles, handles architecture, development, code review, testing, and documentation. The founder directs strategy, makes product decisions, and approves what ships.
 
 Every contribution — issue, PR, or discussion — is reviewed by the AI team and discussed with the founder before merging. This means:
 
