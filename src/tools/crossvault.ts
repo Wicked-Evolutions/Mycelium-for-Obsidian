@@ -6,10 +6,21 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
-import { Config } from '../config.js';
+import {
+  Config,
+  resolvePathInVault,
+  verifyPathAfterOpen,
+  verifyFileHandleInVault
+} from '../config.js';
 import { ToolResponse, SearchMatch, VaultConfig } from '../types/index.js';
 import { parseMarkdownFile, extractTitle } from '../parsers/markdown.js';
 import { extractWikilinks } from '../parsers/wikilink.js';
+import {
+  extractObsidianUris,
+  serializeObsidianUri,
+  ObsidianUriOccurrence,
+  ObsidianUriDiagnostic
+} from '../parsers/obsidian-uri.js';
 import {
   generateEmbedding,
   checkOllamaAvailability,
@@ -101,7 +112,7 @@ const rawCrossVaultTools: Tool[] = [
   },
   {
     name: 'get_cross_vault_links',
-    description: 'Find notes that could potentially link to content in other vaults based on wikilink targets.',
+    description: 'Find legacy unresolved-wikilink candidates and inventory labeled Markdown links whose destinations are native obsidian://open note URIs. The native inventory is read-only, source-located, canonically serialized, and validated across configured vaults.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -438,12 +449,15 @@ export function createCrossVaultHandlers(config: Config) {
           );
         }
 
+        const nativeUriInventory = await inventoryNativeUris(config, vaultsToCheck);
+
         return {
           content: [{
             type: 'text',
             text: JSON.stringify({
               totalPotentialLinks: potentialCrossLinks.length,
-              links: potentialCrossLinks.slice(0, 50) // Limit output
+              links: potentialCrossLinks.slice(0, 50), // Limit output
+              nativeUriInventory
             }, null, 2)
           }],
           isError: false
@@ -455,6 +469,192 @@ export function createCrossVaultHandlers(config: Config) {
         };
       }
     }
+  };
+}
+
+type NativeUriStatus = 'valid' | 'noncanonical' | 'malformed' | 'unsupported' |
+  'unknown_vault' | 'ambiguous_vault' | 'invalid_path' | 'missing_destination' | 'same_vault_reference';
+
+function parserStatus(uri: ObsidianUriOccurrence): NativeUriStatus | undefined {
+  const codes = new Set(uri.diagnostics.map(d => d.code));
+  if (codes.has('malformed_uri') || codes.has('malformed_percent_encoding') || codes.has('missing_query') || codes.has('missing_vault') || codes.has('missing_file') || codes.has('duplicate_query_param') || codes.has('invalid_subpath')) return 'malformed';
+  if (codes.has('invalid_path')) return 'invalid_path';
+  if (codes.has('unsupported_action') || codes.has('unsupported_shorthand') || codes.has('path_override') || codes.has('fragment') || codes.has('unknown_query_param') || codes.has('non_markdown_target')) return 'unsupported';
+  return undefined;
+}
+
+async function markdownFiles(vaultPath: string, current = vaultPath, files: string[] = []): Promise<string[]> {
+  const relativeDirectory = path.relative(vaultPath, current);
+  const safeDirectory = resolvePathInVault(vaultPath, relativeDirectory);
+  await verifyPathAfterOpen(safeDirectory, vaultPath);
+  const entries = await fs.readdir(safeDirectory, { withFileTypes: true });
+  entries.sort((a, b) => a.name.localeCompare(b.name));
+  for (const entry of entries) {
+    if (entry.name.startsWith('.')) continue;
+    const full = path.join(safeDirectory, entry.name);
+    if (entry.isDirectory()) await markdownFiles(vaultPath, full, files);
+    else if (entry.isFile() && entry.name.toLowerCase().endsWith('.md')) files.push(path.relative(vaultPath, full));
+  }
+  return files;
+}
+
+/**
+ * Inventory official cross-vault URIs independently of the legacy wikilink
+ * candidate algorithm. It intentionally retains every source occurrence.
+ */
+async function inventoryNativeUris(config: Config, sourceVaults: VaultConfig[]) {
+  const records: Array<Record<string, unknown>> = [];
+  const counts: Record<NativeUriStatus, number> = {
+    valid: 0, noncanonical: 0, malformed: 0, unsupported: 0,
+    unknown_vault: 0, ambiguous_vault: 0, invalid_path: 0,
+    missing_destination: 0, same_vault_reference: 0,
+  };
+  let totalFound = 0;
+
+  for (const sourceVault of sourceVaults) {
+    for (const sourcePath of await markdownFiles(sourceVault.path)) {
+      const sourceAbsolute = resolvePathInVault(sourceVault.path, sourcePath);
+      let sourceHandle: Awaited<ReturnType<typeof fs.open>> | undefined;
+      let content: string;
+      try {
+        sourceHandle = await fs.open(sourceAbsolute, 'r');
+        await verifyFileHandleInVault(sourceHandle, sourceAbsolute, sourceVault.path);
+        content = await sourceHandle.readFile('utf8');
+      } finally {
+        await sourceHandle?.close();
+      }
+      for (const uri of extractObsidianUris(content)) {
+        totalFound++;
+        const diagnostics: ObsidianUriDiagnostic[] = [...uri.diagnostics];
+        const parsedStatus = parserStatus(uri);
+        let status: NativeUriStatus = parsedStatus || 'malformed';
+        let destinationVault: VaultConfig | undefined;
+        let destinationPath: string | undefined;
+        let destinationExists: boolean | undefined;
+        let canonicalUri = uri.canonicalUri;
+        let relationshipType: 'cross_vault' | 'same_vault' | 'unknown' = 'unknown';
+        const matchingVaults = uri.vault
+          ? config.vaults.filter(v => v.name.toLocaleLowerCase() === uri.vault!.toLocaleLowerCase())
+          : [];
+        if (!parsedStatus) {
+          if (matchingVaults.length === 0) {
+            status = 'unknown_vault';
+            diagnostics.push({
+              code: 'unknown_vault',
+              severity: 'error',
+              message: `Destination vault is not configured: ${uri.vault || '(missing)'}.`
+            });
+          } else if (matchingVaults.length > 1) {
+            status = 'ambiguous_vault';
+            diagnostics.push({
+              code: 'ambiguous_vault',
+              severity: 'error',
+              message: `More than one configured vault matches ${uri.vault}.`
+            });
+          }
+          else {
+            destinationVault = matchingVaults[0];
+            const sameVault = destinationVault.name.toLocaleLowerCase() === sourceVault.name.toLocaleLowerCase();
+            relationshipType = sameVault ? 'same_vault' : 'cross_vault';
+
+            if (!uri.file) status = 'malformed';
+            else {
+              canonicalUri = serializeObsidianUri({
+                vault: destinationVault.name,
+                file: uri.file,
+                subpath: uri.subpath
+              });
+              const noncanonical = uri.noncanonical || canonicalUri !== uri.raw;
+              if (canonicalUri !== uri.raw && !diagnostics.some(d => d.code === 'noncanonical_uri')) {
+                diagnostics.push({
+                  code: 'noncanonical_uri',
+                  severity: 'warning',
+                  message: 'URI differs from the stable configured-vault serialization.'
+                });
+              }
+              if (sameVault) {
+                diagnostics.push({
+                  code: 'same_vault_reference',
+                  severity: 'warning',
+                  message: 'This URI points into its source vault; use a native wikilink for same-vault note relationships.'
+                });
+              }
+
+              // Obsidian's extensionless Markdown form maps to this exact path,
+              // not to a basename search or fuzzy resolution.
+              destinationPath = /\.md$/i.test(uri.file) ? uri.file : `${uri.file}.md`;
+              try {
+                const destination = resolvePathInVault(destinationVault.path, destinationPath);
+                let handle: Awaited<ReturnType<typeof fs.open>> | undefined;
+                try {
+                  handle = await fs.open(destination, 'r');
+                  await verifyFileHandleInVault(handle, destination, destinationVault.path);
+                  const stat = await handle.stat();
+                  destinationExists = stat.isFile();
+                } catch (error) {
+                  const code = (error as NodeJS.ErrnoException).code;
+                  if (code === 'ENOENT' || code === 'ENOTDIR') destinationExists = false;
+                  else throw error;
+                } finally {
+                  await handle?.close();
+                }
+                if (!destinationExists) {
+                  status = 'missing_destination';
+                  diagnostics.push({
+                    code: 'missing_destination',
+                    severity: 'error',
+                    message: 'The configured destination note does not exist at the explicit vault-relative path.'
+                  });
+                }
+                else if (sameVault) status = 'same_vault_reference';
+                else status = noncanonical ? 'noncanonical' : 'valid';
+              } catch (error) {
+                if (!(error instanceof Error) || !/path traversal|absolute paths|symlink escape/i.test(error.message)) {
+                  throw error;
+                }
+                destinationExists = false;
+                status = 'invalid_path';
+              }
+            }
+          }
+        }
+        counts[status]++;
+        if (records.length < 100) {
+          records.push({
+            status,
+            sourceVault: sourceVault.name,
+            sourcePath,
+            raw: uri.raw,
+            label: uri.label,
+            offset: uri.offset,
+            line: uri.line,
+            column: uri.column,
+            vault: uri.vault,
+            file: uri.file,
+            ...(uri.subpath ? { subpath: uri.subpath } : {}),
+            ...(canonicalUri ? { canonicalUri } : {}),
+            relationshipType,
+            ...(destinationVault ? {
+              destination: {
+                vault: destinationVault.name,
+                ...(destinationPath ? { path: destinationPath } : {}),
+                ...(destinationExists !== undefined ? { exists: destinationExists } : {})
+              }
+            } : {}),
+            diagnostics,
+          });
+        }
+      }
+    }
+  }
+  return {
+    scannedVaults: sourceVaults.map(v => v.name),
+    totalFound,
+    returnedCount: records.length,
+    maxReturned: 100,
+    truncated: totalFound > records.length,
+    summary: counts,
+    records,
   };
 }
 

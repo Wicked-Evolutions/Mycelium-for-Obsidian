@@ -44,7 +44,7 @@ const SNAPSHOT = [
   { name: 'semantic_search_all', description: 'Semantic search across ALL configured vaults. Finds content by meaning across your entire knowledge ecosystem.' },
   { name: 'find_note_by_name', description: 'Find a note by name across all vaults. Useful when you know the note name but not which vault it is in.' },
   { name: 'get_ecosystem_stats', description: 'Get statistics about the entire knowledge ecosystem across all vaults.' },
-  { name: 'get_cross_vault_links', description: 'Find notes that could potentially link to content in other vaults based on wikilink targets.' },
+  { name: 'get_cross_vault_links', description: 'Find legacy unresolved-wikilink candidates and inventory labeled Markdown links whose destinations are native obsidian://open note URIs. The native inventory is read-only, source-located, canonically serialized, and validated across configured vaults.' },
   { name: 'append_to_section', description: 'Append content to the end of a markdown section (before the next heading of same or higher level). Useful for adding entries to Progress Logs, adding items to lists, etc. without sending the entire file.' },
   { name: 'prepend_to_section', description: 'Prepend content to the beginning of a markdown section (right after the heading). Useful for adding new items at the top of a section.' },
   { name: 'update_section', description: 'Replace the entire content of a markdown section (between heading and next heading of same or higher level). The heading itself is preserved.' },
@@ -424,7 +424,7 @@ const SCHEMA_SNAPSHOT = [
   },
   {
     name: 'get_cross_vault_links',
-    description: 'Find notes that could potentially link to content in other vaults based on wikilink targets.',
+    description: 'Find legacy unresolved-wikilink candidates and inventory labeled Markdown links whose destinations are native obsidian://open note URIs. The native inventory is read-only, source-located, canonically serialized, and validated across configured vaults.',
     inputSchema: {
       type: 'object',
       properties: {

@@ -4,9 +4,15 @@
  */
 import { test, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
 import path from 'node:path';
 
-import { loadConfig, resolveVault, resolvePathInVault } from '../dist/config.js';
+import {
+  loadConfig,
+  resolveVault,
+  resolvePathInVault,
+  verifyFileHandleInVault,
+} from '../dist/config.js';
 import { createTempVault, cleanup } from './helpers.mjs';
 
 // --- helpers to safely save/restore env vars ---
@@ -448,5 +454,51 @@ test('resolvePathInVault() — resolves a non-existent file path that is still w
     assert.equal(resolved, path.join(vaultDir, 'new-note.md'));
   } finally {
     if (vaultDir) cleanup(vaultDir);
+  }
+});
+
+test('verifyFileHandleInVault() accepts a handle that matches its in-vault path', async () => {
+  const vaultDir = createTempVault({ 'safe.md': 'inside' });
+  let handle;
+  try {
+    const safePath = path.join(vaultDir, 'safe.md');
+    handle = await fs.open(safePath, 'r');
+    await verifyFileHandleInVault(handle, safePath, vaultDir);
+    assert.equal(await handle.readFile({ encoding: 'utf8' }), 'inside');
+  } finally {
+    await handle?.close();
+    cleanup(vaultDir);
+  }
+});
+
+test('verifyFileHandleInVault() rejects a symlink swap-back race', async (t) => {
+  if (process.platform === 'win32') {
+    t.skip('Symlink creation is not reliably available on Windows CI.');
+    return;
+  }
+
+  const vaultDir = createTempVault({ 'inside.md': 'inside' });
+  const outsideDir = createTempVault({ 'outside.md': 'outside' });
+  const linkPath = path.join(vaultDir, 'link.md');
+  let handle;
+
+  try {
+    await fs.symlink(path.join(outsideDir, 'outside.md'), linkPath);
+    handle = await fs.open(linkPath, 'r');
+
+    // Restore the pathname to an in-vault target after the outside handle is open.
+    // A pathname-only realpath check now passes; device+inode comparison must fail.
+    await fs.unlink(linkPath);
+    await fs.symlink(path.join(vaultDir, 'inside.md'), linkPath);
+
+    await assert.rejects(
+      verifyFileHandleInVault(handle, linkPath, vaultDir),
+      /handle no longer matches/i,
+    );
+    assert.equal(await handle.readFile({ encoding: 'utf8' }), 'outside');
+  } finally {
+    await handle?.close();
+    cleanup(vaultDir);
+    cleanup(outsideDir);
   }
 });

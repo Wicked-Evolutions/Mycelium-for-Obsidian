@@ -40,8 +40,8 @@ test('parseMarkdownFile: extracts frontmatter and content', async (t) => {
     ].join('\n'),
   });
 
-  // macOS /var -> /private/var symlink: resolve vault to real path so that
-  // verifyPathAfterOpen never trips the boundary guard.
+  // macOS /var -> /private/var symlink: use the canonical vault path so
+  // handle/path verification compares within one normalized boundary.
   const vault = fs.realpathSync(vaultRaw);
 
   t.after(() => cleanup(vault));

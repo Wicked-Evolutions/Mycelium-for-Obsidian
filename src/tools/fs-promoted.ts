@@ -5,7 +5,7 @@
  */
 
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
-import { Config, resolveVault, resolvePathInVault, verifyPathAfterOpen } from '../config.js';
+import { Config, resolveVault, resolvePathInVault, verifyFileHandleInVault } from '../config.js';
 import { ToolResponse } from '../types/index.js';
 import { parseMarkdownFile } from '../parsers/markdown.js';
 import * as fs from 'fs/promises';
@@ -105,9 +105,14 @@ async function listAllFolders(dirPath: string, basePath: string = ''): Promise<s
 /** Read file safely within vault */
 async function readVaultFile(vaultPath: string, filePath: string): Promise<string> {
   const absPath = resolvePathInVault(vaultPath, filePath);
-  const content = await fs.readFile(absPath, 'utf-8');
-  await verifyPathAfterOpen(absPath, vaultPath);
-  return content;
+  let handle: Awaited<ReturnType<typeof fs.open>> | undefined;
+  try {
+    handle = await fs.open(absPath, 'r');
+    await verifyFileHandleInVault(handle, absPath, vaultPath);
+    return await handle.readFile({ encoding: 'utf8' });
+  } finally {
+    await handle?.close();
+  }
 }
 
 /** Write file safely within vault using atomic temp file */

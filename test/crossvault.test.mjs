@@ -554,6 +554,113 @@ describe('get_cross_vault_links', () => {
   });
 });
 
+describe('get_cross_vault_links nativeUriInventory', () => {
+  let source;
+  let destination;
+  let inventoryHandlers;
+
+  before(() => {
+    source = createTempVault({
+      'Source.md': [
+        '[valid](obsidian://open?vault=Destination&file=Folder%2FExact)',
+        '[same](obsidian://open?vault=Source&file=Source)',
+        '[same missing](obsidian://open?vault=Source&file=NoLocal)',
+        '[unknown](obsidian://open?vault=Nope&file=Exact)',
+        '[missing](obsidian://open?vault=Destination&file=Missing)',
+        '[nonmarkdown](obsidian://open?vault=Destination&file=Asset.pdf)',
+        '[bad](obsidian://open?vault=Destination&file=..%2FOutside)',
+        '[noncanonical](obsidian://open?file=Folder%2FExact.md&vault=Destination)',
+        '[duplicate](obsidian://open?vault=Destination&file=Folder%2FExact)',
+      ].join('\n'),
+      '.obsidian/ignored.md': '[ignore](obsidian://open?vault=Destination&file=Folder%2FExact)',
+    });
+    destination = createTempVault({ 'Folder/Exact.md': '# exact' });
+    inventoryHandlers = createCrossVaultHandlers({
+      mode: 'multi', vaults: [{ name: 'Source', path: source }, { name: 'Destination', path: destination }],
+      ollama: { host: 'http://localhost:11434', model: 'test' }, disabledTools: new Set(), readOnly: false, wrapUntrusted: false,
+    });
+  });
+
+  after(() => { cleanup(source); cleanup(destination); });
+
+  test('adds a bounded, source-located native URI inventory without changing legacy fields', async () => {
+    const data = payload(await inventoryHandlers.get_cross_vault_links({}), 'native URI inventory');
+    assert.equal(typeof data.totalPotentialLinks, 'number');
+    assert.ok(Array.isArray(data.links));
+    assert.deepEqual(data.nativeUriInventory.scannedVaults, ['Source', 'Destination']);
+    assert.equal(data.nativeUriInventory.maxReturned, 100);
+    assert.equal(data.nativeUriInventory.totalFound, 9);
+    assert.equal(data.nativeUriInventory.returnedCount, 9);
+    assert.equal(data.nativeUriInventory.truncated, false);
+    assert.equal(data.nativeUriInventory.summary.valid, 2, 'duplicate occurrences remain separate');
+    assert.equal(data.nativeUriInventory.summary.noncanonical, 1);
+    assert.ok(data.nativeUriInventory.records.some(r => r.status === 'same_vault_reference'));
+    assert.ok(data.nativeUriInventory.records.some(r => r.status === 'unknown_vault'));
+    assert.ok(data.nativeUriInventory.records.some(r => r.status === 'missing_destination'));
+    assert.ok(data.nativeUriInventory.records.some(r => r.status === 'unsupported'));
+    assert.ok(data.nativeUriInventory.records.some(r => r.status === 'invalid_path'));
+    assert.ok(data.nativeUriInventory.records.every(r => !Object.values(r).some(v => typeof v === 'string' && v === destination)));
+
+    const valid = data.nativeUriInventory.records.find(r => r.label === 'valid');
+    assert.equal(valid.relationshipType, 'cross_vault');
+    assert.equal(valid.canonicalUri, 'obsidian://open?vault=Destination&file=Folder%2FExact');
+    assert.deepEqual(valid.destination, {
+      vault: 'Destination',
+      path: 'Folder/Exact.md',
+      exists: true,
+    });
+    assert.equal(valid.line, 1);
+    assert.equal(valid.column, 1);
+
+    const same = data.nativeUriInventory.records.find(r => r.label === 'same');
+    assert.equal(same.status, 'same_vault_reference');
+    assert.equal(same.relationshipType, 'same_vault');
+    assert.equal(same.destination.exists, true);
+    assert.ok(same.diagnostics.some(d => d.code === 'same_vault_reference'));
+
+    const sameMissing = data.nativeUriInventory.records.find(r => r.label === 'same missing');
+    assert.equal(sameMissing.status, 'missing_destination', 'missing destination outranks same-vault guidance');
+    assert.equal(sameMissing.relationshipType, 'same_vault');
+    assert.equal(sameMissing.destination.exists, false);
+    assert.ok(sameMissing.diagnostics.some(d => d.code === 'missing_destination'));
+
+    const noncanonical = data.nativeUriInventory.records.find(r => r.label === 'noncanonical');
+    assert.equal(noncanonical.canonicalUri, 'obsidian://open?vault=Destination&file=Folder%2FExact');
+    assert.ok(noncanonical.diagnostics.some(d => d.code === 'markdown_extension_present'));
+    assert.ok(noncanonical.diagnostics.some(d => d.code === 'noncanonical_uri'));
+  });
+
+  test('filters native URI sources by vault and caps returned records at 100', async () => {
+    const many = createTempVault(Object.fromEntries(Array.from({ length: 101 }, (_, i) => [
+      `N${i}.md`, `[x](obsidian://open?vault=Destination&file=Folder%2FExact)`,
+    ])));
+    try {
+      const manyHandlers = createCrossVaultHandlers({
+        mode: 'multi', vaults: [{ name: 'Many', path: many }, { name: 'Destination', path: destination }],
+        ollama: { host: 'http://localhost:11434', model: 'test' }, disabledTools: new Set(), readOnly: false, wrapUntrusted: false,
+      });
+      const filtered = payload(await inventoryHandlers.get_cross_vault_links({ vault: 'Source' }), 'source filter');
+      assert.ok(filtered.nativeUriInventory.records.every(r => r.sourceVault === 'Source'));
+      const bounded = payload(await manyHandlers.get_cross_vault_links({}), 'result bound');
+      assert.equal(bounded.nativeUriInventory.totalFound, 101);
+      assert.equal(bounded.nativeUriInventory.returnedCount, 100);
+      assert.equal(bounded.nativeUriInventory.truncated, true);
+    } finally { cleanup(many); }
+  });
+
+  test('reports case-insensitively ambiguous configured destination vault names', async () => {
+    const alternate = createTempVault({ 'Exact.md': '# alternate' });
+    try {
+      const ambiguous = createCrossVaultHandlers({
+        mode: 'multi', vaults: [{ name: 'Source', path: source }, { name: 'Destination', path: destination }, { name: 'destination', path: alternate }],
+        ollama: { host: 'http://localhost:11434', model: 'test' }, disabledTools: new Set(), readOnly: false, wrapUntrusted: false,
+      });
+      const data = payload(await ambiguous.get_cross_vault_links({ vault: 'Source' }), 'ambiguous destination');
+      assert.ok(data.nativeUriInventory.records.some(r => r.status === 'ambiguous_vault'));
+    } finally { cleanup(alternate); }
+  });
+});
+
 // ─── get_ecosystem_stats (non-embedding path) ────────────────────────────────
 
 describe('get_ecosystem_stats — structural fields (no embedding dependency)', () => {
