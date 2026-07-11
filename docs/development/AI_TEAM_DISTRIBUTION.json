@@ -65,7 +65,7 @@
       "modelReasoningSandbox": "unverified",
       "instructionSentinel": "unverified",
       "receipt": null,
-      "blocker": "A post-Gate-A exact named-role retest reached the Codex collaboration runtime, but spawning mycelium_product_researcher failed with `no thread with id`; no deterministic role invocation or instruction receipt was produced."
+      "blocker": "A persisted post-Gate-A retest spawned a child under task path mycelium_product_researcher, but the child did not prove the custom TOML role was loaded and returned the distribution name rather than the canonical role ID embedded in its role instructions; exact role invocation and instruction effect remain unverified."
     },
     "mergeReceipt": null
   },
