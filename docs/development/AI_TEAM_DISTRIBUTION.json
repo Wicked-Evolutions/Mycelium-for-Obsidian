@@ -25,8 +25,16 @@
     "lifecycleState": "candidate-unverified",
     "integrityState": "consistent",
     "distributionRevision": "3e55829779c893d09e12339f6f48303647e7d48afd61e58e0b931c7d2c7de1a6",
-    "candidateCommit": null,
-    "draftPrReceipt": null,
+    "candidateCommit": "457e7a7f42bdc38b3010f8c6b0c3871627887700",
+    "draftPrReceipt": {
+      "authority": "GitHub",
+      "decision": "draft-pr-opened",
+      "distributionRevision": "3e55829779c893d09e12339f6f48303647e7d48afd61e58e0b931c7d2c7de1a6",
+      "candidateCommit": "457e7a7f42bdc38b3010f8c6b0c3871627887700",
+      "prNumber": 50,
+      "url": "https://github.com/Wicked-Evolutions/Mycelium-for-Obsidian/pull/50",
+      "recordedAt": "2026-07-11T05:28:55Z"
+    },
     "semanticReconciliation": {
       "state": "candidate-reviewed",
       "receipt": {
