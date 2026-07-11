@@ -12,9 +12,9 @@ mycelium-obsidian.ai-team.operating-model
 
 [Open the Obsidian origin](obsidian://open?vault=06%202.0%20Influencentricity%20OS%20MVP&file=MCP%20Obsidian%20by%20Wicked%20Evolutions%2FGPT%20Dev%20Team%2FOPERATING%20MODEL%20%E2%80%94%20AI%20Development%20Team%20%E2%80%94%20Mycelium%20for%20Obsidian)
 
-The source is currently `0.1-draft` with no founder-ratified canonical role release. The repository changes that reference it are candidate distributions. A candidate may be transformed, tested, semantically reviewed against the frozen draft, and opened as a clearly labeled draft PR before Gate A. It must not be called released/current or aligned to a canonical release. The two founder gates are:
+The source is canonical role release `mycelium-obsidian-ai-team-0.1.0`, ratified by J at Gate A from origin revision `0.1-draft` and marker-scoped payload SHA-256 `f642db156d3ada17bd81013f566bcacc2c155f4f91a82c3cc30b8021964cfee5`. The repository changes that reference it remain a candidate distribution: they are not merged, runtime-verified, or eligible for Gate B until a fresh reconciliation proves alignment to those exact released semantic bytes and the remaining evidence contract passes. The two founder gates are:
 
-1. **Gate A:** J ratifies the exact SHA-256 of the canonical semantic payload under `marker-delimited-utf8-bytes-v1`. The payload begins after the start marker line's actual terminator and ends immediately before the `<` of the end marker line. Both marker lines and their terminators are excluded; newline bytes after the final semantic line remain payload bytes; no line-ending normalization occurs.
+1. **Gate A (passed):** J ratified the exact SHA-256 of the canonical semantic payload under `marker-delimited-utf8-bytes-v1`. The payload begins after the start marker line's actual terminator and ends immediately before the `<` of the end marker line. Both marker lines and their terminators are excluded; newline bytes after the final semantic line remain payload bytes; no line-ending normalization occurs.
 2. **Gate B:** after a fresh reconciliation against that exact ratified payload, J separately authorizes the exact repository distribution revision and PR merge.
 
 These gates are distinct from a Mycelium software/tag/npm/MCPB/GitHub release.

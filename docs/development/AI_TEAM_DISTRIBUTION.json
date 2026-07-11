@@ -5,14 +5,22 @@
   "source": {
     "canonicalId": "mycelium-obsidian.ai-team.operating-model",
     "locator": "obsidian://open?vault=06%202.0%20Influencentricity%20OS%20MVP&file=MCP%20Obsidian%20by%20Wicked%20Evolutions%2FGPT%20Dev%20Team%2FOPERATING%20MODEL%20%E2%80%94%20AI%20Development%20Team%20%E2%80%94%20Mycelium%20for%20Obsidian",
-    "lifecycleState": "origin-draft",
+    "lifecycleState": "canonical-release",
     "originRevision": "0.1-draft",
     "decisionOwner": "J",
-    "canonicalRoleRelease": null,
-    "ratificationReceipt": null,
+    "canonicalRoleRelease": "mycelium-obsidian-ai-team-0.1.0",
+    "ratificationReceipt": {
+      "authority": "J",
+      "decision": "ratified",
+      "canonicalRoleRelease": "mycelium-obsidian-ai-team-0.1.0",
+      "originRevision": "0.1-draft",
+      "payloadDigest": "f642db156d3ada17bd81013f566bcacc2c155f4f91a82c3cc30b8021964cfee5",
+      "recordedAt": "2026-07-11T09:19:34Z",
+      "evidence": "J ratified Gate A in the active Codex session after reviewing the plain-language meaning of the decision."
+    },
     "payloadDigestAlgorithm": "sha256",
     "payloadDigestScope": "marker-delimited-utf8-bytes-v1",
-    "payloadDigestState": "candidate-payload-recorded",
+    "payloadDigestState": "ratified-payload",
     "payloadDigest": "f642db156d3ada17bd81013f566bcacc2c155f4f91a82c3cc30b8021964cfee5"
   },
   "target": {
@@ -24,30 +32,12 @@
     "reconciledAt": "2026-07-11",
     "lifecycleState": "candidate-unverified",
     "integrityState": "consistent",
-    "distributionRevision": "3e55829779c893d09e12339f6f48303647e7d48afd61e58e0b931c7d2c7de1a6",
-    "candidateCommit": "457e7a7f42bdc38b3010f8c6b0c3871627887700",
-    "draftPrReceipt": {
-      "authority": "GitHub",
-      "decision": "draft-pr-opened",
-      "distributionRevision": "3e55829779c893d09e12339f6f48303647e7d48afd61e58e0b931c7d2c7de1a6",
-      "candidateCommit": "457e7a7f42bdc38b3010f8c6b0c3871627887700",
-      "prNumber": 50,
-      "url": "https://github.com/Wicked-Evolutions/Mycelium-for-Obsidian/pull/50",
-      "recordedAt": "2026-07-11T05:28:55Z"
-    },
+    "distributionRevision": "b85d185a2011978503bfde28a3d8a9d78946e8aca6ef6ae0a8494c66d7e4467a",
+    "candidateCommit": null,
+    "draftPrReceipt": null,
     "semanticReconciliation": {
-      "state": "candidate-reviewed",
-      "receipt": {
-        "authority": "mycelium-obsidian.ai-role.independent-adversarial-reviewer",
-        "decision": "candidate-reviewed",
-        "sprintId": "SPRINT-03",
-        "distributionRevision": "3e55829779c893d09e12339f6f48303647e7d48afd61e58e0b931c7d2c7de1a6",
-        "originRevision": "0.1-draft",
-        "payloadDigest": "f642db156d3ada17bd81013f566bcacc2c155f4f91a82c3cc30b8021964cfee5",
-        "canonicalRoleRelease": null,
-        "recordedAt": "2026-07-11T05:24:27Z",
-        "evidence": "Sprint 03 independent governance and validator adversarial reviews returned ready for founder review."
-      }
+      "state": "candidate-unreviewed",
+      "receipt": null
     },
     "runtimeEffectiveness": {
       "state": "unverified",
@@ -57,7 +47,7 @@
       "modelReasoningSandbox": "unverified",
       "instructionSentinel": "unverified",
       "receipt": null,
-      "blocker": "A post-repair exact-role retest was blocked by the ChatGPT subscription worker limit."
+      "blocker": "A post-Gate-A exact named-role retest reached the Codex collaboration runtime, but spawning mycelium_product_researcher failed with `no thread with id`; no deterministic role invocation or instruction receipt was produced."
     },
     "mergeReceipt": null
   },
@@ -173,7 +163,7 @@
     {
       "path": "AGENTS.md",
       "classification": "composite-repository-instructions",
-      "sha256": "ace00c0270a6bf41c97726476be23d0d9643b2343f270a5475de95cdd500282e"
+      "sha256": "04472236d437d15453cf160017def6f6c9b22a9e722b8bdaf2f42466e5024964"
     },
     {
       "path": "CONTRIBUTING.md",
@@ -183,7 +173,7 @@
     {
       "path": "docs/development/AI_TEAM_OPERATING_MODEL.md",
       "classification": "distribution-runbook",
-      "sha256": "4e27a33ba5a77fc7c3b9af58bd43e3c1fb65d2eaea504db00419578f4bf6d8e0"
+      "sha256": "89580982908a7cc44852713c4a8ad3d25679c7d6827054939b64264c57f267af"
     },
     {
       "path": "docs/development/SPRINT_TEMPLATE.md",
