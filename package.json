@@ -47,10 +47,10 @@
   },
   "homepage": "https://github.com/Wicked-Evolutions/Mycelium-for-Obsidian#readme",
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.0.0"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.23.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "better-sqlite3": "^12.5.0",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
