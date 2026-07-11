@@ -30,24 +30,49 @@
     "candidateBranch": "docs/canonical-ai-team-origin",
     "supportedCodexVersion": "0.144.1",
     "reconciledAt": "2026-07-11",
-    "lifecycleState": "candidate-unverified",
+    "lifecycleState": "candidate-verified",
     "integrityState": "consistent",
     "distributionRevision": "192e9d9f9e027a26c88c5a43c7f47db1ce3ab40dca2dbb6df06d86f482fa16be",
-    "candidateCommit": null,
-    "draftPrReceipt": null,
+    "candidateCommit": "06dddcf8abb84a92143225cc49660e260c8d725d",
+    "draftPrReceipt": {
+      "authority": "GitHub",
+      "decision": "draft-pr-opened",
+      "distributionRevision": "192e9d9f9e027a26c88c5a43c7f47db1ce3ab40dca2dbb6df06d86f482fa16be",
+      "candidateCommit": "06dddcf8abb84a92143225cc49660e260c8d725d",
+      "prNumber": 50,
+      "url": "https://github.com/Wicked-Evolutions/Mycelium-for-Obsidian/pull/50",
+      "recordedAt": "2026-07-11T14:52:16Z"
+    },
     "semanticReconciliation": {
-      "state": "candidate-unreviewed",
-      "receipt": null
+      "state": "aligned-to-release",
+      "receipt": {
+        "authority": "mycelium-obsidian.ai-role.independent-adversarial-reviewer",
+        "decision": "aligned-to-release",
+        "sprintId": "SPRINT-03",
+        "distributionRevision": "192e9d9f9e027a26c88c5a43c7f47db1ce3ab40dca2dbb6df06d86f482fa16be",
+        "originRevision": "0.1-draft",
+        "payloadDigest": "f642db156d3ada17bd81013f566bcacc2c155f4f91a82c3cc30b8021964cfee5",
+        "canonicalRoleRelease": "mycelium-obsidian-ai-team-0.1.0",
+        "recordedAt": "2026-07-11T14:52:16Z",
+        "evidence": "Independent post-hardening review verified all 15 governed artifacts, target-specific invocation controls, bounded-probe behavior, runtime evidence sufficiency, and no change to canonical semantics."
+      }
     },
     "runtimeEffectiveness": {
-      "state": "unverified",
+      "state": "verified",
       "configParsing": "passed",
       "exactRoleDiscovery": "passed",
       "exactRoleInvocation": "passed",
       "modelReasoningSandbox": "passed",
-      "instructionSentinel": "unverified",
-      "receipt": null,
-      "blocker": "Explicit agent_type plus fork_turns none proved all five custom role names and declared model/reasoning/sandbox mappings. The pre-hardening test-engineer probe broadened a metadata assignment into a full verification run, so the revised bounded-assignment instruction still requires a clean retest before runtime can be verified."
+      "instructionSentinel": "passed",
+      "receipt": {
+        "authority": "Codex 0.144.1 exact-role runtime trace gate",
+        "decision": "runtime-verified",
+        "distributionRevision": "192e9d9f9e027a26c88c5a43c7f47db1ce3ab40dca2dbb6df06d86f482fa16be",
+        "supportedCodexVersion": "0.144.1",
+        "recordedAt": "2026-07-11T14:52:16Z",
+        "evidence": "Explicit agent_type with fork_turns none produced five matching child agent_role traces with declared model, reasoning, and sandbox mappings; canonical instruction sentinels matched, the hardened test probe used zero child tools, and the active principal trace recorded gpt-5.6-sol."
+      },
+      "blocker": null
     },
     "mergeReceipt": null
   },
@@ -61,7 +86,7 @@
       "model": "gpt-5.6-sol",
       "reasoningEffort": "session-selected",
       "sandboxMode": "inherited-session-permissions",
-      "effectivenessState": "unverified"
+      "effectivenessState": "verified"
     },
     {
       "canonicalRoleId": "mycelium-obsidian.ai-role.product-knowledge-researcher",
@@ -72,7 +97,7 @@
       "model": "gpt-5.6-luna",
       "reasoningEffort": "medium",
       "sandboxMode": "read-only",
-      "effectivenessState": "unverified"
+      "effectivenessState": "verified"
     },
     {
       "canonicalRoleId": "mycelium-obsidian.ai-role.repository-runtime-explorer",
@@ -83,7 +108,7 @@
       "model": "gpt-5.6-luna",
       "reasoningEffort": "medium",
       "sandboxMode": "read-only",
-      "effectivenessState": "unverified"
+      "effectivenessState": "verified"
     },
     {
       "canonicalRoleId": "mycelium-obsidian.ai-role.scoped-implementer",
@@ -94,7 +119,7 @@
       "model": "gpt-5.6-terra",
       "reasoningEffort": "medium",
       "sandboxMode": "workspace-write",
-      "effectivenessState": "unverified"
+      "effectivenessState": "verified"
     },
     {
       "canonicalRoleId": "mycelium-obsidian.ai-role.verification-test-engineer",
@@ -105,7 +130,7 @@
       "model": "gpt-5.4-mini",
       "reasoningEffort": "medium",
       "sandboxMode": "workspace-write",
-      "effectivenessState": "unverified"
+      "effectivenessState": "verified"
     },
     {
       "canonicalRoleId": "mycelium-obsidian.ai-role.independent-adversarial-reviewer",
@@ -116,7 +141,7 @@
       "model": "gpt-5.5",
       "reasoningEffort": "high",
       "sandboxMode": "read-only",
-      "effectivenessState": "unverified"
+      "effectivenessState": "verified"
     }
   ],
   "artifacts": [
