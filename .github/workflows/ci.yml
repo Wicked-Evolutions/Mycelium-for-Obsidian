@@ -29,6 +29,11 @@ jobs:
       - name: Build
         run: npm run build
 
+      # Validate the checkout's AI-team distribution artifacts and provenance.
+      # The private Obsidian origin is intentionally not required in CI.
+      - name: Validate AI-team distribution
+        run: node scripts/validate-ai-team-distribution.mjs
+
       # Single test execution: test:coverage runs the headless tests under c8,
       # serving as BOTH the pass/fail gate (c8 propagates the test runner exit
       # code) and the baseline coverage report. Tests run once, build runs once

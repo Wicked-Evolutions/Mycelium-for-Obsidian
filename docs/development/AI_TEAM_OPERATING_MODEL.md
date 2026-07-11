@@ -1,71 +1,191 @@
-# AI Team Operating Model
+# AI Team Operating Model — Codex Repository Distribution
 
-This repository uses a founder-directed, AI-executed development model. `AGENTS.md` is the authoritative repository instruction surface; this document explains the operational sequence for humans.
+This document explains the Codex/repository implementation of the Mycelium for Obsidian AI development team. It is a target runbook, not the provider-neutral semantic origin.
 
-## Team shape
+## Canonical origin and candidate state
 
-The lead model owns product synthesis, architecture, delegation, integration, and final review. Lower-cost specialists perform bounded research, repository exploration, implementation, testing, and independent review. Their project definitions live in `.codex/agents/` and return results directly to the lead session.
+Canonical operating-model ID:
 
-Native Codex subagents in a normal trusted-project session are the default. `scripts/codex-worker.sh` is the deterministic single-agent, non-interactive option for a separately selected model, especially in an isolated worktree. Hermes may later provide persistent Kanban or scheduled swarms, but it is not required for the core sprint workflow.
+```text
+mycelium-obsidian.ai-team.operating-model
+```
+
+[Open the Obsidian origin](obsidian://open?vault=06%202.0%20Influencentricity%20OS%20MVP&file=MCP%20Obsidian%20by%20Wicked%20Evolutions%2FGPT%20Dev%20Team%2FOPERATING%20MODEL%20%E2%80%94%20AI%20Development%20Team%20%E2%80%94%20Mycelium%20for%20Obsidian)
+
+The source is currently `0.1-draft` with no founder-ratified canonical role release. The repository changes that reference it are candidate distributions. A candidate may be transformed, tested, semantically reviewed against the frozen draft, and opened as a clearly labeled draft PR before Gate A. It must not be called released/current or aligned to a canonical release. The two founder gates are:
+
+1. **Gate A:** J ratifies the exact SHA-256 of the canonical semantic payload under `marker-delimited-utf8-bytes-v1`. The payload begins after the start marker line's actual terminator and ends immediately before the `<` of the end marker line. Both marker lines and their terminators are excluded; newline bytes after the final semantic line remain payload bytes; no line-ending normalization occurs.
+2. **Gate B:** after a fresh reconciliation against that exact ratified payload, J separately authorizes the exact repository distribution revision and PR merge.
+
+These gates are distinct from a Mycelium software/tag/npm/MCPB/GitHub release.
+
+`AGENTS.md` is the binding composite instruction surface for work in this repository. Its principal/delegation semantics derive from the Obsidian origin. Its product invariants, implementation contracts, safety controls, tests, and Git rules remain repository-specific authority.
+
+## Authority by question
+
+| Question | Authority |
+|---|---|
+| Intended role meaning | current J statement → ratified canonical role release → this distribution |
+| Active sprint authority | current J statement → active sprint contract → role defaults |
+| Installed/effective agent behavior | runtime evidence → installed config → repository artifact at exact commit → documentation → canonical expectation |
+| Product behavior | current code/runtime/tests → primary records → documentation |
+
+A runtime discrepancy is drift evidence. It neither rewrites the canonical origin nor disappears because documentation expected something else.
+
+## Lifecycle and evidence dimensions
+
+The validation contract supports lifecycle progression rather than assuming one draft-only schema:
+
+- Origin lifecycle: `origin-draft` → `canonical-release` after Gate A.
+- Target lifecycle: `candidate-unverified` → `candidate-verified` when all evidence required by the current contract exists → `merged` only after Gate B and merge of the exact reviewed revision.
+- Artifact integrity: deterministic `integrity-consistent`/`integrity-mismatch` checks over declared bytes and aggregate target revision.
+- Semantic reconciliation: receipt-backed `candidate-reviewed` against a frozen draft or `aligned-to-release` against the exact Gate A payload.
+- Runtime effect: separately observed `unverified`, `verified`, `failed`, or `blocked` state for configuration, availability, invocation, mapping, sandbox, and instructions.
+
+Automation may report `consistent` or `integrity-consistent`; that result is not a semantic review and not runtime-effect evidence. Only a review receipt identifying the source digest, aggregate target revision, reviewer, date, and outcome may establish `candidate-reviewed` or `aligned-to-release`.
+
+## Team and current Codex mapping
+
+Mappings are dated implementation choices, not stable role identities.
+
+| Canonical role | Canonical role ID | Current Codex mapping | Intended control |
+|---|---|---|---|
+| Principal Development Orchestrator | `mycelium-obsidian.ai-role.principal-development-orchestrator` | GPT-5.6 SOL selected for the main session | parent permissions plus `AGENTS.md` |
+| Product and Knowledge Researcher | `mycelium-obsidian.ai-role.product-knowledge-researcher` | `gpt-5.6-luna`, medium | read-only |
+| Repository and Runtime Explorer | `mycelium-obsidian.ai-role.repository-runtime-explorer` | `gpt-5.6-luna`, medium | read-only |
+| Scoped Implementer | `mycelium-obsidian.ai-role.scoped-implementer` | `gpt-5.6-terra`, medium | workspace-write |
+| Verification and Test Engineer | `mycelium-obsidian.ai-role.verification-test-engineer` | `gpt-5.4-mini`, medium | workspace-write |
+| Independent Adversarial Reviewer | `mycelium-obsidian.ai-role.independent-adversarial-reviewer` | `gpt-5.5`, high | read-only |
+
+The principal uses the highest-capability available model appropriate to the risk. Cost and latency inform routing but do not define the quality contract.
+
+Do not silently substitute an unavailable mapping. Record the configured role/model, effective substitute, reason, preserved controls, and degraded state.
+
+## Main role versus custom subagents
+
+The principal is the active main-session role. A custom-agent TOML does not configure the main thread.
+
+The five specialist transformations live in `.codex/agents/`. Current OpenAI documentation says project custom agents are standalone TOML files identified by their `name` field. Presence on disk proves configuration intent only. Each exact role must still be proven available, invoked, and effective on the installed Codex version.
+
+As of 2026-07-11, Codex 0.144.1 parses the project settings and the intended model slugs exist, but exact custom-role registration/effectiveness has conflicting evidence. Sprint 00 reported success; a later audit could not prove the exact roles were applied. A post-repair retest was blocked by the ChatGPT subscription worker limit. Until a deterministic receipt exists, classify these roles as `unverified` rather than operational.
+
+[Official Codex custom-agent documentation](https://developers.openai.com/codex/agent-configuration/subagents)
+
+## Distribution artifacts
+
+- `AGENTS.md` — composite binding repository instructions and principal-role distribution.
+- `.codex/agents/*.toml` — five specialist role transformations.
+- `.codex/config.toml` — Codex thread/depth/runtime installation policy.
+- `scripts/codex-worker.sh` — generic model/sandbox execution adapter with authentication and dirty-worktree controls.
+- `docs/development/SPRINT_TEMPLATE.md` — sprint workflow adaptation.
+- `.github/PULL_REQUEST_TEMPLATE.md` — PR evidence and authority adaptation.
+- `CONTRIBUTING.md` — public governance summary without duplicating private role doctrine.
+- `scripts/validate-ai-team-distribution.mjs` — deterministic target-integrity, lifecycle, and optional local-origin validator.
+- `.github/workflows/ci.yml` — CI invocation of the distribution check.
+- `package.json` — local npm validation entrypoints.
+- `docs/development/AI_TEAM_DISTRIBUTION.json` — machine-readable provenance, mappings, target digests, aggregate revision, source state, and receipts; deliberately excluded from its own hash set.
+- `test/ai-team-distribution.test.mjs` — verification harness for the validator; inventoried but intentionally not part of the governed distribution hash set.
+
+Subject to the validator implementation, the manifest declares 15 governed target artifact hashes plus itself as the self-excluded declaration. The verification test remains non-hashed. The JSON manifest is the machine-readable target declaration. The Obsidian distribution register holds the human-readable lifecycle, semantic-review, and effectiveness evidence.
 
 ## Sprint sequence
 
-1. **Orient:** verify branch, release, worktree, open PRs/issues, active Obsidian sprint note, and current runtime.
-2. **Ratify scope:** define goal, non-goals, authority, acceptance criteria, evidence, and file ownership.
-3. **Branch:** create one focused branch. Create additional Git worktrees only for genuinely independent writers.
-4. **Implement:** use small commits and targeted tests. Keep product changes separate from unrelated cleanup.
-5. **Verify:** build, targeted tests, `npm test`, `npm run test:coverage`, and applicable live tests.
-6. **Review:** run an independent adversarial review and resolve findings with evidence.
-7. **Document:** update repository contracts and the Obsidian sprint evidence/handoff.
-8. **PR:** open a focused draft PR, let Node 20/22 CI finish, and address review feedback.
-9. **Founder gate:** merge only after product review and explicit approval.
-10. **Release gate:** tag, package, publish, and release only under separately stated authority.
+1. **Orient:** verify repository, branch, worktree, release, GitHub, active sprint, and minimum canonical sources.
+2. **Ratify scope:** goal, non-goals, authority, acceptance criteria, evidence, ownership, and stop conditions.
+3. **Isolate:** create one focused branch and separate worktrees for concurrent writers.
+4. **Implement:** bounded changes with targeted checks.
+5. **Verify:** build, targeted tests, full applicable gates, and honest skips.
+6. **Review:** independent adversarial review proportionate to risk.
+7. **Document:** update repository contracts and Obsidian sprint evidence.
+8. **Draft PR:** wait for required CI and resolve findings.
+9. **Founder merge gate:** merge only after explicit authority.
+10. **Software release gate:** tag/package/publish/release only with separate authority.
+
+When canonical role semantics change, Gate A precedes the target-distribution Gate B.
 
 ## Worktree isolation
 
-Concurrent writers must not share an uncommitted working tree. From the repository root:
+Concurrent writers must not share uncommitted ownership:
 
 ```bash
 git fetch origin
 git worktree add ../mcp-obsidian-<task> -b <type>/<task> origin/main
 ```
 
-Assign explicit paths to each worker. A worker commits only its scoped changes. The lead reviews the diff and integrates it through Git rather than copying code between chats.
+Assign explicit paths. A worker changes only its scoped files. The principal integrates through Git and reviews the complete diff.
 
-## Model allocation
+## Custom-role verification gate
 
-Use the project agent definitions as defaults, not permanent product constraints:
+A custom-role distribution is effective only after all applicable evidence exists:
 
-- SOL: lead, architecture, final synthesis.
-- Luna: inexpensive research and repository discovery.
-- Terra: everyday implementation.
-- 5.4 Mini: bounded tests and mechanical verification.
-- 5.5: adversarial review of high-risk changes.
+1. strict config parsing on the supported Codex version;
+2. exact role-name discovery and spawn without silent built-in substitution;
+3. effective model and reasoning evidence;
+4. effective sandbox/permission evidence;
+5. an instruction sentinel sourced from the role transformation, not supplied in the task prompt;
+6. bounded task output consistent with the role contract;
+7. recorded pass/fail/skip receipt in the active sprint.
 
-Models may change as availability and measured performance change. Role instructions and quality gates are the stable part.
+If the subscription or runtime prevents this gate, report `unverified` or `blocked`. Do not infer success from file presence.
 
-## Subscription-only operation
+## Generic worker adapter
 
-Codex is authenticated with ChatGPT. This Mac's user-level Codex configuration forces ChatGPT login; authentication is intentionally not committed to the repository. Before every worker run, the wrapper removes `OPENAI_API_KEY` and requires `codex login status` to report `Logged in using ChatGPT`. This verifies the authentication route used on this machine; it is not a general billing guarantee for modified Codex installations or other providers.
+`scripts/codex-worker.sh` starts one non-interactive Codex session for an explicitly selected model, sandbox, worktree, and prompt. It does **not** currently select a canonical role or automatically load the matching role instructions.
 
-The wrapper accepts a model, sandbox, working directory, and prompt. By default it passes `--ignore-user-config` while retaining saved ChatGPT authentication. In the verified Codex 0.144.1 behavior, that isolated mode did not register project custom-agent profiles as callable agent types. Use a normal trusted-project Codex session, or pass `--with-user-config`, when those profiles are required:
+It:
 
-```bash
-scripts/codex-worker.sh \
-  --model gpt-5.6-luna \
-  --sandbox read-only \
-  --workdir "$PWD" \
-  --prompt "Map the graph-provider cache and report risks. Do not edit files."
-```
+- removes `OPENAI_API_KEY` from the child;
+- requires `codex login status` to report ChatGPT login;
+- refuses workspace-write in a dirty worktree unless `--allow-dirty` is deliberately supplied;
+- defaults to isolated user configuration unless `--with-user-config` is requested.
 
-Writing workers should run in a dedicated clean worktree with `--sandbox workspace-write`. The wrapper refuses a dirty writing worktree unless a human or lead agent deliberately passes the unsafe `--allow-dirty` override after reviewing ownership.
+Loading user configuration is broader than loading role definitions; it also loads MCPs and other personal defaults. Do not describe `--with-user-config` as a proven custom-role fix.
+
+If the wrapper later gains a role selector, add shim-based tests for exact prompt/config/model/reasoning/sandbox arguments, auth behavior, API-key removal, and dirty-tree refusal.
+
+## Subscription-only installation evidence
+
+This Mac's user configuration forces ChatGPT login. Authentication is intentionally not committed to the repository. On 2026-07-11, the deprecated `features.codex_hooks` and removed `features.js_repl` entries were repaired to the supported `features.hooks` key. Strict configuration and ChatGPT-only doctor checks then loaded cleanly, apart from an unrelated rollout-database parity warning.
+
+This is machine/version-specific installation evidence, not a portable guarantee for another user or provider.
 
 ## Required evidence in every handoff
 
-- Branch and commit or dirty-diff state.
-- Files changed and why.
-- Commands run with exact outcomes.
-- Risks, assumptions, and checks not run.
+- Stable canonical role ID and effective platform mapping.
+- Branch, commit, worktree, or dirty-diff state.
+- Files/sources inspected or changed.
+- Exact commands and pass/fail/skip results.
+- Assumptions, risks, substitutions, and checks not run.
 - Independent-review verdict and unresolved findings.
-- Obsidian note updated or created for the sprint.
-- Authority still required for PR, merge, or release.
+- Obsidian note created or updated.
+- Authority used and still required.
+- Canonical-role-release, distribution, PR, merge, and software-release states without conflation.
+
+## Reconciliation and drift
+
+1. Update the marker-delimited semantic body of the Obsidian origin draft and increment its mutable revision metadata outside the payload.
+2. Freeze and hash raw UTF-8 bytes strictly between the two unique marker lines, excluding the markers and performing no newline normalization.
+3. Optionally transform the frozen draft into target candidates, run deterministic integrity checks, record a `candidate-reviewed` semantic receipt, and open a clearly marked draft PR. Do not claim released/current status.
+4. Gate A: J ratifies the exact marker-scoped payload. Record release version/date/founder receipt in mutable origin history outside the payload.
+5. Reconcile target artifacts again against the exact Gate A payload while preserving canonical and target-specific controls.
+6. Update and validate `AI_TEAM_DISTRIBUTION.json`; compute the 15-artifact aggregate distribution revision without hashing the manifest into itself.
+7. Record a post-Gate-A `aligned-to-release` semantic receipt tied to the exact source digest and aggregate target revision.
+8. Run strict config, exact role/effect tests, script checks, and repository gates. Integrity, semantics, and runtime remain separate results.
+9. Record the exact governed target Git commit, typed draft-PR receipt, aggregate revision, reviewer/date/outcome, effective receipts, reconciliation date, and drift state. Any governed target change invalidates the aggregate and semantic receipt. To avoid self-reference, a later manifest-only receipt commit may bind `candidateCommit` and the PR receipt to the earlier commit whose 15 governed artifact hashes equal the unchanged aggregate; that receipt-only commit must not alter a governed artifact. The mutable Obsidian register records current PR/head/merge state and the relationship between these commits.
+10. Gate B: J separately authorizes merge of that exact target revision.
+
+If the origin is unavailable, the last reconciled installation may continue to run, but reconciliation/publication stops and reports `source-unknown`.
+
+Exact custom-role runtime effectiveness is currently `unverified`. This does not block Gate A or preparation of a clearly labeled draft PR. Under the current Sprint 03 contract it blocks `candidate-verified` and Gate B.
+
+Validate target structure in any checkout:
+
+```bash
+npm run validate:ai-team
+```
+
+When the canonical origin file is locally available, compare its exact marker-scoped payload without storing its machine path:
+
+```bash
+npm run validate:ai-team -- --origin-file '<path-to-canonical-operating-model-note>'
+```

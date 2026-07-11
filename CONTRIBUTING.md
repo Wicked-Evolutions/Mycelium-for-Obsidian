@@ -13,6 +13,8 @@ Every contribution — issue, PR, or discussion — is reviewed by the AI team a
 - **We may ask clarifying questions.** Context helps us make better decisions.
 - **We may adapt your contribution.** If the direction is right but the implementation needs adjustment for our architecture, we'll work with you on it.
 
+Repository work follows [the binding repository instructions](AGENTS.md) and [the AI-team target runbook](docs/development/AI_TEAM_OPERATING_MODEL.md). The runbook explains how canonical role definitions maintained in Obsidian are transformed into repository artifacts, reconciled for drift, and verified at runtime. Contributors do not need access to the canonical origin to submit a change, but a PR that touches an AI-team distribution artifact must identify that impact so maintainers can complete the canonical reconciliation and its separate founder gates. Canonical role ratification, repository PR merge, and a Mycelium software release are distinct decisions.
+
 ## Reporting Bugs
 
 Open an issue with:

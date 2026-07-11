@@ -1,0 +1,211 @@
+{
+  "schemaVersion": 2,
+  "manifestId": "mycelium-obsidian.ai-team.codex-distribution",
+  "canonicalTeamId": "mycelium-obsidian.ai-team.operating-model",
+  "source": {
+    "canonicalId": "mycelium-obsidian.ai-team.operating-model",
+    "locator": "obsidian://open?vault=06%202.0%20Influencentricity%20OS%20MVP&file=MCP%20Obsidian%20by%20Wicked%20Evolutions%2FGPT%20Dev%20Team%2FOPERATING%20MODEL%20%E2%80%94%20AI%20Development%20Team%20%E2%80%94%20Mycelium%20for%20Obsidian",
+    "lifecycleState": "origin-draft",
+    "originRevision": "0.1-draft",
+    "decisionOwner": "J",
+    "canonicalRoleRelease": null,
+    "ratificationReceipt": null,
+    "payloadDigestAlgorithm": "sha256",
+    "payloadDigestScope": "marker-delimited-utf8-bytes-v1",
+    "payloadDigestState": "candidate-payload-recorded",
+    "payloadDigest": "f642db156d3ada17bd81013f566bcacc2c155f4f91a82c3cc30b8021964cfee5"
+  },
+  "target": {
+    "platform": "codex",
+    "repository": "Wicked-Evolutions/Mycelium-for-Obsidian",
+    "baselineCommit": "6a0915708bc54ec68681ecad7410af4c8ded7f8c",
+    "candidateBranch": "docs/canonical-ai-team-origin",
+    "supportedCodexVersion": "0.144.1",
+    "reconciledAt": "2026-07-11",
+    "lifecycleState": "candidate-unverified",
+    "integrityState": "consistent",
+    "distributionRevision": "3e55829779c893d09e12339f6f48303647e7d48afd61e58e0b931c7d2c7de1a6",
+    "candidateCommit": null,
+    "draftPrReceipt": null,
+    "semanticReconciliation": {
+      "state": "candidate-reviewed",
+      "receipt": {
+        "authority": "mycelium-obsidian.ai-role.independent-adversarial-reviewer",
+        "decision": "candidate-reviewed",
+        "sprintId": "SPRINT-03",
+        "distributionRevision": "3e55829779c893d09e12339f6f48303647e7d48afd61e58e0b931c7d2c7de1a6",
+        "originRevision": "0.1-draft",
+        "payloadDigest": "f642db156d3ada17bd81013f566bcacc2c155f4f91a82c3cc30b8021964cfee5",
+        "canonicalRoleRelease": null,
+        "recordedAt": "2026-07-11T05:24:27Z",
+        "evidence": "Sprint 03 independent governance and validator adversarial reviews returned ready for founder review."
+      }
+    },
+    "runtimeEffectiveness": {
+      "state": "unverified",
+      "configParsing": "passed",
+      "exactRoleDiscovery": "unverified",
+      "exactRoleInvocation": "blocked",
+      "modelReasoningSandbox": "unverified",
+      "instructionSentinel": "unverified",
+      "receipt": null,
+      "blocker": "A post-repair exact-role retest was blocked by the ChatGPT subscription worker limit."
+    },
+    "mergeReceipt": null
+  },
+  "roles": [
+    {
+      "canonicalRoleId": "mycelium-obsidian.ai-role.principal-development-orchestrator",
+      "roleName": "Principal Development Orchestrator",
+      "targetKind": "main-session",
+      "targetArtifact": "AGENTS.md",
+      "targetName": "main-session",
+      "model": "gpt-5.6-sol",
+      "reasoningEffort": "session-selected",
+      "sandboxMode": "inherited-session-permissions",
+      "effectivenessState": "unverified"
+    },
+    {
+      "canonicalRoleId": "mycelium-obsidian.ai-role.product-knowledge-researcher",
+      "roleName": "Product and Knowledge Researcher",
+      "targetKind": "custom-agent",
+      "targetArtifact": ".codex/agents/mycelium-product-researcher.toml",
+      "targetName": "mycelium_product_researcher",
+      "model": "gpt-5.6-luna",
+      "reasoningEffort": "medium",
+      "sandboxMode": "read-only",
+      "effectivenessState": "unverified"
+    },
+    {
+      "canonicalRoleId": "mycelium-obsidian.ai-role.repository-runtime-explorer",
+      "roleName": "Repository and Runtime Explorer",
+      "targetKind": "custom-agent",
+      "targetArtifact": ".codex/agents/mycelium-repository-explorer.toml",
+      "targetName": "mycelium_repository_explorer",
+      "model": "gpt-5.6-luna",
+      "reasoningEffort": "medium",
+      "sandboxMode": "read-only",
+      "effectivenessState": "unverified"
+    },
+    {
+      "canonicalRoleId": "mycelium-obsidian.ai-role.scoped-implementer",
+      "roleName": "Scoped Implementer",
+      "targetKind": "custom-agent",
+      "targetArtifact": ".codex/agents/mycelium-implementer.toml",
+      "targetName": "mycelium_implementer",
+      "model": "gpt-5.6-terra",
+      "reasoningEffort": "medium",
+      "sandboxMode": "workspace-write",
+      "effectivenessState": "unverified"
+    },
+    {
+      "canonicalRoleId": "mycelium-obsidian.ai-role.verification-test-engineer",
+      "roleName": "Verification and Test Engineer",
+      "targetKind": "custom-agent",
+      "targetArtifact": ".codex/agents/mycelium-test-engineer.toml",
+      "targetName": "mycelium_test_engineer",
+      "model": "gpt-5.4-mini",
+      "reasoningEffort": "medium",
+      "sandboxMode": "workspace-write",
+      "effectivenessState": "unverified"
+    },
+    {
+      "canonicalRoleId": "mycelium-obsidian.ai-role.independent-adversarial-reviewer",
+      "roleName": "Independent Adversarial Reviewer",
+      "targetKind": "custom-agent",
+      "targetArtifact": ".codex/agents/mycelium-adversarial-reviewer.toml",
+      "targetName": "mycelium_adversarial_reviewer",
+      "model": "gpt-5.5",
+      "reasoningEffort": "high",
+      "sandboxMode": "read-only",
+      "effectivenessState": "unverified"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": ".codex/agents/mycelium-adversarial-reviewer.toml",
+      "classification": "role-transformation",
+      "sha256": "110d481e219b32f1be5fa2b744c6c3c356a479c1a4942028f62addad0a643a7e"
+    },
+    {
+      "path": ".codex/agents/mycelium-implementer.toml",
+      "classification": "role-transformation",
+      "sha256": "db70b6b75ad7c7cfc1e00dbefd62b45b557e9428715ef4b8c4c9a7d279bff22a"
+    },
+    {
+      "path": ".codex/agents/mycelium-product-researcher.toml",
+      "classification": "role-transformation",
+      "sha256": "1df1dbf3cd6e35a3786a6d593407740c6e5124f91b5e26ed2e22edd173c2f655"
+    },
+    {
+      "path": ".codex/agents/mycelium-repository-explorer.toml",
+      "classification": "role-transformation",
+      "sha256": "aea70e8e15739e67744842eb99796df01ec5ac14c7e3a08ae5c8f9f871cc194b"
+    },
+    {
+      "path": ".codex/agents/mycelium-test-engineer.toml",
+      "classification": "role-transformation",
+      "sha256": "9c67ef454e3acb9e18e535df5dba38c030a79fef2711b12c175d285d134826f0"
+    },
+    {
+      "path": ".codex/config.toml",
+      "classification": "orchestration-policy",
+      "sha256": "d7be8bee542337fc719591c77591629a655904d87841ab814510fb959fac51f1"
+    },
+    {
+      "path": ".github/PULL_REQUEST_TEMPLATE.md",
+      "classification": "workflow-adaptation",
+      "sha256": "91ade3aceb719e4f9f8967cbc836ad6e8ddb210a476ccd929e8d41c69f4e6769"
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "classification": "ci-integration",
+      "sha256": "41b95d7e460e2f32f8e5e1df647c1bbb1a7b4425c84967f2e3532fcbc6401ea0"
+    },
+    {
+      "path": "AGENTS.md",
+      "classification": "composite-repository-instructions",
+      "sha256": "ace00c0270a6bf41c97726476be23d0d9643b2343f270a5475de95cdd500282e"
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "classification": "public-summary",
+      "sha256": "2911f2fc9308d76fe9879f13dde356a2fb80b5337274e076992f62207ee992f8"
+    },
+    {
+      "path": "docs/development/AI_TEAM_OPERATING_MODEL.md",
+      "classification": "distribution-runbook",
+      "sha256": "4e27a33ba5a77fc7c3b9af58bd43e3c1fb65d2eaea504db00419578f4bf6d8e0"
+    },
+    {
+      "path": "docs/development/SPRINT_TEMPLATE.md",
+      "classification": "workflow-adaptation",
+      "sha256": "c98caf414adbc38b9a13b8596bc26299ac3c85a2683a60391f55a5c3ec28e6f0"
+    },
+    {
+      "path": "package.json",
+      "classification": "local-validation-entrypoint",
+      "sha256": "aa84b01f9d9cb40e81256b9401b7291b35b0d36c1946524f3242a69ef68a6254"
+    },
+    {
+      "path": "scripts/codex-worker.sh",
+      "classification": "generic-execution-adapter",
+      "sha256": "5d799f1b192afd0e19dbf053a897a9980d27910893adae4fa96cbf7605fce80c"
+    },
+    {
+      "path": "scripts/validate-ai-team-distribution.mjs",
+      "classification": "distribution-validator",
+      "sha256": "2460c9d11f7f72af33ab0b3f14b7243a2a526864cb5aa497332eab06ecad3cb8"
+    }
+  ],
+  "hashPolicy": {
+    "algorithm": "sha256",
+    "encoding": "raw-file-bytes",
+    "artifactOrder": "lexicographic-path",
+    "artifactTupleEncoding": "json-stringified-sorted-[path,classification,sha256]-tuples-utf8-v1",
+    "distributionRevisionAlgorithm": "sha256",
+    "excludedPaths": [
+      "docs/development/AI_TEAM_DISTRIBUTION.json"
+    ]
+  }
+}

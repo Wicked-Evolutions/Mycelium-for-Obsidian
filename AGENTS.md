@@ -6,6 +6,22 @@ Develop Mycelium for Obsidian as an external MCP server that helps humans and AI
 
 The project is in an MVP/beta development phase but inherits months of research, releases, live use, corrections, and historical plans. Understand the present product before changing it. Historical notes are evidence and idea sources, not automatically current requirements.
 
+## Canonical team origin and this distribution
+
+The provider-neutral AI-team semantics originate in Obsidian:
+
+[AI Development Team operating model](obsidian://open?vault=06%202.0%20Influencentricity%20OS%20MVP&file=MCP%20Obsidian%20by%20Wicked%20Evolutions%2FGPT%20Dev%20Team%2FOPERATING%20MODEL%20%E2%80%94%20AI%20Development%20Team%20%E2%80%94%20Mycelium%20for%20Obsidian)
+
+This file is a composite Codex/repository distribution. Its principal-role and delegation semantics derive from that origin. Its product invariants, TypeScript contracts, safety controls, verification gates, and Git protocol remain repository-specific authority. A downstream edit is drift evidence or a proposed origin change; it does not silently redefine the canonical role.
+
+The linked origin is currently revision `0.1-draft`, not a founder-ratified canonical role release. A frozen draft may be transformed, tested, semantically reviewed as a candidate, and opened as a clearly labeled draft PR before Gate A. It must not be called released, current, or aligned to a canonical release. After J ratifies an exact marker-scoped payload at Gate A, the candidate must be reconciled again to those exact semantic bytes before Gate B can authorize merge. Canonical role release, repository merge, and Mycelium software release are separate gates.
+
+`docs/development/AI_TEAM_DISTRIBUTION.json` records the candidate marker-scoped source digest, stable role mappings, target artifact hashes, aggregate distribution revision, semantic-review receipts, and runtime-effect state. Run `npm run validate:ai-team` whenever an AI-team distribution artifact changes. CI can verify deterministic target integrity without private-vault access; an authorized local reconciliation can additionally supply `--origin-file` to compare raw UTF-8 bytes strictly between the origin's unique payload markers, excluding both markers and performing no newline normalization.
+
+The manifest is excluded from its 15-artifact aggregate. A later manifest-only receipt commit may therefore record `candidateCommit` and a typed draft-PR receipt for the earlier commit whose governed artifact hashes equal the unchanged aggregate. Never claim the receipt commit itself is the governed target commit, and never change a governed artifact in that receipt-only commit.
+
+An automated `consistent` or `integrity-consistent` result proves only declared artifact integrity. It does not prove semantic `candidate-reviewed` or `aligned-to-release` state, and it does not prove agent availability, invocation, or effect. Semantic states require a review receipt tied to the exact source payload digest and aggregate target revision. Under the current Sprint 03 contract, unresolved exact custom-role runtime evidence does not block Gate A or a draft PR, but it does block Gate B.
+
 ## Authority and source order
 
 Use this order when claims conflict:
@@ -33,15 +49,23 @@ Current Obsidian orientation note:
 
 ## Delegation model
 
-Use the highest-cost model for product synthesis, architecture, hard tradeoffs, escalation, and final integration review. Delegate bounded work to the repository agents in `.codex/agents/`:
+### Principal Development Orchestrator
 
-- `mycelium_product_researcher`: read-only product and source synthesis.
-- `mycelium_repository_explorer`: read-only code and dependency mapping.
-- `mycelium_implementer`: scoped TypeScript implementation.
-- `mycelium_test_engineer`: tests, regression analysis, and verification.
-- `mycelium_adversarial_reviewer`: independent correctness, safety, and architecture review.
+The main session is the Principal Development Orchestrator. Use the highest-capability available model appropriate to the risk for product synthesis, architecture, hard tradeoffs, escalation, and final integration. Cost is a routing consideration, not the quality contract.
+
+The principal owns founder-intent synthesis, sprint scope and authority, capability routing, writer isolation, integration, evidence quality, independent-review gates, repository/Obsidian coherence, and the accuracy of the final outcome. Delegation never transfers final accountability. The principal cannot make founder decisions, substitute its own second look for independent review, or infer merge/release authority from implementation authority.
+
+Delegate bounded work through these canonical specialist roles and their candidate Codex transformations in `.codex/agents/`:
+
+- `mycelium_product_researcher` → Product and Knowledge Researcher: read-only product and source synthesis.
+- `mycelium_repository_explorer` → Repository and Runtime Explorer: read-only code, runtime, dependency, and contract mapping.
+- `mycelium_implementer` → Scoped Implementer: bounded TypeScript implementation.
+- `mycelium_test_engineer` → Verification and Test Engineer: tests, regression evidence, CI parity, and live-gate analysis.
+- `mycelium_adversarial_reviewer` → Independent Adversarial Reviewer: independent correctness, safety, architecture, compatibility, and evidence review.
 
 Delegate only concrete tasks with an explicit output. Parallelize read-only investigations freely. Parallel writers require disjoint file ownership or separate worktrees. The lead agent reviews every worker result against primary evidence and remains responsible for the integrated outcome.
+
+Presence of a custom-agent TOML proves configuration intent, not availability, invocation, or effective behavior. Use an exact custom role only when the current Codex runtime recognizes it. Record the effective agent/model/sandbox and any substitution. Do not silently replace a declared role with a built-in agent while claiming the intended mapping ran.
 
 ## Product invariants
 

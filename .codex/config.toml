@@ -1,3 +1,5 @@
+# Codex project orchestration/installation policy, not canonical role semantics.
+# Role provenance and current effectiveness state: docs/development/AI_TEAM_DISTRIBUTION.json
 [agents]
 max_threads = 4
 max_depth = 1
