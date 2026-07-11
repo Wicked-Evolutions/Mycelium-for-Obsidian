@@ -30,6 +30,7 @@ import {
 import { getSharedStorage } from '../embeddings/storage.js';
 import { withAnnotations, ToolAnnotations } from './safety.js';
 import { annotateCrossVault } from './graph-annotate.js';
+import { DeclaredCrossVaultGraphBuilder, normalizeVaultRelativePath } from '../graph/cross-vault.js';
 
 /**
  * Tool definitions for cross-vault operations
@@ -112,7 +113,7 @@ const rawCrossVaultTools: Tool[] = [
   },
   {
     name: 'get_cross_vault_links',
-    description: 'Find legacy unresolved-wikilink candidates and inventory labeled Markdown links whose destinations are native obsidian://open note URIs. The native inventory is read-only, source-located, canonically serialized, and validated across configured vaults.',
+    description: 'Find legacy unresolved-wikilink candidates, inventory labeled Markdown links to native obsidian://open note URIs, and compose eligible declarations into a typed read-only cross-vault graph overlay. Per-vault ranking is unchanged.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -449,7 +450,7 @@ export function createCrossVaultHandlers(config: Config) {
           );
         }
 
-        const nativeUriInventory = await inventoryNativeUris(config, vaultsToCheck);
+        const { nativeUriInventory, declaredCrossVaultGraph } = await inventoryNativeUris(config, vaultsToCheck);
 
         return {
           content: [{
@@ -457,7 +458,8 @@ export function createCrossVaultHandlers(config: Config) {
             text: JSON.stringify({
               totalPotentialLinks: potentialCrossLinks.length,
               links: potentialCrossLinks.slice(0, 50), // Limit output
-              nativeUriInventory
+              nativeUriInventory,
+              declaredCrossVaultGraph
             }, null, 2)
           }],
           isError: false
@@ -488,12 +490,14 @@ async function markdownFiles(vaultPath: string, current = vaultPath, files: stri
   const safeDirectory = resolvePathInVault(vaultPath, relativeDirectory);
   await verifyPathAfterOpen(safeDirectory, vaultPath);
   const entries = await fs.readdir(safeDirectory, { withFileTypes: true });
-  entries.sort((a, b) => a.name.localeCompare(b.name));
+  entries.sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
   for (const entry of entries) {
     if (entry.name.startsWith('.')) continue;
     const full = path.join(safeDirectory, entry.name);
     if (entry.isDirectory()) await markdownFiles(vaultPath, full, files);
-    else if (entry.isFile() && entry.name.toLowerCase().endsWith('.md')) files.push(path.relative(vaultPath, full));
+    else if (entry.isFile() && entry.name.toLowerCase().endsWith('.md')) {
+      files.push(normalizeVaultRelativePath(path.relative(vaultPath, full)));
+    }
   }
   return files;
 }
@@ -510,6 +514,20 @@ async function inventoryNativeUris(config: Config, sourceVaults: VaultConfig[]) 
     missing_destination: 0, same_vault_reference: 0,
   };
   let totalFound = 0;
+  const graphBuilder = new DeclaredCrossVaultGraphBuilder(config.vaults.map(vault => vault.name));
+  const vaultNameCounts = new Map<string, number>();
+  for (const vault of config.vaults) {
+    const key = vault.name.toLowerCase();
+    vaultNameCounts.set(key, (vaultNameCounts.get(key) || 0) + 1);
+  }
+  const physicalVaultPaths = new Map<VaultConfig, string>();
+  for (const vault of config.vaults) {
+    try {
+      physicalVaultPaths.set(vault, await fs.realpath(vault.path));
+    } catch {
+      // A later scan/open will surface the inaccessible vault through the tool error.
+    }
+  }
 
   for (const sourceVault of sourceVaults) {
     for (const sourcePath of await markdownFiles(sourceVault.path)) {
@@ -530,11 +548,15 @@ async function inventoryNativeUris(config: Config, sourceVaults: VaultConfig[]) 
         let status: NativeUriStatus = parsedStatus || 'malformed';
         let destinationVault: VaultConfig | undefined;
         let destinationPath: string | undefined;
+        let actualDestinationPath: string | undefined;
         let destinationExists: boolean | undefined;
         let canonicalUri = uri.canonicalUri;
         let relationshipType: 'cross_vault' | 'same_vault' | 'unknown' = 'unknown';
+        let physicalVaultAlias = false;
+        let physicalIdentityUnavailable = false;
+        const sourceVaultAmbiguous = (vaultNameCounts.get(sourceVault.name.toLowerCase()) || 0) > 1;
         const matchingVaults = uri.vault
-          ? config.vaults.filter(v => v.name.toLocaleLowerCase() === uri.vault!.toLocaleLowerCase())
+          ? config.vaults.filter(v => v.name.toLowerCase() === uri.vault!.toLowerCase())
           : [];
         if (!parsedStatus) {
           if (matchingVaults.length === 0) {
@@ -554,7 +576,7 @@ async function inventoryNativeUris(config: Config, sourceVaults: VaultConfig[]) 
           }
           else {
             destinationVault = matchingVaults[0];
-            const sameVault = destinationVault.name.toLocaleLowerCase() === sourceVault.name.toLocaleLowerCase();
+            const sameVault = destinationVault === sourceVault;
             relationshipType = sameVault ? 'same_vault' : 'cross_vault';
 
             if (!uri.file) status = 'malformed';
@@ -588,9 +610,21 @@ async function inventoryNativeUris(config: Config, sourceVaults: VaultConfig[]) 
                 let handle: Awaited<ReturnType<typeof fs.open>> | undefined;
                 try {
                   handle = await fs.open(destination, 'r');
-                  await verifyFileHandleInVault(handle, destination, destinationVault.path);
+                  const verifiedRealDestination = await verifyFileHandleInVault(
+                    handle,
+                    destination,
+                    destinationVault.path
+                  );
                   const stat = await handle.stat();
                   destinationExists = stat.isFile();
+                  if (destinationExists) {
+                    const realDestinationVault = physicalVaultPaths.get(destinationVault);
+                    if (realDestinationVault) {
+                      actualDestinationPath = normalizeVaultRelativePath(
+                        path.relative(realDestinationVault, verifiedRealDestination)
+                      );
+                    }
+                  }
                 } catch (error) {
                   const code = (error as NodeJS.ErrnoException).code;
                   if (code === 'ENOENT' || code === 'ENOTDIR') destinationExists = false;
@@ -608,6 +642,11 @@ async function inventoryNativeUris(config: Config, sourceVaults: VaultConfig[]) 
                 }
                 else if (sameVault) status = 'same_vault_reference';
                 else status = noncanonical ? 'noncanonical' : 'valid';
+                const sourcePhysical = physicalVaultPaths.get(sourceVault);
+                const destinationPhysical = physicalVaultPaths.get(destinationVault);
+                physicalIdentityUnavailable = !sourcePhysical || !destinationPhysical;
+                physicalVaultAlias = !!sourcePhysical && !!destinationPhysical
+                  && sourcePhysical === destinationPhysical;
               } catch (error) {
                 if (!(error instanceof Error) || !/path traversal|absolute paths|symlink escape/i.test(error.message)) {
                   throw error;
@@ -619,6 +658,23 @@ async function inventoryNativeUris(config: Config, sourceVaults: VaultConfig[]) 
           }
         }
         counts[status]++;
+        graphBuilder.observe({
+          status,
+          relationshipType,
+          source: { vault: sourceVault.name, path: sourcePath },
+          ...(destinationVault && actualDestinationPath && destinationExists !== undefined ? {
+            target: {
+              vault: destinationVault.name,
+              path: actualDestinationPath,
+              exists: destinationExists
+            }
+          } : {}),
+          ...(uri.subpath ? { subpath: uri.subpath } : {}),
+          diagnostics,
+          physicalVaultAlias,
+          physicalIdentityUnavailable,
+          sourceVaultAmbiguous
+        });
         if (records.length < 100) {
           records.push({
             status,
@@ -648,13 +704,16 @@ async function inventoryNativeUris(config: Config, sourceVaults: VaultConfig[]) 
     }
   }
   return {
-    scannedVaults: sourceVaults.map(v => v.name),
-    totalFound,
-    returnedCount: records.length,
-    maxReturned: 100,
-    truncated: totalFound > records.length,
-    summary: counts,
-    records,
+    nativeUriInventory: {
+      scannedVaults: sourceVaults.map(v => v.name),
+      totalFound,
+      returnedCount: records.length,
+      maxReturned: 100,
+      truncated: totalFound > records.length,
+      summary: counts,
+      records,
+    },
+    declaredCrossVaultGraph: graphBuilder.build()
   };
 }
 

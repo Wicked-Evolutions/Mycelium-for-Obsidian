@@ -133,3 +133,63 @@ export interface ProviderResult {
   unresolvedLinkCount: number;
   distinctUnresolvedTargets: number;
 }
+
+/** Vault-qualified note identity for the additive cross-vault overlay. */
+export interface VaultNodeRef {
+  vault: string;
+  /** Vault-relative Markdown path, including `.md`. */
+  path: string;
+}
+
+export interface CrossVaultSubpathCount {
+  /** Null means a note-level declaration without a heading/block subpath. */
+  subpath: string | null;
+  count: number;
+}
+
+/** A unique declared note-to-note relationship between two vaults. */
+export interface DeclaredCrossVaultEdge {
+  type: 'declared_cross_vault_note_reference';
+  source: VaultNodeRef;
+  target: VaultNodeRef;
+  /** Canonical note-level URI; subpaths remain declaration metadata. */
+  canonicalUri: string;
+  declarations: {
+    total: number;
+    canonical: number;
+    noncanonical: number;
+  };
+  subpaths: {
+    totalUnique: number;
+    returned: number;
+    maxReturned: number;
+    truncated: boolean;
+    values: CrossVaultSubpathCount[];
+  };
+}
+
+/** Read-only typed bridge layer; deliberately excluded from per-vault ranking. */
+export interface DeclaredCrossVaultGraph {
+  schemaVersion: 1;
+  kind: 'declared_cross_vault_overlay';
+  edgeType: 'declared_cross_vault_note_reference';
+  authority: 'source_note_declaration';
+  syntax: 'obsidian_open_uri';
+  observationProvider: 'filesystem';
+  destinationValidation: 'configured_vault_exact_path';
+  subpathValidation: 'not_performed';
+  rankingApplied: false;
+  nodeIdentity: 'structured_vault_and_path';
+  vaultBoundaries: string[];
+  totalObservedDeclarations: number;
+  totalEligibleDeclarations: number;
+  totalUniqueEdges: number;
+  returnedEdges: number;
+  maxReturned: number;
+  truncated: boolean;
+  excluded: {
+    total: number;
+    byStatus: Record<string, number>;
+  };
+  edges: DeclaredCrossVaultEdge[];
+}

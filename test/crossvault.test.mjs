@@ -628,6 +628,21 @@ describe('get_cross_vault_links nativeUriInventory', () => {
     assert.equal(noncanonical.canonicalUri, 'obsidian://open?vault=Destination&file=Folder%2FExact');
     assert.ok(noncanonical.diagnostics.some(d => d.code === 'markdown_extension_present'));
     assert.ok(noncanonical.diagnostics.some(d => d.code === 'noncanonical_uri'));
+
+    const graph = data.declaredCrossVaultGraph;
+    assert.equal(graph.kind, 'declared_cross_vault_overlay');
+    assert.equal(graph.rankingApplied, false);
+    assert.equal(graph.observationProvider, 'filesystem');
+    assert.equal(graph.subpathValidation, 'not_performed');
+    assert.equal(graph.totalObservedDeclarations, 9);
+    assert.equal(graph.totalEligibleDeclarations, 3);
+    assert.equal(graph.totalUniqueEdges, 1);
+    assert.equal(graph.excluded.total, 6);
+    assert.deepEqual(graph.edges[0].source, { vault: 'Source', path: 'Source.md' });
+    assert.deepEqual(graph.edges[0].target, { vault: 'Destination', path: 'Folder/Exact.md' });
+    assert.deepEqual(graph.edges[0].declarations, { total: 3, canonical: 2, noncanonical: 1 });
+    assert.ok(!('raw' in graph.edges[0]));
+    assert.ok(!('label' in graph.edges[0]));
   });
 
   test('filters native URI sources by vault and caps returned records at 100', async () => {
@@ -645,6 +660,10 @@ describe('get_cross_vault_links nativeUriInventory', () => {
       assert.equal(bounded.nativeUriInventory.totalFound, 101);
       assert.equal(bounded.nativeUriInventory.returnedCount, 100);
       assert.equal(bounded.nativeUriInventory.truncated, true);
+      assert.equal(bounded.declaredCrossVaultGraph.totalEligibleDeclarations, 101);
+      assert.equal(bounded.declaredCrossVaultGraph.totalUniqueEdges, 101);
+      assert.equal(bounded.declaredCrossVaultGraph.returnedEdges, 100);
+      assert.equal(bounded.declaredCrossVaultGraph.truncated, true);
     } finally { cleanup(many); }
   });
 
@@ -658,6 +677,85 @@ describe('get_cross_vault_links nativeUriInventory', () => {
       const data = payload(await ambiguous.get_cross_vault_links({ vault: 'Source' }), 'ambiguous destination');
       assert.ok(data.nativeUriInventory.records.some(r => r.status === 'ambiguous_vault'));
     } finally { cleanup(alternate); }
+  });
+
+  test('excludes exact-name and case-variant ambiguous source identities', async () => {
+    for (const names of [['Dup', 'Dup'], ['Dup', 'dUP']]) {
+      const first = createTempVault({
+        'From.md': '[target](obsidian://open?vault=UniqueDestination&file=Target)',
+      });
+      const second = createTempVault({
+        'From.md': '[target](obsidian://open?vault=UniqueDestination&file=Target)',
+      });
+      const uniqueDestination = createTempVault({ 'Target.md': '# target' });
+      try {
+        const duplicateSourceHandlers = createCrossVaultHandlers({
+          mode: 'multi',
+          vaults: [
+            { name: names[0], path: first },
+            { name: names[1], path: second },
+            { name: 'UniqueDestination', path: uniqueDestination },
+          ],
+          ollama: { host: 'http://localhost:11434', model: 'test' },
+          disabledTools: new Set(), readOnly: false, wrapUntrusted: false,
+        });
+        const data = payload(
+          await duplicateSourceHandlers.get_cross_vault_links({ vault: 'dup' }),
+          `ambiguous source ${names.join('/')}`,
+        );
+        assert.equal(data.declaredCrossVaultGraph.totalObservedDeclarations, 2);
+        assert.equal(data.declaredCrossVaultGraph.totalEligibleDeclarations, 0);
+        assert.equal(data.declaredCrossVaultGraph.totalUniqueEdges, 0);
+        assert.equal(data.declaredCrossVaultGraph.excluded.byStatus.source_vault_ambiguous, 2);
+      } finally {
+        cleanup(first);
+        cleanup(second);
+        cleanup(uniqueDestination);
+      }
+    }
+  });
+
+  test('excludes configured aliases of one physical vault from the overlay', async () => {
+    const aliased = createTempVault({
+      'From.md': '[alias](obsidian://open?vault=Alias&file=Target)',
+      'Target.md': '# target',
+    });
+    try {
+      const aliasHandlers = createCrossVaultHandlers({
+        mode: 'multi', vaults: [{ name: 'SourceAlias', path: aliased }, { name: 'Alias', path: aliased }],
+        ollama: { host: 'http://localhost:11434', model: 'test' }, disabledTools: new Set(), readOnly: false, wrapUntrusted: false,
+      });
+      const data = payload(await aliasHandlers.get_cross_vault_links({ vault: 'SourceAlias' }), 'physical alias');
+      assert.equal(data.nativeUriInventory.summary.valid, 1, 'inventory validation remains compatible');
+      assert.equal(data.declaredCrossVaultGraph.totalUniqueEdges, 0);
+      assert.equal(data.declaredCrossVaultGraph.excluded.byStatus.physical_vault_alias, 1);
+    } finally { cleanup(aliased); }
+  });
+
+  test('uses the actual Unicode-normalized destination path in overlay identity', async () => {
+    const nfc = 'Café';
+    const nfd = nfc.normalize('NFD');
+    const unicodeSource = createTempVault({
+      'From.md': `[unicode](obsidian://open?vault=UnicodeDestination&file=${encodeURIComponent(nfc)})`,
+    });
+    const unicodeDestination = createTempVault({ [`${nfd}.md`]: '# unicode' });
+    try {
+      const unicodeHandlers = createCrossVaultHandlers({
+        mode: 'multi', vaults: [
+          { name: 'UnicodeSource', path: unicodeSource },
+          { name: 'UnicodeDestination', path: unicodeDestination },
+        ],
+        ollama: { host: 'http://localhost:11434', model: 'test' }, disabledTools: new Set(), readOnly: false, wrapUntrusted: false,
+      });
+      const data = payload(await unicodeHandlers.get_cross_vault_links({ vault: 'UnicodeSource' }), 'unicode identity');
+      assert.equal(data.declaredCrossVaultGraph.totalUniqueEdges, 1);
+      assert.equal(data.declaredCrossVaultGraph.edges[0].target.path.normalize('NFC'), `${nfc}.md`);
+      const inventoryRecord = data.nativeUriInventory.records.find(record => record.label === 'unicode');
+      assert.equal(inventoryRecord.destination.path, `${nfc}.md`, 'inventory retains declared path spelling');
+    } finally {
+      cleanup(unicodeSource);
+      cleanup(unicodeDestination);
+    }
   });
 });
 
