@@ -27,3 +27,10 @@ export {
   invalidateGraphCache
 } from './signals.js';
 export { computeGraphDigest, hashExclude } from './digest.js';
+export {
+  DeclaredCrossVaultGraphBuilder,
+  DECLARED_GRAPH_MAX_EDGES,
+  DECLARED_GRAPH_MAX_SUBPATHS,
+  normalizeVaultRelativePath
+} from './cross-vault.js';
+export type { CrossVaultGraphObservation } from './cross-vault.js';

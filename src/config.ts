@@ -228,7 +228,7 @@ export async function verifyFileHandleInVault(
   handle: FileHandle,
   openedPath: string,
   vaultPath: string
-): Promise<void> {
+): Promise<string> {
   const [realFilePath, realVault, handleStat, pathStat] = await Promise.all([
     realpath(openedPath),
     realpath(vaultPath),
@@ -244,4 +244,8 @@ export async function verifyFileHandleInVault(
   if (handleStat.dev !== pathStat.dev || handleStat.ino !== pathStat.ino) {
     throw new Error('TOCTOU: opened file handle no longer matches its verified vault path.');
   }
+
+  // Return the exact contained real path established by this verification so
+  // callers do not need to re-resolve the pathname after the safety check.
+  return realFilePath;
 }
