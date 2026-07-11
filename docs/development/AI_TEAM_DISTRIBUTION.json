@@ -33,11 +33,29 @@
     "lifecycleState": "candidate-unverified",
     "integrityState": "consistent",
     "distributionRevision": "b85d185a2011978503bfde28a3d8a9d78946e8aca6ef6ae0a8494c66d7e4467a",
-    "candidateCommit": null,
-    "draftPrReceipt": null,
+    "candidateCommit": "294b7b317c9d816273f8d94af4570aab19acb7af",
+    "draftPrReceipt": {
+      "authority": "GitHub",
+      "decision": "draft-pr-opened",
+      "distributionRevision": "b85d185a2011978503bfde28a3d8a9d78946e8aca6ef6ae0a8494c66d7e4467a",
+      "candidateCommit": "294b7b317c9d816273f8d94af4570aab19acb7af",
+      "prNumber": 50,
+      "url": "https://github.com/Wicked-Evolutions/Mycelium-for-Obsidian/pull/50",
+      "recordedAt": "2026-07-11T09:29:13Z"
+    },
     "semanticReconciliation": {
-      "state": "candidate-unreviewed",
-      "receipt": null
+      "state": "aligned-to-release",
+      "receipt": {
+        "authority": "mycelium-obsidian.ai-role.independent-adversarial-reviewer",
+        "decision": "aligned-to-release",
+        "sprintId": "SPRINT-03",
+        "distributionRevision": "b85d185a2011978503bfde28a3d8a9d78946e8aca6ef6ae0a8494c66d7e4467a",
+        "originRevision": "0.1-draft",
+        "payloadDigest": "f642db156d3ada17bd81013f566bcacc2c155f4f91a82c3cc30b8021964cfee5",
+        "canonicalRoleRelease": "mycelium-obsidian-ai-team-0.1.0",
+        "recordedAt": "2026-07-11T09:29:13Z",
+        "evidence": "Independent post-Gate-A review verified the exact released payload, all 15 governed artifacts, the aggregate revision, governed commit, draft PR, candidate state, and honest runtime blocker."
+      }
     },
     "runtimeEffectiveness": {
       "state": "unverified",
