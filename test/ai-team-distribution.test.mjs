@@ -772,6 +772,26 @@ test("CI invokes the hashed validator directly before coverage and package expos
   );
 });
 
+test("repository guidance requires exact custom-role selection and bounded runtime probes", async () => {
+  const agentsMd = await readFile(path.join(REPO_ROOT, "AGENTS.md"), "utf8");
+  const runbook = await readFile(path.join(REPO_ROOT, "docs/development/AI_TEAM_OPERATING_MODEL.md"), "utf8");
+  const testAgent = await readFile(
+    path.join(REPO_ROOT, ".codex/agents/mycelium-test-engineer.toml"),
+    "utf8",
+  );
+
+  for (const content of [agentsMd, runbook]) {
+    assert.match(content, /`agent_type`/);
+    assert.match(content, /`fork_turns: "none"`/);
+    assert.match(content, /`task_name` labels the child task path/i);
+    assert.match(content, /full-history fork inherits the parent agent type/i);
+  }
+
+  assert.match(testAgent, /Do not invent a verification assignment or full gate\./);
+  assert.match(testAgent, /metadata\/runtime probe, no-tool check, or exact-output sentinel/);
+  assert.match(testAgent, /without inspecting files, running commands, or broadening the task/);
+});
+
 test("manifest self-hashing, omitted CI/package entries, and wrong classifications fail closed", async () => {
   const fixture = await makeFixture();
   fixture.manifest.artifacts = fixture.manifest.artifacts.filter(

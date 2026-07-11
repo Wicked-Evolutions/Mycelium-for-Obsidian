@@ -67,6 +67,8 @@ Delegate only concrete tasks with an explicit output. Parallelize read-only inve
 
 Presence of a custom-agent TOML proves configuration intent, not availability, invocation, or effective behavior. Use an exact custom role only when the current Codex runtime recognizes it. Record the effective agent/model/sandbox and any substitution. Do not silently replace a declared role with a built-in agent while claiming the intended mapping ran.
 
+For Codex 0.144.1, select a specialist by passing its TOML `name` as `agent_type` and use `fork_turns: "none"` when the child must change from the parent role. `task_name` labels the child task path; it does not select a custom role. A full-history fork inherits the parent agent type and therefore must not be used as proof that a different specialist ran. If the current spawn interface cannot accept `agent_type`, report the exact role as unavailable or unverified instead of using its name only as `task_name`.
+
 ## Product invariants
 
 - Preserve explicit named-vault targeting; never infer biome identity from the active Obsidian window.

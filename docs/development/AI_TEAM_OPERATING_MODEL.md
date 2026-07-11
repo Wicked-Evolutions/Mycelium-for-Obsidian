@@ -67,7 +67,9 @@ The principal is the active main-session role. A custom-agent TOML does not conf
 
 The five specialist transformations live in `.codex/agents/`. Current OpenAI documentation says project custom agents are standalone TOML files identified by their `name` field. Presence on disk proves configuration intent only. Each exact role must still be proven available, invoked, and effective on the installed Codex version.
 
-As of 2026-07-11, Codex 0.144.1 parses the project settings and the intended model slugs exist, but exact custom-role registration/effectiveness has conflicting evidence. Sprint 00 reported success; a later audit could not prove the exact roles were applied. A post-repair retest was blocked by the ChatGPT subscription worker limit. Until a deterministic receipt exists, classify these roles as `unverified` rather than operational.
+Codex 0.144.1 selects a custom role through the spawn tool's `agent_type`, whose value must equal the agent TOML `name`. Use `fork_turns: "none"` when selecting a different role: a full-history fork inherits the parent agent type and cannot establish that the requested specialist ran. `task_name` labels the child task path only and is not a role selector. If a surfaced spawn schema omits `agent_type`, report the exact role unavailable or unverified instead of substituting a task label or built-in agent.
+
+Runtime receipts must inspect the child trace, not rely only on self-report. The receipt must bind the child `agent_role`, model, reasoning effort, effective sandbox/permission profile, and an instruction sentinel to the declared mapping. The parent assignment remains the operative task boundary; a specialist must not invent repository inspection, commands, or a full verification gate when assigned a metadata/runtime probe.
 
 [Official Codex custom-agent documentation](https://developers.openai.com/codex/agent-configuration/subagents)
 

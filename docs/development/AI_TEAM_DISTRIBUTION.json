@@ -32,40 +32,22 @@
     "reconciledAt": "2026-07-11",
     "lifecycleState": "candidate-unverified",
     "integrityState": "consistent",
-    "distributionRevision": "b85d185a2011978503bfde28a3d8a9d78946e8aca6ef6ae0a8494c66d7e4467a",
-    "candidateCommit": "294b7b317c9d816273f8d94af4570aab19acb7af",
-    "draftPrReceipt": {
-      "authority": "GitHub",
-      "decision": "draft-pr-opened",
-      "distributionRevision": "b85d185a2011978503bfde28a3d8a9d78946e8aca6ef6ae0a8494c66d7e4467a",
-      "candidateCommit": "294b7b317c9d816273f8d94af4570aab19acb7af",
-      "prNumber": 50,
-      "url": "https://github.com/Wicked-Evolutions/Mycelium-for-Obsidian/pull/50",
-      "recordedAt": "2026-07-11T09:29:13Z"
-    },
+    "distributionRevision": "192e9d9f9e027a26c88c5a43c7f47db1ce3ab40dca2dbb6df06d86f482fa16be",
+    "candidateCommit": null,
+    "draftPrReceipt": null,
     "semanticReconciliation": {
-      "state": "aligned-to-release",
-      "receipt": {
-        "authority": "mycelium-obsidian.ai-role.independent-adversarial-reviewer",
-        "decision": "aligned-to-release",
-        "sprintId": "SPRINT-03",
-        "distributionRevision": "b85d185a2011978503bfde28a3d8a9d78946e8aca6ef6ae0a8494c66d7e4467a",
-        "originRevision": "0.1-draft",
-        "payloadDigest": "f642db156d3ada17bd81013f566bcacc2c155f4f91a82c3cc30b8021964cfee5",
-        "canonicalRoleRelease": "mycelium-obsidian-ai-team-0.1.0",
-        "recordedAt": "2026-07-11T09:29:13Z",
-        "evidence": "Independent post-Gate-A review verified the exact released payload, all 15 governed artifacts, the aggregate revision, governed commit, draft PR, candidate state, and honest runtime blocker."
-      }
+      "state": "candidate-unreviewed",
+      "receipt": null
     },
     "runtimeEffectiveness": {
       "state": "unverified",
       "configParsing": "passed",
-      "exactRoleDiscovery": "unverified",
-      "exactRoleInvocation": "blocked",
-      "modelReasoningSandbox": "unverified",
+      "exactRoleDiscovery": "passed",
+      "exactRoleInvocation": "passed",
+      "modelReasoningSandbox": "passed",
       "instructionSentinel": "unverified",
       "receipt": null,
-      "blocker": "A persisted post-Gate-A retest spawned a child under task path mycelium_product_researcher, but the child did not prove the custom TOML role was loaded and returned the distribution name rather than the canonical role ID embedded in its role instructions; exact role invocation and instruction effect remain unverified."
+      "blocker": "Explicit agent_type plus fork_turns none proved all five custom role names and declared model/reasoning/sandbox mappings. The pre-hardening test-engineer probe broadened a metadata assignment into a full verification run, so the revised bounded-assignment instruction still requires a clean retest before runtime can be verified."
     },
     "mergeReceipt": null
   },
@@ -161,7 +143,7 @@
     {
       "path": ".codex/agents/mycelium-test-engineer.toml",
       "classification": "role-transformation",
-      "sha256": "9c67ef454e3acb9e18e535df5dba38c030a79fef2711b12c175d285d134826f0"
+      "sha256": "def2989e5937b64ebf63622454616f4b3599d23547f01702b3342b4bef7b8f13"
     },
     {
       "path": ".codex/config.toml",
@@ -181,7 +163,7 @@
     {
       "path": "AGENTS.md",
       "classification": "composite-repository-instructions",
-      "sha256": "04472236d437d15453cf160017def6f6c9b22a9e722b8bdaf2f42466e5024964"
+      "sha256": "d368cbcbd1703040b69d0881606617edd3b38ec38c798b05aac6af5672ccdf03"
     },
     {
       "path": "CONTRIBUTING.md",
@@ -191,7 +173,7 @@
     {
       "path": "docs/development/AI_TEAM_OPERATING_MODEL.md",
       "classification": "distribution-runbook",
-      "sha256": "89580982908a7cc44852713c4a8ad3d25679c7d6827054939b64264c57f267af"
+      "sha256": "828899a1c4d415329e8f3220ced9566173d76651a74b6e28a23d668a057a6e9b"
     },
     {
       "path": "docs/development/SPRINT_TEMPLATE.md",
