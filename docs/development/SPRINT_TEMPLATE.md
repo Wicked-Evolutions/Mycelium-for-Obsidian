@@ -3,12 +3,12 @@
 ## Authority
 
 - Founder decision owner:
-- Lead/orchestrator:
+- Principal Development Orchestrator:
 - Implementation allowed:
 - Commit allowed:
 - Push/draft PR allowed:
-- Merge allowed:
-- Release/publish allowed:
+- Repository PR merge allowed:
+- Software tag/package/publish/release allowed:
 
 ## Goal
 
@@ -21,6 +21,7 @@ One outcome stated in user or product terms.
 - Runtime checked:
 - GitHub issues/PRs:
 - Governing Obsidian notes:
+- Generic/local/target/temporary/runtime distinctions, if material:
 
 ## Scope
 
@@ -30,12 +31,16 @@ One outcome stated in user or product terms.
 
 ## Work allocation
 
-| Track | Agent/model | Ownership | Output | Dependencies |
-|---|---|---|---|---|
-| Research | | read-only | | |
-| Implementation | | files/paths | | |
-| Tests | | files/paths | | |
-| Adversarial review | | read-only | | implementation complete |
+Record canonical role, configured target mapping, and effective runtime separately.
+
+| Track | Canonical role | Configured target | Effective target | Ownership | Output | Dependencies |
+|---|---|---|---|---|---|---|
+| Lead / architecture | | | | integration | | |
+| Research | | | | read-only | | |
+| Implementation | | | | files/paths | | |
+| Verification | | | | files/paths or read-only | | |
+| Alignment review | | | | read-only | | before material architecture implementation |
+| Correctness review | | | | read-only | | implementation and verification complete |
 
 ## Verification
 
@@ -44,7 +49,8 @@ One outcome stated in user or product terms.
 - [ ] `npm run test:coverage`
 - [ ] Node 20/22 CI
 - [ ] Applicable live Obsidian/Ollama tests
-- [ ] Independent adversarial review
+- [ ] Required independent alignment/proportionality review
+- [ ] Required independent correctness/safety review
 - [ ] User-facing documentation
 - [ ] Obsidian sprint evidence and handoff
 
@@ -58,4 +64,5 @@ Record owner, date, evidence, and reversal condition for each decision. A recomm
 - Verified:
 - Not verified:
 - Risks carried forward:
-- PR/merge/release state:
+- GitHub issue/PR/merge state:
+- Software release state:

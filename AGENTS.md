@@ -6,6 +6,17 @@ Develop Mycelium for Obsidian as an external MCP server that helps humans and AI
 
 The project is in an MVP/beta development phase but inherits months of research, releases, live use, corrections, and historical plans. Understand the present product before changing it. Historical notes are evidence and idea sources, not automatically current requirements.
 
+## Canonical AI Team and repository distribution
+
+The human-and-AI-readable AI Team is maintained in Obsidian:
+
+- [AI Team start](obsidian://open?vault=06%202.0%20Influencentricity%20OS%20MVP&file=MCP%20Obsidian%20by%20Wicked%20Evolutions%2FGPT%20Dev%20Team%2FAI%20Team%2FSTART%20%E2%80%94%20AI%20Team%20%E2%80%94%20Mycelium%20for%20Obsidian)
+- [Canonical repository instructions](obsidian://open?vault=06%202.0%20Influencentricity%20OS%20MVP&file=MCP%20Obsidian%20by%20Wicked%20Evolutions%2FGPT%20Dev%20Team%2FAI%20Team%2FREPOSITORY%20INSTRUCTIONS%20%E2%80%94%20AI%20Team%20%E2%80%94%20Mycelium%20for%20Obsidian)
+
+This `AGENTS.md` is the repository/Codex distribution of those canonical instructions and is binding inside the checkout. The canonical notes define what the team and roles mean. Current repository files and observed runtime evidence determine what is actually installed, available, invoked, and effective.
+
+The current canonical role release is `mycelium-obsidian-ai-team-0.1.0`. Provider, model, reasoning, sandbox, and Codex invocation values are target mappings rather than permanent role identities.
+
 ## Authority and source order
 
 Use this order when claims conflict:
@@ -22,10 +33,11 @@ The founder directs product strategy, resolves material product choices, and app
 ## Start every development task
 
 1. Inspect `git status`, branch, HEAD, and existing changes. Never overwrite or revert work you did not create.
-2. Read the active sprint note and the minimum relevant sources from the GPT Dev Team Obsidian folder.
-3. Verify historical claims against current code, runtime, tests, and GitHub before relying on them.
-4. State the intended files, ownership, tests, and authority boundary before parallel writers start.
-5. Use a focused branch from current `main`. Use separate Git worktrees for concurrent code-writing agents.
+2. Identify the active GitHub issue and read its scope and acceptance criteria.
+3. Read the active sprint/handoff and the minimum relevant Obsidian research and decisions.
+4. Verify historical claims against current code, runtime, tests, releases, and GitHub before relying on them.
+5. State intended files, ownership, tests, assumptions, and authority before writers start.
+6. Use a focused branch from current `main`. Use separate Git worktrees for concurrent code-writing agents.
 
 Current Obsidian orientation note:
 
@@ -33,7 +45,13 @@ Current Obsidian orientation note:
 
 ## Delegation model
 
-Use the highest-cost model for product synthesis, architecture, hard tradeoffs, escalation, and final integration review. Delegate bounded work to the repository agents in `.codex/agents/`:
+### Principal Development Orchestrator
+
+The main session is the Principal Development Orchestrator. Use the highest-capability available model appropriate to the risk for product synthesis, architecture, hard tradeoffs, escalation, integration, and final review. Cost informs routing but does not define the quality contract.
+
+The principal owns founder-intent synthesis, issue/sprint scope, capability routing, writer isolation, integration, evidence quality, independent-review gates, repository/Obsidian coherence, and final accuracy. Delegation does not transfer accountability or founder-controlled decisions.
+
+Delegate bounded work to the repository agents in `.codex/agents/`:
 
 - `mycelium_product_researcher`: read-only product and source synthesis.
 - `mycelium_repository_explorer`: read-only code and dependency mapping.
@@ -42,6 +60,18 @@ Use the highest-cost model for product synthesis, architecture, hard tradeoffs, 
 - `mycelium_adversarial_reviewer`: independent correctness, safety, and architecture review.
 
 Delegate only concrete tasks with an explicit output. Parallelize read-only investigations freely. Parallel writers require disjoint file ownership or separate worktrees. The lead agent reviews every worker result against primary evidence and remains responsible for the integrated outcome.
+
+Presence of a TOML file proves configuration intent only. Report configured, installed, available, invoked, and effective states separately. Record substitutions instead of claiming the intended role ran.
+
+Official Codex documentation defines a custom agent by its TOML `name`, but the currently surfaced app and CLI delegation interfaces do not expose an exact custom-agent selector. Do not claim that `task_name` selects a role, and do not use undocumented `agent_type` or `fork_turns` instructions. `scripts/codex-worker.sh --agent <TOML name> ...` is a prompt-prefixed role adapter: it applies the TOML's model, reasoning, and sandbox settings, then places the role instructions before the parent assignment in the ordinary user prompt. This is not native custom-agent selection or developer-instruction priority, so report effective behavior per run and re-check native selection when the supported Codex interface changes.
+
+## Generic-first architecture alignment
+
+Before implementing a reusable capability, distinguish the generic capability, local biome/product instance, target-specific transformation, temporary provider/model/version/path facts, and observed runtime evidence.
+
+Before adding a persistent schema, dependency, required CI gate, cross-product assumption, or maintenance lifecycle, present the problem, founder request, inferred requirements, simplest adequate mechanism, generic/local boundary, maintenance consequences, alternatives, non-capabilities, and stop conditions. AI-generated acceptance criteria remain proposals until J approves material persistent commitments.
+
+Material architecture receives an independent alignment/proportionality review before implementation and an independent correctness/safety review of the implementation.
 
 ## Product invariants
 
@@ -90,7 +120,9 @@ Report exact commands, pass/fail/skip counts, and anything not run. Never call s
 
 ## Obsidian development memory
 
-Repository documentation records code-facing contracts. Obsidian records human-readable sprint plans, evidence, decisions, research, and handoffs. Create focused notes following `DRAFT STANDARD — MCP-Optimized Development Notes`; separate observation, inference, decision, and open question. Preserve historical notes and connect superseding state rather than rewriting history.
+Active product work is executed through GitHub issues, branches, pull requests, reviews, tests, and releases. Current code, tests, runtime, releases, and GitHub history define the implemented product.
+
+Obsidian holds canonical operational content such as the AI Team and preserves research, decisions, plans, evidence, handoffs, and the development story. Create focused notes following `DRAFT STANDARD — MCP-Optimized Development Notes`; separate observation, inference, decision, and open question. Preserve completed sprint notes as history and evidence, and verify implementation claims against current GitHub and runtime state.
 
 Use native same-vault links inside the GPT Dev Team folder. For another vault, use:
 
