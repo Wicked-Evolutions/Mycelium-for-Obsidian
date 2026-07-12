@@ -13,6 +13,8 @@ Every contribution — issue, PR, or discussion — is reviewed by the AI team a
 - **We may ask clarifying questions.** Context helps us make better decisions.
 - **We may adapt your contribution.** If the direction is right but the implementation needs adjustment for our architecture, we'll work with you on it.
 
+Repository work follows [`AGENTS.md`](AGENTS.md) and the [AI Team repository runbook](docs/development/AI_TEAM_OPERATING_MODEL.md). Product changes are scoped and tracked in GitHub. Obsidian holds the canonical human-and-AI-readable AI Team content and the development knowledge used to inform that work.
+
 ## Reporting Bugs
 
 Open an issue with:

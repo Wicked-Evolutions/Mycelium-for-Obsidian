@@ -3,7 +3,10 @@
 set -euo pipefail
 
 MODEL=""
+AGENT=""
+REASONING=""
 SANDBOX="read-only"
+SANDBOX_SET=0
 WORKDIR="$PWD"
 PROMPT=""
 PROMPT_FILE=""
@@ -13,11 +16,12 @@ ALLOW_DIRTY=0
 
 usage() {
   printf '%s\n' \
-    'Usage: scripts/codex-worker.sh --model MODEL [options]' \
+    'Usage: scripts/codex-worker.sh (--agent NAME | --model MODEL) [options]' \
     '' \
     'Options:' \
-    '  --model MODEL        Required Codex model slug.' \
-    '  --sandbox MODE       read-only or workspace-write (default: read-only).' \
+    '  --agent NAME         Use a project role from .codex/agents by its TOML name.' \
+    '  --model MODEL        Use an explicit Codex model without a project role.' \
+    '  --sandbox MODE       Model-only sandbox: read-only or workspace-write.' \
     '  --workdir DIR        Git repository/worktree root (default: current directory).' \
     '  --prompt TEXT        Task prompt.' \
     '  --prompt-file FILE   Read the task prompt from a file.' \
@@ -33,8 +37,13 @@ while (($#)); do
       MODEL="${2:-}"
       shift 2
       ;;
+    --agent)
+      AGENT="${2:-}"
+      shift 2
+      ;;
     --sandbox)
       SANDBOX="${2:-}"
+      SANDBOX_SET=1
       shift 2
       ;;
     --workdir)
@@ -73,18 +82,70 @@ while (($#)); do
   esac
 done
 
-if [[ -z "$MODEL" ]]; then
-  printf 'Missing required --model.\n' >&2
+if [[ -n "$MODEL" && -n "$AGENT" ]]; then
+  printf 'Use either --agent or --model, not both.\n' >&2
   exit 2
 fi
 
-if [[ "$SANDBOX" != "read-only" && "$SANDBOX" != "workspace-write" ]]; then
-  printf 'Unsupported sandbox mode: %s\n' "$SANDBOX" >&2
+if [[ -n "$AGENT" && "$SANDBOX_SET" -eq 1 ]]; then
+  printf 'An agent supplies its own sandbox; do not pass --sandbox with --agent.\n' >&2
+  exit 2
+fi
+
+if [[ -z "$MODEL" && -z "$AGENT" ]]; then
+  printf 'Missing required --agent or --model.\n' >&2
   exit 2
 fi
 
 if [[ ! -d "$WORKDIR/.git" && ! -f "$WORKDIR/.git" ]]; then
   printf 'Workdir is not a Git repository or worktree: %s\n' "$WORKDIR" >&2
+  exit 2
+fi
+
+if [[ -n "$AGENT" ]]; then
+  AGENT_FILE=""
+  MATCH_COUNT=0
+
+  shopt -s nullglob
+  for candidate in "$WORKDIR"/.codex/agents/*.toml; do
+    candidate_name="$(sed -n 's/^name = "\([^"]*\)"$/\1/p' "$candidate")"
+    if [[ "$candidate_name" == "$AGENT" ]]; then
+      AGENT_FILE="$candidate"
+      MATCH_COUNT=$((MATCH_COUNT + 1))
+    fi
+  done
+  shopt -u nullglob
+
+  if [[ "$MATCH_COUNT" -eq 0 ]]; then
+    printf 'Unknown project agent: %s\n' "$AGENT" >&2
+    exit 2
+  fi
+  if [[ "$MATCH_COUNT" -ne 1 ]]; then
+    printf 'Project agent name is not unique: %s\n' "$AGENT" >&2
+    exit 2
+  fi
+
+  MODEL="$(sed -n 's/^model = "\([^"]*\)"$/\1/p' "$AGENT_FILE")"
+  REASONING="$(sed -n 's/^model_reasoning_effort = "\([^"]*\)"$/\1/p' "$AGENT_FILE")"
+  SANDBOX="$(sed -n 's/^sandbox_mode = "\([^"]*\)"$/\1/p' "$AGENT_FILE")"
+  AGENT_INSTRUCTIONS="$(awk '
+    /^developer_instructions = """$/ { inside = 1; next }
+    inside && /^"""$/ { inside = 0; found = 1; next }
+    inside { print }
+    END { if (!found) exit 1 }
+  ' "$AGENT_FILE")" || {
+    printf 'Unable to read developer_instructions for agent: %s\n' "$AGENT" >&2
+    exit 2
+  }
+
+  if [[ -z "$MODEL" || -z "$REASONING" || -z "$SANDBOX" || -z "$AGENT_INSTRUCTIONS" ]]; then
+    printf 'Project agent is missing a required worker field: %s\n' "$AGENT" >&2
+    exit 2
+  fi
+fi
+
+if [[ "$SANDBOX" != "read-only" && "$SANDBOX" != "workspace-write" ]]; then
+  printf 'Unsupported sandbox mode: %s\n' "$SANDBOX" >&2
   exit 2
 fi
 
@@ -114,6 +175,10 @@ if [[ -z "$PROMPT" ]]; then
   exit 2
 fi
 
+if [[ -n "$AGENT" ]]; then
+  PROMPT="$(printf '%s\n\nParent assignment:\n%s' "$AGENT_INSTRUCTIONS" "$PROMPT")"
+fi
+
 AUTH_STATUS="$(env -u OPENAI_API_KEY codex login status 2>&1)" || {
   printf 'Unable to verify Codex authentication:\n%s\n' "$AUTH_STATUS" >&2
   exit 3
@@ -134,6 +199,10 @@ CODEX_ARGS=(
   --sandbox "$SANDBOX"
   --cd "$WORKDIR"
 )
+
+if [[ -n "$REASONING" ]]; then
+  CODEX_ARGS+=(--config "model_reasoning_effort=\"$REASONING\"")
+fi
 
 if [[ "$USE_USER_CONFIG" -eq 0 ]]; then
   CODEX_ARGS+=(--ignore-user-config)
