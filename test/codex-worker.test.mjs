@@ -78,6 +78,29 @@ test("--agent applies project target settings, prompt prefix, and subscription s
   assert.match(capture, /Parent assignment:\nMap the repository\./);
 });
 
+test("tracked adversarial reviewer adapter forwards the SOL Ultra target", async () => {
+  const context = await fixture(validAgent);
+  const result = run(
+    [
+      "--agent",
+      "mycelium_adversarial_reviewer",
+      "--workdir",
+      repoRoot,
+      "--prompt",
+      "Review Gate 0.",
+    ],
+    context,
+  );
+
+  assert.equal(result.status, 0, result.stderr);
+  const capture = await readFile(context.capture, "utf8");
+  assert.match(capture, /ARG=--model\nARG=gpt-5\.6-sol/);
+  assert.match(capture, /ARG=--sandbox\nARG=read-only/);
+  assert.match(capture, /ARG=--config\nARG=model_reasoning_effort="ultra"/);
+  assert.match(capture, /canonical role mycelium-obsidian\.ai-role\.independent-adversarial-reviewer/);
+  assert.match(capture, /Parent assignment:\nReview Gate 0\./);
+});
+
 test("--agent rejects unknown role names", async () => {
   const context = await fixture(validAgent);
   const result = run(
