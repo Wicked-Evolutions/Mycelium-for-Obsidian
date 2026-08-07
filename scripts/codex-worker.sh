@@ -153,7 +153,7 @@ if [[ "$SANDBOX" == "workspace-write" && "$ALLOW_DIRTY" -eq 0 ]]; then
   if [[ -n "$(git -C "$WORKDIR" status --porcelain)" ]]; then
     printf '%s\n' \
       'Refusing workspace-write in a dirty worktree.' \
-      'Create a dedicated clean worktree, or pass --allow-dirty only after reviewing ownership.' >&2
+      'Switch to the assigned clean Codex-managed worktree, or pass --allow-dirty only after reviewing ownership.' >&2
     exit 2
   fi
 fi
