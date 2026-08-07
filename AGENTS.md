@@ -37,7 +37,7 @@ The founder directs product strategy, resolves material product choices, and app
 3. Read the active sprint/handoff and the minimum relevant Obsidian research and decisions.
 4. Verify historical claims against current code, runtime, tests, releases, and GitHub before relying on them.
 5. State intended files, ownership, tests, assumptions, and authority before writers start.
-6. Use a focused branch from current `main`. Use separate Git worktrees for concurrent code-writing agents.
+6. For writable development, start in a Codex-managed Worktree chat based on current `main`. Codex creates the worktree detached; use **Create branch here** only when work should be retained or submitted. Do not create manual Git worktrees or sibling `mcp-obsidian-*` checkout directories.
 
 Current Obsidian orientation note:
 
@@ -59,7 +59,7 @@ Delegate bounded work to the repository agents in `.codex/agents/`:
 - `mycelium_test_engineer`: tests, regression analysis, and verification.
 - `mycelium_adversarial_reviewer`: independent correctness, safety, and architecture review.
 
-Delegate only concrete tasks with an explicit output. Parallelize read-only investigations freely. Parallel writers require disjoint file ownership or separate worktrees. The lead agent reviews every worker result against primary evidence and remains responsible for the integrated outcome.
+Delegate only concrete tasks with an explicit output. Parallelize read-only investigations freely. The lead establishes writer isolation: use one primary writer per assigned Codex-managed worktree, require disjoint file ownership for parallel writers, and ensure workers operate only in the checkout assigned by the lead. Workers must not create or attach another worktree. After a pull request is merged or closed and retained work is confirmed, archive the associated chat so Codex can clean up its managed worktree. The lead agent reviews every worker result against primary evidence and remains responsible for the integrated outcome.
 
 Presence of a TOML file proves configuration intent only. Report configured, installed, available, invoked, and effective states separately. Record substitutions instead of claiming the intended role ran.
 

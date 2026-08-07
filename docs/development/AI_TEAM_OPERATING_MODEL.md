@@ -10,7 +10,7 @@ The canonical notes define what the team and roles mean. Current repository file
 
 The Principal Development Orchestrator owns product synthesis, architecture, delegation, integration, evidence quality, and final accountability. Specialists perform bounded research, repository exploration, implementation, testing, and independent review. Their Codex target definitions live in `.codex/agents/` and return results to the principal session.
 
-Use native Codex subagents for bounded delegation when the surfaced interface is sufficient. The current app and CLI delegation interfaces do not expose an exact project custom-agent selector. `scripts/codex-worker.sh --agent <name>` provides a prompt-prefixed role adapter when a separate worker should use a repository role's target mapping and instructions, especially in an isolated worktree. It is not equivalent to native custom-agent selection. Hermes integration is outside GitHub issue #51 and requires a separate named issue and decision before implementation.
+Use native Codex subagents for bounded delegation when the surfaced interface is sufficient. The current app and CLI delegation interfaces do not expose an exact project custom-agent selector. `scripts/codex-worker.sh --agent <name>` provides a prompt-prefixed role adapter when a separate worker should use a repository role's target mapping and instructions, especially in an assigned Codex-managed worktree. It is not equivalent to native custom-agent selection. Hermes integration is outside GitHub issue #51 and requires a separate named issue and decision before implementation.
 
 ## Canonical roles and current targets
 
@@ -31,7 +31,7 @@ Presence of a target file proves configuration intent only. Record substitutions
 
 1. **Orient:** verify active GitHub issue, branch, release, worktree, relevant Obsidian sources, and current runtime.
 2. **Ratify scope:** define goal, non-goals, authority, acceptance criteria, evidence, and file ownership.
-3. **Branch:** create one focused branch. Create additional Git worktrees only for genuinely independent writers.
+3. **Worktree and branch:** start writable work in a Codex-managed Worktree chat based on current `main`. Codex creates the worktree detached; use **Create branch here** only when work should be retained or submitted.
 4. **Implement:** use small commits and targeted tests. Keep product changes separate from unrelated cleanup.
 5. **Verify:** build, targeted tests, `npm test`, `npm run test:coverage`, and applicable live tests.
 6. **Review:** run the independent review required by the issue and resolve findings with evidence.
@@ -42,14 +42,11 @@ Presence of a target file proves configuration intent only. Record substitutions
 
 ## Worktree isolation
 
-Concurrent writers must not share an uncommitted working tree. From the repository root:
+Concurrent writers must not share an uncommitted working tree. Every writable development outcome starts in a Codex-managed Worktree chat based on current `main`. Codex creates the worktree detached; use **Create branch here** only when work should be retained or submitted.
 
-```bash
-git fetch origin
-git worktree add ../mcp-obsidian-<task> -b <type>/<task> origin/main
-```
+Do not create manual Git worktrees or sibling `mcp-obsidian-*` checkout directories. Assign explicit checkout paths to each worker. Use one primary writer per managed worktree, and require disjoint file ownership for parallel writers. Workers operate only in the checkout assigned by the lead and must not create or attach another worktree.
 
-Assign explicit paths to each worker. A worker commits only its scoped changes. The lead reviews the diff and integrates it through Git rather than copying code between chats.
+After a pull request is merged or closed and retained work is confirmed, archive the associated chat so Codex can clean up its managed worktree. The lead reviews the diff and integrates it through Git rather than copying code between chats.
 
 ## Target model allocation
 
@@ -59,7 +56,7 @@ Use the project agent definitions as current target mappings, not permanent role
 - Luna: inexpensive research and repository discovery.
 - Terra: everyday implementation.
 - 5.4 Mini: bounded tests and mechanical verification.
-- 5.5: adversarial review of high-risk changes.
+- 5.6 SOL Ultra Mode: adversarial review of high-risk changes.
 
 Models may change as availability and measured performance change. Canonical role meaning, authority, and evidence contracts remain separate from those mappings.
 
@@ -84,7 +81,7 @@ scripts/codex-worker.sh \
 
 Use `--model` and `--sandbox` only for an explicitly non-role worker. The worker command is a separate non-interactive Codex execution that returns its final message; it is not evidence that the native parent-session subagent interface selected the custom role.
 
-Writing workers should run in a dedicated clean worktree with `--sandbox workspace-write`. The wrapper refuses a dirty writing worktree unless a human or lead agent deliberately passes the unsafe `--allow-dirty` override after reviewing ownership.
+Writing workers should run in the assigned clean Codex-managed worktree with `--sandbox workspace-write`. The wrapper refuses a dirty writing worktree unless a human or lead agent deliberately passes the unsafe `--allow-dirty` override after reviewing ownership.
 
 ## Required evidence in every handoff
 
