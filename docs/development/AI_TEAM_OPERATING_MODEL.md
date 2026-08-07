@@ -10,7 +10,7 @@ The canonical notes define what the team and roles mean. Current repository file
 
 The Principal Development Orchestrator owns product synthesis, architecture, delegation, integration, evidence quality, and final accountability. Specialists perform bounded research, repository exploration, implementation, testing, and independent review. Their Codex target definitions live in `.codex/agents/` and return results to the principal session.
 
-Use native Codex subagents for bounded delegation when the surfaced interface is sufficient. The current app and CLI delegation interfaces do not expose an exact project custom-agent selector. `scripts/codex-worker.sh --agent <name>` provides a prompt-prefixed role adapter when a separate worker should use a repository role's target mapping and instructions, especially in an assigned Codex-managed worktree. It is not equivalent to native custom-agent selection. Hermes integration is outside GitHub issue #51 and requires a separate named issue and decision before implementation.
+Use native Codex subagents for bounded delegation when the surfaced interface is sufficient. The current Codex Desktop host exposes project custom agents by their TOML `name`; other interfaces must be checked rather than assumed to provide the same selector. `scripts/codex-worker.sh --agent <name>` provides a prompt-prefixed role adapter when a separate non-interactive worker should use a repository role's target mapping and instructions, especially in an assigned Codex-managed worktree. It is not equivalent to native custom-agent selection. Hermes integration is outside GitHub issue #51 and requires a separate named issue and decision before implementation.
 
 ## Canonical roles and current targets
 
@@ -25,7 +25,9 @@ Use native Codex subagents for bounded delegation when the surfaced interface is
 
 Presence of a target file proves configuration intent only. Record substitutions and distinguish configured, installed, available, invoked, and effective states.
 
-[Official Codex custom-agent documentation](https://developers.openai.com/codex/agent-configuration/subagents#custom-agents) confirms that project custom agents live under `.codex/agents/` and that the TOML `name` is the custom-agent identity. It does not document `agent_type` or `fork_turns` as user-facing selectors. A fresh Codex 0.144.1 probe found no exact custom-agent selector in the surfaced app or CLI delegation interface; `task_name` only labels a delegated task. Do not silently substitute a generic child while claiming a named role ran.
+[Official Codex custom-agent documentation](https://developers.openai.com/codex/agent-configuration/subagents#custom-agents) defines each project TOML under `.codex/agents/` as a configuration layer for spawned sessions. The TOML `name` is the custom-agent identity, and file-level `model` and `model_reasoning_effort` values take precedence. The current Codex Desktop host exposes these project agents by name through its generated delegation surface. Exact selector syntax remains runtime-specific; `task_name` only labels a delegated task and must not be treated as the role selector.
+
+The tracked `mycelium_adversarial_reviewer` target is `gpt-5.6-sol` with `ultra` reasoning and a `read-only` sandbox. That is configuration intent, not proof that the target is installed, available, invoked, or effective. Record the host launch receipt for each material review and disclose that it is operational evidence rather than independent cryptographic self-attestation by the child model. Do not silently substitute a generic child while claiming the named role ran.
 
 ## Sprint sequence
 
