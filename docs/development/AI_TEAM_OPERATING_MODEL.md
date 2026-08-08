@@ -48,7 +48,7 @@ Concurrent writers must not share an uncommitted working tree. Every writable de
 
 Do not create manual Git worktrees or sibling `mcp-obsidian-*` checkout directories. Assign explicit checkout paths to each worker. Use one primary writer per managed worktree, and require disjoint file ownership for parallel writers. Workers operate only in the checkout assigned by the lead and must not create or attach another worktree.
 
-After a pull request is merged or closed and retained work is confirmed, archive the associated chat so Codex can clean up its managed worktree. The lead reviews the diff and integrates it through Git rather than copying code between chats.
+In this repository's development workflow, chat or task archival is separate from the Git worktree, branch, pull-request, merge, and cleanup lifecycle. Never infer archive authority from GitHub state, and never let a task archive itself. Archive a specific task only when J explicitly requests that archival action. The lead reviews the diff and integrates it through Git rather than copying code between chats.
 
 ## Target model allocation
 
