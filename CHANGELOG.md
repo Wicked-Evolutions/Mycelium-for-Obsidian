@@ -2,9 +2,9 @@
 
 All notable changes to mcp-obsidian are documented here.
 
-## [1.5.0] - Unreleased
+## [1.5.0] - 2026-08-10
 
-An npm/server reliability and cross-vault integrity release. The MCPB channel remains on v1.4.0 and is not part of this candidate.
+An npm/server reliability and cross-vault integrity release. The MCPB channel remains on v1.4.0 and is not part of this release.
 
 ### Added
 

@@ -59,8 +59,8 @@ claude mcp add -e OBSIDIAN_VAULTS='{"My Vault":"/path/to/vault"}' obsidian -- np
 {
   "mcpServers": {
     "obsidian": {
-      "command": "npx",
-      "args": ["mcp-obsidian"],
+      "command": "mcp-obsidian",
+      "args": [],
       "env": {
         "OBSIDIAN_VAULTS": "{\"My Vault\":\"/path/to/your/vault\"}"
       }
@@ -169,10 +169,20 @@ Comma-separated list. Disabled tools are removed from both the tool list and han
 | `OBSIDIAN_VAULT_PATH` | Path to single vault (alternative to `OBSIDIAN_VAULTS`) | - |
 | `OBSIDIAN_VAULT_NAME` | Display name for single vault | - |
 | `OBSIDIAN_DISABLED_TOOLS` | Comma-separated list of tools to disable | - |
+| `OBSIDIAN_READ_ONLY` | Refuse note/content and Obsidian app-state mutations; derived semantic-index writes remain allowed | `false` |
+| `OBSIDIAN_WRAP_UNTRUSTED` | Wrap file content in untrusted-content markers when set to `true` | `false` |
+| `OBSIDIAN_AUTO_INDEX` | Watch vault changes and write derived semantic-index updates; set to `false` to disable background indexing | `true` |
 | `OLLAMA_HOST` | Ollama API endpoint | `http://localhost:11434` |
 | `OLLAMA_EMBEDDING_MODEL` | Model for embeddings | `nomic-embed-text` |
-| `HTTP_MODE` | Run as HTTP server instead of STDIO | `false` |
-| `HTTP_PORT` | Port for HTTP server | `3456` |
+| `OBSIDIAN_HTTP_SERVER` / `HTTP_MODE` | Run as HTTP server instead of STDIO | `false` |
+| `OBSIDIAN_HTTP_PORT` / `HTTP_PORT` | HTTP server port | `3456` |
+| `OBSIDIAN_HTTP_TOKEN` | Bearer token for data-bearing HTTP API endpoints; `/health` and CORS preflight are unauthenticated | random per process |
+| `OBSIDIAN_HTTP_CORS_ORIGIN` | Allowed browser origin for HTTP mode | `app://obsidian.md` |
+
+`OBSIDIAN_READ_ONLY=true` blocks note/content and Obsidian app-state mutators,
+but it does not block derived semantic-index writes. Set
+`OBSIDIAN_AUTO_INDEX=false` to prevent background indexing, and do not invoke
+the index tools when an operation must perform no derived-index writes.
 
 ## Features
 
@@ -554,8 +564,10 @@ curl http://localhost:11434/api/tags
 ### First-Time Indexing
 
 ```bash
-HTTP_MODE=true npx @wickedevolutions/mcp-obsidian &
+export OBSIDIAN_HTTP_TOKEN='replace-with-a-strong-secret'
+OBSIDIAN_HTTP_SERVER=true npx @wickedevolutions/mcp-obsidian &
 curl http://localhost:3456/call \
+  -H "Authorization: Bearer $OBSIDIAN_HTTP_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"tool": "index_vault", "args": {"vault": "MyVault"}}'
 ```
@@ -563,8 +575,16 @@ curl http://localhost:3456/call \
 ## HTTP Server Mode
 
 ```bash
-HTTP_MODE=true HTTP_PORT=3456 npx @wickedevolutions/mcp-obsidian
+OBSIDIAN_HTTP_SERVER=true \
+OBSIDIAN_HTTP_PORT=3456 \
+OBSIDIAN_HTTP_TOKEN='replace-with-a-strong-secret' \
+npx @wickedevolutions/mcp-obsidian
 ```
+
+Data-bearing HTTP API endpoints require `Authorization: Bearer <token>`.
+`/health` and CORS preflight `OPTIONS` responses are unauthenticated. If
+`OBSIDIAN_HTTP_TOKEN` is omitted, the server generates a random token and prints
+it to stderr for that process only.
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
