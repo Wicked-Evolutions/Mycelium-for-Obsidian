@@ -2,9 +2,11 @@
 
 Multi-vault Obsidian MCP server — full AI operations toolset for file management, wikilinks, semantic search, frontmatter queries, daily notes, tasks, properties, templates, and more.
 
-Two-tier architecture: 75 tools work without Obsidian running + 28 CLI tools access Obsidian's runtime API when the app is running with [CLI enabled](https://obsidian.md/help/cli) (Obsidian 1.12+ with installer 1.12.7+).
+Capability surface: 75 filesystem-tier tools require only Node.js, 1 explicit app-contact tool (`open_vault`) may open/contact local Obsidian, and 28 CLI-only tools access Obsidian's runtime API when the app is running with [CLI enabled](https://obsidian.md/help/cli) (Obsidian 1.12+ with installer 1.12.7+).
 
 In 1.5.0: **validated cross-vault declarations** from native Obsidian links; **truthful index coverage and broken-link occurrence metrics**; **exact-versus-approximate graph provider provenance and recovery**; refreshed production dependencies and transport validation; and a strict real Obsidian/Ollama release-evidence lane. See [CHANGELOG](CHANGELOG.md).
+
+On current `main` (unreleased): exact vault orientation uses an explicit consent flow. `analyze_link_hierarchy` never opens Obsidian or silently approximates; `open_vault` is the separate, explicit app-contact step that opens one configured vault if needed and prepares a session-only exact graph snapshot.
 
 **Runtime:** npm and source installs require Node.js 20 or newer.
 
@@ -187,7 +189,7 @@ the index tools when an operation must perform no derived-index writes.
 ## Features
 
 - **Unified Multi-Vault**: Single server process handles all vaults. Most tools accept an optional `vault` parameter; authoritative graph orientation (`analyze_link_hierarchy`) requires an explicit one.
-- **Two-Tier Architecture**: 75 tools always available + 28 CLI tools when Obsidian 1.12+ with installer 1.12.7+ is running
+- **Explicit Capability Tiers**: 75 filesystem tools + 1 explicit app-contact tool + 28 CLI-only tools
 - **Orientation & Self-Correction**: `get_started` and `discover_tools` map the server's surface; configured vault names surface as an `enum` in each tool's input schema; unknown vault/note names return closest-match suggestions instead of bare errors
 - **File Operations**: List, read, create, update, delete, move files with frontmatter support
 - **Wikilink Resolution**: Resolve `[[wikilinks]]`, get outlinks/backlinks, follow link chains
@@ -203,24 +205,26 @@ the index tools when an operation must perform no derived-index writes.
 - **Commands & History**: Execute Obsidian commands, access file version history (CLI)
 - **Tool Filtering**: Disable specific tools via `OBSIDIAN_DISABLED_TOOLS` env var
 
-Graph-bearing responses keep the legacy top-level `provider` as the effective
-producer and add `providerState` as build provenance. It states whether the
-filesystem result is approximate, whether the exact Obsidian provider was
-eligible and invoked, and a stable degradation reason such as `cli_unavailable`,
-`obsidian_unavailable`, or `eval_failed`. Cached results retain the provenance of
-the build that produced them. Provider eligibility is rechecked before graph
-caches are reused, so an unchanged vault upgrades from filesystem to exact when
-Obsidian becomes available. `providerFallbackReason` remains the bounded,
-sanitized detail only for an attempted Obsidian eval that fell back.
+`analyze_link_hierarchy` requires an explicit vault and has two explicit modes:
 
-## Two-Tier Architecture
+- `providerMode: "exact"` (default) consumes a prepared, session-only Obsidian base-graph snapshot. It never calls the CLI, opens or focuses a window, or falls back to filesystem analysis. If preparation is needed, it returns `decision_required` before graph construction or ranking.
+- `providerMode: "filesystem"` is an explicit approximation. It does not inspect the Obsidian registry, call the CLI, or open the app.
+
+To choose exact analysis, call `open_vault` with one configured vault. The tool resolves that configured canonical path to exactly one registered 16-character Obsidian vault ID, opens it only when needed, and prepares the exact base graph without ranking. Re-run `analyze_link_hierarchy` in exact mode to rank that snapshot. Snapshots remain in server-session memory only and are invalidated by vault changes, identity changes, every attempted in-process mutation, or a fresh preparation attempt.
+
+Graph results include top-level `provider`, graph-build `providerState`, and request-level `decisionState`. Control outcomes such as `decision_required` and `exact_unavailable` include `decisionState` but no `providerState`, because no graph was returned. Other graph consumers, including additive search enrichment, retain their existing automatic provider recovery and bounded `providerFallbackReason` behavior.
+
+## Capability Tiers
 
 | Tier | Tools | Requires | Always Available |
 |------|-------|----------|-----------------|
-| **Filesystem** | 75 tools | Node.js only | Yes — works without Obsidian running |
+| **Filesystem** | 75 tools | Node.js only | Yes — no Obsidian contact |
+| **Explicit app contact** | 1 tool (`open_vault`) | Local Obsidian installation and registered CLI for exact preparation | Listed always; contacts/opens Obsidian only when explicitly invoked |
 | **CLI-only** | 28 tools | Obsidian 1.12+ with installer 1.12.7+ running | No — graceful error if app not running |
 
 **Filesystem tools** read and write vault files directly. They work whether Obsidian is open or not.
+
+**The app-contact tool** is separate from the filesystem and CLI-only tiers because it is always exposed but intentionally contacts or opens local Obsidian only after explicit consent.
 
 **CLI tools** access Obsidian's runtime API (`app.vault`, `app.metadataCache`, `app.fileManager`, etc.) via the Obsidian CLI. They provide access to features that only exist in the running app — metadata cache, daily notes configuration, task parsing, property types, backlink index, version history, and more.
 
@@ -230,16 +234,28 @@ If Obsidian is not running, CLI tools return a clear error message. All filesyst
 
 To use the 28 CLI-only tools, you need Obsidian 1.12+ installed with installer 1.12.7+ and CLI enabled. In Obsidian: **Settings → General → Enable "Command line interface"**, then follow the prompt to register. See the [Obsidian CLI documentation](https://obsidian.md/help/cli) for install and troubleshooting details.
 
-## Available Tools (103)
+## Available Tools (104)
 
-### Always Available (75 tools — no Obsidian required)
+### Filesystem Tier (75 tools)
 
 #### Orientation (2)
 
 | Tool | Description |
 |------|-------------|
 | `get_started` | Orientation guide — configured vaults, tool categories with counts, and tier/resolver guidance. Call first in a new session |
-| `discover_tools` | Compact paginated inventory of all tools with category and tier (filesystem/cli) |
+| `discover_tools` | Compact paginated inventory of all tools with category and tier (filesystem/app-contact/cli) |
+
+#### Graph Orientation (1)
+
+| Tool | Description |
+|------|-------------|
+| `analyze_link_hierarchy` | Rank a prepared exact Obsidian graph (default) or an explicitly selected filesystem approximation; never opens Obsidian or silently falls back |
+
+### Explicit App Contact (1 tool)
+
+| Tool | Description |
+|------|-------------|
+| `open_vault` | Explicitly open one configured vault if needed and prepare a session-only exact base-graph snapshot; refused by `OBSIDIAN_READ_ONLY` |
 
 #### File Operations (9)
 
@@ -602,7 +618,10 @@ src/
 ├── config.ts             # Config loading + resolveVault() helper
 ├── types/index.ts        # TypeScript type definitions
 ├── cli/
-│   └── bridge.ts         # Obsidian CLI bridge (1.12+, installer 1.12.7+)
+│   ├── bridge.ts         # Obsidian CLI bridge (1.12+, installer 1.12.7+)
+│   └── vault-target.ts   # Canonical registry identity + allowlisted exact-ID opening
+├── graph/
+│   └── prepared.ts       # Session-only exact base-graph snapshots + per-vault lock
 ├── parsers/
 │   ├── markdown.ts       # Markdown/frontmatter parsing, section extraction
 │   ├── wikilink.ts       # Wikilink parsing + resolution
@@ -612,7 +631,7 @@ src/
 │   ├── storage.ts        # SQLite vector storage
 │   └── watcher.ts        # File watcher for auto-indexing
 └── tools/
-    ├── index.ts          # Tool registration hub (11 modules)
+    ├── index.ts          # Tool registration hub
     ├── files.ts          # File ops (9 tools)
     ├── wikilinks.ts      # Wikilink ops (5 tools)
     ├── semantic.ts       # Semantic search (5 tools)
@@ -620,6 +639,8 @@ src/
     ├── sections.ts       # Section editing (3 tools)
     ├── query.ts          # Frontmatter queries (1 tool)
     ├── analytics.ts      # Vault health (4 tools)
+    ├── graph.ts          # Exact/filesystem orientation contract (1 tool)
+    ├── vault.ts          # Explicit exact snapshot preparation (1 tool)
     ├── fs-promoted.ts    # Filesystem-promoted tools (40 tools)
     ├── cli-tools.ts      # CLI-only tools (28 tools)
     ├── get-started.ts    # Onboarding tool (1 tool)
@@ -628,7 +649,11 @@ src/
 
 ## Safety Notes
 
-Three tools can cause data loss if used incorrectly. Understand their behavior before use.
+The following tools have application-state or broad-write consequences. Understand their behavior before use.
+
+### `open_vault` — explicit application contact
+
+`open_vault` may launch or open one explicitly named configured Obsidian vault and leaves any opened window open. It never closes or batch-opens vaults, accepts no path or arbitrary URI input, and issues no separate focus action; the operating system may bring a newly opened window forward. `OBSIDIAN_READ_ONLY=true` refuses it. Cancellation can stop waiting or child work but cannot undo a URI that was already dispatched.
 
 ### `search_replace_in_file` — fixed in v1.0.1 ([#4](https://github.com/Wicked-Evolutions/Mycelium-for-Obsidian/issues/4))
 
@@ -647,6 +672,7 @@ Three tools can cause data loss if used incorrectly. Understand their behavior b
 - **CLI-only tools require Obsidian running** — a subset of tools need Obsidian 1.12+ with installer 1.12.7+ and [CLI enabled](https://obsidian.md/help/cli). If Obsidian is not running, these tools return a clear error while all other tools continue working.
 - **Unicode filenames** — Files with curly apostrophes (U+2019) and some Unicode characters may fail to resolve.
 - **Vault path changes** — If a vault folder is renamed on disk, the `OBSIDIAN_VAULTS` environment variable must be updated manually.
+- **Exact graph snapshots are session-only** — Restarting the MCP server clears prepared snapshots. Run `open_vault` again before exact orientation; choose `providerMode: "filesystem"` when an explicit approximation is sufficient.
 
 ## License
 

@@ -142,6 +142,16 @@ test('orient WITH vault primes analyze_link_hierarchy + concept-link interpretat
   assert.ok(text.includes('get_broken_links'), 'offers get_broken_links for the top concepts');
 });
 
+test('orient WITH vault preserves the explicit exact-graph consent sequence (#45)', () => {
+  const text = textOf(getPromptMessages('orient', { vault: 'Foo' }));
+  assert.ok(text.includes('providerMode "exact"'), 'exact intent is explicit');
+  assert.ok(text.includes('decision_required'), 'decision outcome is handled');
+  assert.ok(text.includes('present its message and actions exactly and wait for my choice'));
+  assert.ok(text.includes('providerMode "filesystem"'), 'approximation is an explicit choice');
+  assert.ok(text.includes('`open_vault` with vault "Foo"'), 'opening is a separate explicit tool');
+  assert.ok(text.includes('only after it reports a prepared snapshot'));
+});
+
 // #33-B + #37: WITHOUT a vault, analyze_link_hierarchy now REQUIRES a vault, so
 // the prompt must NOT call it blind — it lists the vaults and ASKS which one.
 test('orient WITHOUT vault asks which vault; does NOT call the tool blind (#33-B)', () => {

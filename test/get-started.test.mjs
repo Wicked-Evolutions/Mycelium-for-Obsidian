@@ -160,3 +160,11 @@ test('get_started static guidance: CLI-tier mention present', async () => {
     'guidance must mention CLI tier and Obsidian requirement'
   );
 });
+
+test('get_started static guidance: explicit app-contact exception is truthful', async () => {
+  const res = await handlers.get_started({});
+  const payload = JSON.parse(res.content[0].text);
+  assert.match(payload.guidance.tiers, /App-contact tier/);
+  assert.match(payload.guidance.tiers, /open_vault/);
+  assert.match(payload.guidance.tiers, /except.*explicit app-contact/i);
+});

@@ -16,8 +16,8 @@
     "test": "npm run build && npm run test:headless",
     "test:coverage": "c8 --reporter=text --reporter=lcov node --experimental-test-module-mocks --test test/*.test.mjs",
     "test:package": "node scripts/verify-npm-package.mjs",
-    "test:live": "npm run build && node test/live/preflight.mjs && node --experimental-test-module-mocks --test test/live/*.live.mjs",
-    "test:live:optional": "npm run build && node --experimental-test-module-mocks --test test/live/*.live.mjs"
+    "test:live": "npm run build && node test/live/preflight.mjs && node --experimental-test-module-mocks --test --test-concurrency=1 test/live/graph.live.mjs test/live/semantic.live.mjs",
+    "test:live:optional": "npm run build && node --experimental-test-module-mocks --test --test-concurrency=1 test/live/graph.live.mjs test/live/semantic.live.mjs"
   },
   "files": [
     "dist/",

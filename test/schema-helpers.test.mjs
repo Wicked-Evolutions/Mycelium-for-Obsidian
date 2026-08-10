@@ -136,6 +136,12 @@ test('vaultParamWithEnum description contains the vault names', () => {
   );
 });
 
+test('vaultParamWithEnum describes required vaults without claiming a default', () => {
+  const p = vaultParamWithEnum(['Alpha', 'Beta'], true);
+  assert.match(p.description, /Required; no default is inferred/);
+  assert.doesNotMatch(p.description, /Defaults to first/);
+});
+
 test('vaultParamWithEnum does NOT mutate vaultParam', () => {
   const before = { ...vaultParam };
   vaultParamWithEnum(['X', 'Y']);
@@ -163,6 +169,18 @@ test('injectVaultEnum replaces vault property in tools that have one', () => {
   for (const tool of tools) {
     assert.deepEqual(tool.inputSchema.properties.vault.enum, names);
   }
+});
+
+test('injectVaultEnum preserves required-vault semantics', () => {
+  const tool = {
+    inputSchema: {
+      properties: { vault: { type: 'string' } },
+      required: ['vault'],
+    },
+  };
+  injectVaultEnum([tool], ['Alpha']);
+  assert.match(tool.inputSchema.properties.vault.description, /Required/);
+  assert.doesNotMatch(tool.inputSchema.properties.vault.description, /Defaults to first/);
 });
 
 test('injectVaultEnum leaves tools without a vault property untouched', () => {

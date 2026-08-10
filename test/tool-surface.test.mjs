@@ -53,7 +53,8 @@ const SNAPSHOT = [
   { name: 'get_orphan_notes', description: 'Find notes with zero inbound wikilinks (not linked to by any other note).' },
   { name: 'get_broken_links', description: 'Find all wikilinks that point to non-existent notes.' },
   { name: 'get_stale_notes', description: 'Find notes not modified within a given number of days.' },
-  { name: 'analyze_link_hierarchy', description: 'Orientation leveling over the vault link graph. Ranks notes by PageRank + degree on the wikilink graph (Obsidian-authoritative when running, filesystem fallback otherwise), prunes declared/generated/index/archive notes before ranking, and assigns structural levels L0 (top hubs) to L5 (leaves). Returns a level histogram, per-node signals, and a contributor breakdown. Levels are structural orientation, not importance.' },
+  { name: 'analyze_link_hierarchy', description: 'Orientation leveling over one explicit vault link graph. Exact mode (default) is side-effect-free and ranks only a prepared Obsidian base-graph snapshot; use open_vault separately to open/prepare when needed. Filesystem mode is an explicit approximation and never contacts Obsidian. No silent opening or provider fallback occurs.' },
+  { name: 'open_vault', description: 'Explicitly open one configured Obsidian vault if needed and prepare a session-only exact base-graph snapshot. This is the only app-opening step in exact graph analysis; it never ranks notes, opens multiple vaults, accepts arbitrary URIs, or closes windows.' },
   { name: 'daily_read', description: "Read today's daily note contents." },
   { name: 'daily_append', description: "Append content to today's daily note. Creates the note if it doesn't exist." },
   { name: 'daily_prepend', description: "Prepend content to today's daily note. Creates the note if it doesn't exist." },
@@ -122,8 +123,8 @@ const SNAPSHOT = [
   { name: 'get_hotkey', description: 'Get the hotkey binding for a specific command. Requires Obsidian running.' },
   { name: 'list_hotkeys', description: 'List all hotkey bindings. Requires Obsidian running.' },
   { name: 'list_enabled_snippets', description: 'List enabled CSS snippets. Requires Obsidian running.' },
-  { name: 'get_started', description: 'Orientation guide for this Obsidian MCP instance. Returns configured vault names, total tool count, tool categories with counts, and static guidance on resolver-first workflow, wikilink syntax, and CLI vs filesystem tiers. Call this first in a new session.' },
-  { name: 'discover_tools', description: 'Compact inventory of all registered tools with pagination. Returns name, category, and tier (filesystem/cli) per tool — no full schemas. Also includes a category histogram for the full tool surface. Use this for AI orientation when get_started category counts are not enough detail.' },
+  { name: 'get_started', description: 'Orientation guide for this Obsidian MCP instance. Returns configured vault names, total tool count, tool categories with counts, and static guidance on filesystem, explicit app-contact, and CLI tiers. Call this first in a new session.' },
+  { name: 'discover_tools', description: 'Compact inventory of all registered tools with pagination. Returns name, category, and tier (filesystem/app-contact/cli) per tool — no full schemas. Also includes a category histogram for the full tool surface. Use this for AI orientation when get_started category counts are not enough detail.' },
 ];
 
 // ---------------------------------------------------------------------------
@@ -551,11 +552,17 @@ const SCHEMA_SNAPSHOT = [
   },
   {
     name: 'analyze_link_hierarchy',
-    description: 'Orientation leveling over the vault link graph. Ranks notes by PageRank + degree on the wikilink graph (Obsidian-authoritative when running, filesystem fallback otherwise), prunes declared/generated/index/archive notes before ranking, and assigns structural levels L0 (top hubs) to L5 (leaves). Returns a level histogram, per-node signals, and a contributor breakdown. Levels are structural orientation, not importance.',
+    description: 'Orientation leveling over one explicit vault link graph. Exact mode (default) is side-effect-free and ranks only a prepared Obsidian base-graph snapshot; use open_vault separately to open/prepare when needed. Filesystem mode is an explicit approximation and never contacts Obsidian. No silent opening or provider fallback occurs.',
     inputSchema: {
       type: 'object',
       properties: {
         vault: { type: 'string', description: 'Vault name. Defaults to first configured vault if omitted.' },
+        providerMode: {
+          type: 'string',
+          enum: ['exact', 'filesystem'],
+          default: 'exact',
+          description: 'exact (default) consumes a prepared Obsidian snapshot without contacting Obsidian; filesystem explicitly selects approximate file-based analysis.',
+        },
         scope: { type: 'string', description: 'Directory prefix to filter the OUTPUT only (e.g., "03 Projects"). Ranking always uses the whole-vault graph minus exclusions.' },
         limit: { type: 'number', description: 'Maximum ranked nodes to return in the detail list', default: 50 },
         compact: { type: 'boolean', description: 'Omit the per-node contributor breakdown for a smaller response', default: false },
@@ -580,6 +587,18 @@ const SCHEMA_SNAPSHOT = [
         },
       },
       required: ['vault'],
+    },
+  },
+  {
+    name: 'open_vault',
+    description: 'Explicitly open one configured Obsidian vault if needed and prepare a session-only exact base-graph snapshot. This is the only app-opening step in exact graph analysis; it never ranks notes, opens multiple vaults, accepts arbitrary URIs, or closes windows.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        vault: { type: 'string', description: 'Vault name. Defaults to first configured vault if omitted.' },
+      },
+      required: ['vault'],
+      additionalProperties: false,
     },
   },
   {
@@ -1421,7 +1440,7 @@ const SCHEMA_SNAPSHOT = [
   },
   {
     name: 'get_started',
-    description: 'Orientation guide for this Obsidian MCP instance. Returns configured vault names, total tool count, tool categories with counts, and static guidance on resolver-first workflow, wikilink syntax, and CLI vs filesystem tiers. Call this first in a new session.',
+    description: 'Orientation guide for this Obsidian MCP instance. Returns configured vault names, total tool count, tool categories with counts, and static guidance on filesystem, explicit app-contact, and CLI tiers. Call this first in a new session.',
     inputSchema: {
       type: 'object',
       properties: {},
@@ -1429,7 +1448,7 @@ const SCHEMA_SNAPSHOT = [
   },
   {
     name: 'discover_tools',
-    description: 'Compact inventory of all registered tools with pagination. Returns name, category, and tier (filesystem/cli) per tool — no full schemas. Also includes a category histogram for the full tool surface. Use this for AI orientation when get_started category counts are not enough detail.',
+    description: 'Compact inventory of all registered tools with pagination. Returns name, category, and tier (filesystem/app-contact/cli) per tool — no full schemas. Also includes a category histogram for the full tool surface. Use this for AI orientation when get_started category counts are not enough detail.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -1456,8 +1475,7 @@ function makeConfig(vaultPath, disabledList = '') {
 }
 
 // ---------------------------------------------------------------------------
-// Import modules under test (top-level; module cache shared for whole file)
-// The disabled-tools test is last and mutates allTools — ordering matters.
+// Import modules under test (top-level; module cache shared for whole file).
 //
 // NOTE: allTools is an `export let` that gets reassigned inside createAllHandlers
 // when disabled tools are configured. ESM destructured bindings become stale
@@ -1680,7 +1698,7 @@ test('createAllHandlers injects vault enum into vault-bearing tools (L2 guard)',
 });
 
 // ---------------------------------------------------------------------------
-// OBSIDIAN_DISABLED_TOOLS test — runs LAST because it mutates allTools
+// OBSIDIAN_DISABLED_TOOLS factory lifecycle
 // ---------------------------------------------------------------------------
 
 test('OBSIDIAN_DISABLED_TOOLS removes tool from both allTools and handlers', () => {
@@ -1725,6 +1743,14 @@ test('OBSIDIAN_DISABLED_TOOLS removes tool from both allTools and handlers', () 
     SNAPSHOT.length - toDisable.length,
     `allTools should shrink by ${toDisable.length} when ${toDisable.length} tools are disabled`
   );
+
+  makeConfig(baseVault, '');
+  const restoredHandlers = createAllHandlers(loadConfig());
+  assert.equal(toolsMod.allTools.length, SNAPSHOT.length);
+  for (const name of toDisable) {
+    assert.ok(toolsMod.allTools.some(tool => tool.name === name));
+    assert.equal(typeof restoredHandlers[name], 'function');
+  }
 });
 
 test('cleanup: remove temp vault', () => {

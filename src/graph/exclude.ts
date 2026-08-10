@@ -19,6 +19,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { FilterCondition, matchesCondition } from '../tools/query.js';
 import { parseMarkdownFile } from '../parsers/markdown.js';
+import { isAbortError, throwIfAborted } from '../cli/vault-target.js';
 
 export const DEFAULT_NODE_TYPES = ['generated', 'archive', 'index', 'log'];
 
@@ -85,18 +86,24 @@ export function resolveExclude(input?: ExcludeInput): ResolvedExclude {
 export async function computeExcludedSet(
   vaultPath: string,
   nodes: string[],
-  resolved: ResolvedExclude
+  resolved: ResolvedExclude,
+  signal?: AbortSignal
 ): Promise<Set<string>> {
+  throwIfAborted(signal);
   const excluded = new Set<string>();
   // If the predicate can never match (empty caller where), short-circuit.
   if (resolved.activeExclude.length === 0) return excluded;
 
   for (const rel of nodes) {
+    throwIfAborted(signal);
     let frontmatter: Record<string, unknown> = {};
     try {
       const parsed = await parseMarkdownFile(rel, vaultPath);
+      throwIfAborted(signal);
       frontmatter = parsed.frontmatter || {};
-    } catch {
+    } catch (error) {
+      if (isAbortError(error)) throw error;
+      throwIfAborted(signal);
       // Unparseable / missing file: treat as no frontmatter → not excluded.
       frontmatter = {};
     }

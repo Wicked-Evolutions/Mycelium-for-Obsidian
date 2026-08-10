@@ -17,10 +17,13 @@
  */
 
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
-import { ToolResponse } from '../types/index.js';
+import { ToolRequestContext, ToolResponse } from '../types/index.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type AnyHandler = (args: any) => Promise<ToolResponse>;
+export type AnyHandler = (
+  args: any,
+  context?: ToolRequestContext
+) => Promise<ToolResponse>;
 
 /**
  * The four MCP behaviour hints. `readOnlyHint` is REQUIRED on every tool (the
@@ -202,7 +205,8 @@ export function withUntrustedWrapper(
   if (!wrap) return handler;
   const ro = (tool.annotations as ToolAnnotations | undefined)?.readOnlyHint;
   if (ro !== true) return handler; // only mark reader output
-  return async (args: unknown): Promise<ToolResponse> => wrapUntrusted(await handler(args));
+  return async (args: unknown, context?: ToolRequestContext): Promise<ToolResponse> =>
+    wrapUntrusted(await handler(args, context));
 }
 
 /**

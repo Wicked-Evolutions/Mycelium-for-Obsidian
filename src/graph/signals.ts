@@ -4,7 +4,7 @@
  * wired this pass — this is the hook.
  *
  * Two-tier session cache (in-memory, no persistence):
- *   (a) BASE graph   — keyed by `vault + graph-version (stat-digest)`.
+ *   (a) BASE graph   — keyed by `vault + graph-version (content digest)`.
  *                      Raw edges + degrees; exclusion-independent; built once.
  *   (b) RANKED signals — keyed by `vault + graph-version + exclude-hash`.
  *                      PageRank/levels per exclusion. The rank → declare-
@@ -16,6 +16,7 @@ import { Config, resolveVault } from '../config.js';
 import { BaseGraph, GraphSignals, NodeSignals } from './types.js';
 import { buildVaultGraph } from './build.js';
 import {
+  FilesystemProvider,
   GraphProviderSelection,
   selectProviderWithState
 } from './providers.js';
@@ -23,6 +24,11 @@ import { computeGraphDigest, hashExclude } from './digest.js';
 import { resolveExclude, computeExcludedSet, ExcludeInput } from './exclude.js';
 import { pageRank } from './pagerank.js';
 import { assignLevels } from './levels.js';
+import {
+  clearPreparedExactGraphs,
+  invalidatePreparedExactGraph
+} from './prepared.js';
+import { abortableYield, throwIfAborted } from '../cli/vault-target.js';
 
 // ─── Caches (module-level, session-scoped) ───────────────────────────────────
 
@@ -45,6 +51,7 @@ interface BaseRequestContext {
   digest: string;
   selection: GraphProviderSelection;
   sequence: number;
+  signal?: AbortSignal;
 }
 
 /**
@@ -54,22 +61,24 @@ export function clearGraphCaches(): void {
   baseCache.clear();
   rankedCache.clear();
   latestSequenceByVault.clear();
+  clearPreparedExactGraphs();
 }
 
 /**
  * Invalidate cached signals for a vault path (e.g. after a write-through MCP
- * mutation). The stat-digest would catch it on next read anyway; this is the
+ * mutation). The content digest would catch it on next read anyway; this is the
  * explicit hook.
  */
 export function invalidateGraphCache(vaultPath: string): void {
   baseCache.delete(vaultPath);
+  invalidatePreparedExactGraph(vaultPath);
   for (const key of [...rankedCache.keys()]) {
     if (key.startsWith(vaultPath + '|')) rankedCache.delete(key);
   }
 }
 
 /**
- * Get (or build) the BASE graph for a vault, cached by stat-digest.
+ * Get (or build) the BASE graph for a vault, cached by content digest.
  */
 export async function getBaseGraph(
   config: Config,
@@ -78,7 +87,7 @@ export async function getBaseGraph(
   context?: BaseRequestContext
 ): Promise<BaseGraph> {
   const sequence = context?.sequence ?? beginGraphRequest(vaultPath);
-  const digest = context?.digest ?? await computeGraphDigest(vaultPath);
+  const digest = context?.digest ?? await computeGraphDigest(vaultPath, context?.signal);
   const selection = context?.selection ?? await selectProviderWithState(config, vaultName);
   const cached = baseCache.get(vaultPath);
   const exactRetryRequired =
@@ -102,7 +111,8 @@ export async function getBaseGraph(
     config,
     vaultName,
     selection.state,
-    reusableFilesystemGraph
+    reusableFilesystemGraph,
+    { signal: context?.signal }
   );
   const identity = [
     vaultPath,
@@ -157,44 +167,118 @@ function withBaseMetadata(signals: GraphSignals, baseGraph: BaseGraph): GraphSig
 export async function getGraphSignals(
   config: Config,
   vaultName?: string,
-  exclude?: ExcludeInput
+  exclude?: ExcludeInput,
+  signal?: AbortSignal
 ): Promise<GraphSignals> {
   const vault = resolveVault(config, vaultName);
   const vaultPath = vault.path;
   const sequence = beginGraphRequest(vaultPath);
 
-  const digest = await computeGraphDigest(vaultPath);
+  const digest = await computeGraphDigest(vaultPath, signal);
   const selection = await selectProviderWithState(config, vaultName);
-  const excludeHash = hashExclude(exclude?.where);
   const graph = await getBaseGraph(config, vaultName, vaultPath, {
     digest,
     selection,
-    sequence
+    sequence,
+    signal
   });
-  const rankedKey = `${vaultPath}|${graph.cacheIdentity}|${excludeHash}`;
+  return rankBaseGraph(vault.name, vaultPath, graph, exclude, sequence, signal);
+}
+
+/** Explicit approximation path. This never probes or invokes Obsidian. */
+export async function getFilesystemGraphSignals(
+  config: Config,
+  vaultName: string,
+  exclude?: ExcludeInput,
+  signal?: AbortSignal
+): Promise<GraphSignals> {
+  const vault = resolveVault(config, vaultName);
+  const vaultPath = vault.path;
+  const sequence = beginGraphRequest(vaultPath);
+  const digest = await computeGraphDigest(vaultPath, signal);
+  const selection: GraphProviderSelection = {
+    provider: new FilesystemProvider(),
+    state: {
+      selectedProvider: 'filesystem',
+      approximate: true,
+      exactProviderAvailability: 'not_probed',
+      exactProviderInvoked: false
+    },
+    decisionKey: 'filesystem:not_probed:explicit'
+  };
+  const graph = await getBaseGraph(config, vaultName, vaultPath, {
+    digest,
+    selection,
+    sequence,
+    signal
+  });
+  return rankBaseGraph(vault.name, vaultPath, graph, exclude, sequence, signal);
+}
+
+/** Rank an already prepared base graph without selecting or invoking a provider. */
+export async function getGraphSignalsFromBase(
+  vaultName: string,
+  vaultPath: string,
+  graph: BaseGraph,
+  exclude?: ExcludeInput,
+  signal?: AbortSignal
+): Promise<GraphSignals> {
+  const sequence = beginGraphRequest(vaultPath);
+  return rankBaseGraph(vaultName, vaultPath, graph, exclude, sequence, signal);
+}
+
+async function rankBaseGraph(
+  vaultName: string,
+  vaultPath: string,
+  graph: BaseGraph,
+  exclude: ExcludeInput | undefined,
+  sequence: number,
+  signal?: AbortSignal
+): Promise<GraphSignals> {
+  throwIfAborted(signal);
+  const excludeHash = hashExclude(exclude?.where);
+  const rankedKey = `${vaultPath}|${graph.cacheIdentity ?? 'uncached'}|${excludeHash}`;
 
   const cachedRanked = rankedCache.get(rankedKey);
-  if (cachedRanked) return withBaseMetadata(cachedRanked.signals, graph);
+  if (cachedRanked) {
+    throwIfAborted(signal);
+    return withBaseMetadata(cachedRanked.signals, graph);
+  }
 
   // Resolve exclusion predicate, prune.
   const resolved = resolveExclude(exclude);
-  const excludedSet = await computeExcludedSet(vaultPath, graph.nodes, resolved);
+  const excludedSet = await computeExcludedSet(vaultPath, graph.nodes, resolved, signal);
+  throwIfAborted(signal);
 
   // Ranked node set = base nodes minus excluded.
-  const rankedNodes = graph.nodes.filter((n) => !excludedSet.has(n));
+  const rankedNodes: string[] = [];
+  for (let index = 0; index < graph.nodes.length; index += 1) {
+    if (signal && index % 512 === 0) await abortableYield(signal);
+    if (!excludedSet.has(graph.nodes[index])) rankedNodes.push(graph.nodes[index]);
+  }
   const rankedNodeSet = new Set(rankedNodes);
 
   // Edges among ranked nodes only (prune-before-rank).
-  const prunedEdges = graph.edges.filter(
-    (e) => rankedNodeSet.has(e.source) && rankedNodeSet.has(e.target)
-  );
+  const prunedEdges = [];
+  for (let index = 0; index < graph.edges.length; index += 1) {
+    if (signal && index % 512 === 0) await abortableYield(signal);
+    const edge = graph.edges[index];
+    if (rankedNodeSet.has(edge.source) && rankedNodeSet.has(edge.target)) {
+      prunedEdges.push(edge);
+    }
+  }
 
   // In-degree on the PRUNED graph (for leaf-floor detection in leveling).
   const prunedInDegree = new Map<string, number>();
-  for (const n of rankedNodes) prunedInDegree.set(n, 0);
+  for (let index = 0; index < rankedNodes.length; index += 1) {
+    if (signal && index % 512 === 0) await abortableYield(signal);
+    prunedInDegree.set(rankedNodes[index], 0);
+  }
   // Deduplicate source→target before counting unique inbound.
   const seen = new Set<string>();
-  for (const e of prunedEdges) {
+  for (let index = 0; index < prunedEdges.length; index += 1) {
+    if (signal && index % 512 === 0) await abortableYield(signal);
+    const e = prunedEdges[index];
     const k = `${e.source}\u0000${e.target}`;
     if (seen.has(k)) continue;
     seen.add(k);
@@ -204,20 +288,24 @@ export async function getGraphSignals(
   // PageRank on unique pruned edges.
   const uniqueEdges: Array<{ source: string; target: string }> = [];
   const edgeSeen = new Set<string>();
-  for (const e of prunedEdges) {
+  for (let index = 0; index < prunedEdges.length; index += 1) {
+    if (signal && index % 512 === 0) await abortableYield(signal);
+    const e = prunedEdges[index];
     const k = `${e.source}\u0000${e.target}`;
     if (edgeSeen.has(k)) continue;
     edgeSeen.add(k);
     uniqueEdges.push({ source: e.source, target: e.target });
   }
-  const pr = pageRank(rankedNodes, uniqueEdges);
+  const pr = await pageRank(rankedNodes, uniqueEdges, { signal });
 
   // Levels (leaf floor uses pruned in-degree).
-  const { levels, smallVault } = assignLevels(pr, prunedInDegree);
+  const { levels, smallVault } = await assignLevels(pr, prunedInDegree, signal);
 
   // Assemble per-node signals (every base node present).
   const signalsMap = new Map<string, NodeSignals>();
-  for (const node of graph.nodes) {
+  for (let index = 0; index < graph.nodes.length; index += 1) {
+    if (signal && index % 512 === 0) await abortableYield(signal);
+    const node = graph.nodes[index];
     const baseIn = graph.inDegree.get(node) || 0;
     const baseOut = graph.outDegree.get(node) || 0;
     const inOutRatio = baseIn / Math.max(baseOut, 1);
@@ -245,7 +333,7 @@ export async function getGraphSignals(
   }
 
   const signals: GraphSignals = {
-    vault: vault.name,
+    vault: vaultName,
     provider: graph.provider,
     providerState: graph.providerState,
     baseGraph: graph,
@@ -267,6 +355,7 @@ export async function getGraphSignals(
     distinctUnresolvedTargets: graph.distinctUnresolvedTargets
   };
 
+  throwIfAborted(signal);
   if (latestSequenceByVault.get(vaultPath) === sequence) {
     rankedCache.set(rankedKey, { signals });
   }

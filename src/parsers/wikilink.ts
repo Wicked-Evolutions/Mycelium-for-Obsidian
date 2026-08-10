@@ -7,12 +7,45 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { WikiLink } from '../types/index.js';
 import { resolvePathInVault } from '../config.js';
+import {
+  abortableYield,
+  isAbortError,
+  throwIfAborted
+} from '../cli/vault-target.js';
 
 // Regex to match wikilinks: [[target]] or [[target|alias]]
 const WIKILINK_REGEX = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g;
 
 // Regex for cross-vault links: [[vault:target]]
 const CROSS_VAULT_REGEX = /^([a-zA-Z][a-zA-Z0-9_-]*):(.+)$/;
+const WIKILINK_CHECKPOINT_CHARS = 64 * 1024;
+
+function makeWikilink(
+  content: string,
+  start: number,
+  end: number,
+  targetText: string,
+  aliasText?: string
+): WikiLink {
+  const targetWithPossibleVault = targetText.trim();
+  const alias = aliasText?.trim();
+  const crossVaultMatch = targetWithPossibleVault.match(CROSS_VAULT_REGEX);
+  const vault = crossVaultMatch ? crossVaultMatch[1] : undefined;
+  const target = crossVaultMatch ? crossVaultMatch[2] : targetWithPossibleVault;
+  const hashIdx = target.indexOf('#');
+
+  return {
+    raw: content.slice(start, end),
+    target,
+    alias,
+    exists: false,
+    rawTarget: targetWithPossibleVault,
+    vault,
+    path: hashIdx >= 0 ? target.slice(0, hashIdx) : target,
+    subpath: hashIdx >= 0 ? target.slice(hashIdx + 1) : undefined,
+    isEmbed: start > 0 && content[start - 1] === '!'
+  };
+}
 
 /**
  * Extract all wikilinks from content.
@@ -30,42 +63,90 @@ export function extractWikilinks(content: string): WikiLink[] {
   WIKILINK_REGEX.lastIndex = 0;
 
   while ((match = WIKILINK_REGEX.exec(content)) !== null) {
-    const raw = match[0];
-    const targetWithPossibleVault = match[1].trim();
-    const alias = match[2]?.trim();
-
-    // Embed detection: the regex does not capture a leading "!", so peek at
-    // the character immediately before the match. `![[...]]` is an embed.
-    const isEmbed = match.index > 0 && content[match.index - 1] === '!';
-
-    // Check for cross-vault syntax (vault:target)
-    const crossVaultMatch = targetWithPossibleVault.match(CROSS_VAULT_REGEX);
-    const vault = crossVaultMatch ? crossVaultMatch[1] : undefined;
-    // Legacy `target`: cross-vault prefix stripped, subpath retained.
-    const target = crossVaultMatch ? crossVaultMatch[2] : targetWithPossibleVault;
-
-    // `rawTarget`: inner target verbatim (vault prefix + subpath intact).
-    const rawTarget = targetWithPossibleVault;
-
-    // Subpath stripping is LOCAL to the additive fields. `#heading` or `#^block`.
-    const hashIdx = target.indexOf('#');
-    const linkPath = hashIdx >= 0 ? target.slice(0, hashIdx) : target;
-    const subpath = hashIdx >= 0 ? target.slice(hashIdx + 1) : undefined;
-
-    links.push({
-      raw,
-      target,
-      alias,
-      exists: false, // Will be resolved later
-      // ── additive graph-layer fields ──
-      rawTarget,
-      vault,
-      path: linkPath,
-      subpath,
-      isEmbed
-    });
+    links.push(makeWikilink(
+      content,
+      match.index,
+      WIKILINK_REGEX.lastIndex,
+      match[1],
+      match[2]
+    ));
   }
 
+  return links;
+}
+
+/** Extract wikilinks without monopolizing the event loop on a very large note. */
+export async function extractWikilinksCooperative(
+  content: string,
+  signal?: AbortSignal
+): Promise<WikiLink[]> {
+  if (!signal) return extractWikilinks(content);
+
+  const links: WikiLink[] = [];
+  let index = 0;
+  let nextCheckpoint = WIKILINK_CHECKPOINT_CHARS;
+
+  throwIfAborted(signal);
+  while (index + 1 < content.length) {
+    if (index >= nextCheckpoint) {
+      nextCheckpoint = index + WIKILINK_CHECKPOINT_CHARS;
+      await abortableYield(signal);
+    }
+    if (content[index] !== '[' || content[index + 1] !== '[') {
+      index += 1;
+      continue;
+    }
+
+    const start = index;
+    const targetStart = start + 2;
+    let cursor = targetStart;
+    while (cursor < content.length && content[cursor] !== ']' && content[cursor] !== '|') {
+      cursor += 1;
+      if (cursor >= nextCheckpoint) {
+        nextCheckpoint = cursor + WIKILINK_CHECKPOINT_CHARS;
+        await abortableYield(signal);
+      }
+    }
+
+    if (cursor === targetStart || cursor >= content.length) {
+      index = start + 2;
+      continue;
+    }
+
+    if (content[cursor] === ']') {
+      if (content[cursor + 1] === ']') {
+        links.push(makeWikilink(content, start, cursor + 2, content.slice(targetStart, cursor)));
+        index = cursor + 2;
+      } else {
+        index = start + 2;
+      }
+      continue;
+    }
+
+    const pipe = cursor;
+    const aliasStart = pipe + 1;
+    cursor = aliasStart;
+    while (cursor < content.length && content[cursor] !== ']') {
+      cursor += 1;
+      if (cursor >= nextCheckpoint) {
+        nextCheckpoint = cursor + WIKILINK_CHECKPOINT_CHARS;
+        await abortableYield(signal);
+      }
+    }
+    if (cursor > aliasStart && content[cursor] === ']' && content[cursor + 1] === ']') {
+      links.push(makeWikilink(
+        content,
+        start,
+        cursor + 2,
+        content.slice(targetStart, pipe),
+        content.slice(aliasStart, cursor)
+      ));
+      index = cursor + 2;
+    } else {
+      index = start + 2;
+    }
+  }
+  throwIfAborted(signal);
   return links;
 }
 
@@ -266,14 +347,22 @@ export async function buildFileIndex(vaultPath: string): Promise<Map<string, str
  *
  * Maps lowercase filename.md -> [absolute path, ...]
  */
-export async function buildMultiFileIndex(vaultPath: string): Promise<Map<string, string[]>> {
+export async function buildMultiFileIndex(
+  vaultPath: string,
+  signal?: AbortSignal
+): Promise<Map<string, string[]>> {
   const index = new Map<string, string[]>();
+  let visitedEntries = 0;
 
   async function indexDirectory(dirPath: string) {
+    throwIfAborted(signal);
     try {
       const entries = await fs.readdir(dirPath, { withFileTypes: true });
 
       for (const entry of entries) {
+        visitedEntries += 1;
+        if (signal && visitedEntries % 256 === 0) await abortableYield(signal);
+        else throwIfAborted(signal);
         const fullPath = path.join(dirPath, entry.name);
 
         if (entry.name.startsWith('.')) continue;
@@ -290,12 +379,14 @@ export async function buildMultiFileIndex(vaultPath: string): Promise<Map<string
           }
         }
       }
-    } catch {
+    } catch (error) {
+      if (isAbortError(error)) throw error;
       // Directory not readable
     }
   }
 
   await indexDirectory(vaultPath);
+  throwIfAborted(signal);
   return index;
 }
 

@@ -23,6 +23,7 @@ export interface GraphEdge {
 
 export type ExactProviderAvailability =
   | 'available'
+  | 'not_probed'
   | 'disabled'
   | 'cli_unavailable'
   | 'obsidian_unavailable'
@@ -46,7 +47,7 @@ export interface GraphProviderState {
 
 /**
  * The raw, exclusion-INDEPENDENT graph. This is the expensive part and is
- * cached by `vault + stat-digest` only — it never depends on the exclude
+ * cached by `vault + content digest` only — it never depends on the exclude
  * predicate.
  */
 export interface BaseGraph {
@@ -144,7 +145,11 @@ export interface GraphSignals {
  */
 export interface GraphProvider {
   readonly name: 'obsidian' | 'filesystem';
-  build(vaultPath: string): Promise<ProviderResult>;
+  build(vaultPath: string, context?: GraphBuildContext): Promise<ProviderResult>;
+}
+
+export interface GraphBuildContext {
+  signal?: AbortSignal;
 }
 
 export interface ProviderResult {

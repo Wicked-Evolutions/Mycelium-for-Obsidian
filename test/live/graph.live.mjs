@@ -2,8 +2,9 @@
  * LIVE e2e — graph orientation against the REAL Obsidian provider.
  *
  * Architecture A (handler-level): imports the real built handlers (NO mocks) and
- * calls them against a REAL, running Obsidian (CLI enabled + the target vault
- * OPEN) using the actual vault graph. This is the pre-release gate the headless
+ * calls them against a REAL Obsidian installation (CLI enabled) using the actual
+ * vault graph. The required target starts CLOSED so the consent transition is
+ * proven end to end. This is the pre-release gate the headless
  * CI cannot cover — GitHub has no Obsidian.
  *
  * GATED: skips entirely unless LIVE_TEST_VAULT is set. `test:live` globs only
@@ -22,12 +23,15 @@ const skip = optionalVaultSkipReason();
 const { loadConfig } = await import('../../dist/config.js');
 const { createAllHandlers } = await import('../../dist/tools/index.js');
 
-async function makeHandlers() {
+async function makeRuntime() {
   // Live path: we WANT the exact Obsidian provider, so do NOT disable eval_obsidian.
   // OBSIDIAN_VAULTS (the real vault map) must be exported by the runbook.
   return withTemporaryEnv(
     { OBSIDIAN_DISABLED_TOOLS: undefined },
-    () => createAllHandlers(loadConfig()),
+    () => {
+      const config = loadConfig();
+      return { config, handlers: createAllHandlers(config) };
+    },
   );
 }
 
@@ -37,16 +41,47 @@ function parse(res) {
 }
 
 describe('live: graph orientation via the real Obsidian provider', { skip }, () => {
+  let config;
   let handlers;
-  before(async () => { handlers = await makeHandlers(); });
+  before(async () => {
+    const runtime = await makeRuntime();
+    config = runtime.config;
+    handlers = runtime.handlers;
+  });
 
-  test('analyze_link_hierarchy on a linked vault → provider "obsidian" with resolved edges', async () => {
-    const out = parse(await handlers.analyze_link_hierarchy({ vault: LINKED, compact: true, limit: 5 }));
+  test('closed target requires consent, explicit open prepares exact, and repeat preparation does not redispatch', async () => {
+    const decision = parse(await handlers.analyze_link_hierarchy({
+      vault: LINKED,
+      providerMode: 'exact',
+      compact: true,
+      limit: 5,
+    }));
+    assert.equal(
+      decision.status,
+      'decision_required',
+      'LIVE_TEST_VAULT must begin closed with no prepared snapshot; close it before running the strict lane',
+    );
+    assert.equal(decision.decisionState?.targetReadiness, 'closed');
+    assert.equal(decision.providerState, undefined, 'no graph provenance before consent');
+    assert.equal(decision.decisionState?.openInvoked, false, 'read-only analyzer never opens');
+    assert.match(decision.message, /Open it and analyze the exact Obsidian graph/);
+
+    const prepared = parse(await handlers.open_vault({ vault: LINKED }));
+    assert.equal(prepared.status, 'prepared');
+    assert.equal(prepared.snapshotPrepared, true);
+    assert.equal(prepared.decisionState?.openInvoked, true, 'closed target dispatched exactly one explicit open');
+    assert.equal(prepared.providerState, undefined, 'preparation is not a ranked graph result');
+
+    const out = parse(await handlers.analyze_link_hierarchy({
+      vault: LINKED,
+      providerMode: 'exact',
+      compact: true,
+      limit: 5,
+    }));
 
     assert.equal(
       out.provider, 'obsidian',
-      `expected the Obsidian (exact-graph) provider, got "${out.provider}" — reason: ${out.providerFallbackReason ?? 'n/a'}. ` +
-      `Is Obsidian running with CLI enabled + "${LINKED}" open? (reconnect the MCP server after an Obsidian restart — see docs/live-e2e.md)`
+      `expected the prepared Obsidian exact graph, got "${out.provider}". See docs/live-e2e.md`
     );
     assert.deepEqual(out.providerState, {
       selectedProvider: 'obsidian',
@@ -58,13 +93,28 @@ describe('live: graph orientation via the real Obsidian provider', { skip }, () 
     assert.equal(typeof out.unresolvedLinkCount, 'number', 'unresolvedLinkCount must always be present (#37)');
     assert.equal(typeof out.distinctUnresolvedTargets, 'number', 'distinctUnresolvedTargets must always be present (#37)');
     assert.ok(out.totalNodes > 0, 'a linked vault should have nodes');
+
+    const preparedAgain = parse(await handlers.open_vault({ vault: LINKED }));
+    assert.equal(preparedAgain.status, 'prepared');
+    assert.equal(
+      preparedAgain.decisionState?.openInvoked,
+      false,
+      'already-open target must not dispatch another URI',
+    );
   });
 
   test(
     'concept-first vault → unresolved concept-links surfaced',
     { skip: !CONCEPT ? 'set LIVE_CONCEPT_VAULT to run the concept-link case' : false },
     async () => {
-      const out = parse(await handlers.analyze_link_hierarchy({ vault: CONCEPT, compact: true, limit: 5 }));
+      const prepared = parse(await handlers.open_vault({ vault: CONCEPT }));
+      assert.equal(prepared.status, 'prepared');
+      const out = parse(await handlers.analyze_link_hierarchy({
+        vault: CONCEPT,
+        providerMode: 'exact',
+        compact: true,
+        limit: 5,
+      }));
       assert.equal(out.provider, 'obsidian', `expected obsidian provider, got "${out.provider}" (${out.providerFallbackReason ?? 'n/a'})`);
       assert.equal(out.providerState?.approximate, false);
       assert.equal(out.providerState?.exactProviderInvoked, true);

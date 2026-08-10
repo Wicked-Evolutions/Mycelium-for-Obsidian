@@ -21,7 +21,12 @@
 
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { ToolResponse } from '../types/index.js';
-import { categorySummary, getToolCategory, CLI_TIER_LABEL } from './categories.js';
+import {
+  APP_CONTACT_TOOL_NAMES,
+  categorySummary,
+  getToolCategory,
+  CLI_TIER_LABEL
+} from './categories.js';
 import { limitParam } from './schema-helpers.js';
 import { withAnnotations, ToolAnnotations } from './safety.js';
 
@@ -29,7 +34,7 @@ const rawDiscoverToolsTools: Tool[] = [
   {
     name: 'discover_tools',
     description:
-      'Compact inventory of all registered tools with pagination. Returns name, category, and tier (filesystem/cli) per tool — no full schemas. Also includes a category histogram for the full tool surface. Use this for AI orientation when get_started category counts are not enough detail.',
+      'Compact inventory of all registered tools with pagination. Returns name, category, and tier (filesystem/app-contact/cli) per tool — no full schemas. Also includes a category histogram for the full tool surface. Use this for AI orientation when get_started category counts are not enough detail.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -55,7 +60,11 @@ export const discoverToolsTools: Tool[] = withAnnotations(rawDiscoverToolsTools,
  * Derive the tier string for a tool based on its category.
  * CLI-tier tools require Obsidian to be running; filesystem-tier tools do not.
  */
-function deriveTier(category: string): 'cli' | 'filesystem' {
+function deriveTier(
+  toolName: string,
+  category: string
+): 'cli' | 'filesystem' | 'app-contact' {
+  if (APP_CONTACT_TOOL_NAMES.has(toolName)) return 'app-contact';
   return category === CLI_TIER_LABEL ? 'cli' : 'filesystem';
 }
 
@@ -84,7 +93,7 @@ export function createDiscoverToolsHandlers(
         return {
           name: tool.name,
           category,
-          tier: deriveTier(category),
+          tier: deriveTier(tool.name, category),
         };
       });
 

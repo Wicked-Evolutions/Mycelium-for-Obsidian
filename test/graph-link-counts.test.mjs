@@ -46,6 +46,8 @@ if (canMock) {
     namedExports: {
       execCli: async () => '',
       execCliForVault: async () => '',
+      execCliForRegisteredVault: async () => '',
+      evalInRegisteredVault: async () => JSON.stringify({ nodes: [], links: {} }),
       evalInObsidian: async () =>
         JSON.stringify({
           nodes: mockNodes,
@@ -183,7 +185,7 @@ describe('link-count aggregates (#37)', { skip: !canMock ? 'requires --experimen
     // "Ghost" (2) and "Principle Keywords: Breathe" (a same-vault title whose
     // colon is preceded by a space → NOT cross-vault). Expect count 3, distinct 2.
     //
-    // Fresh temp vault → fresh stat-digest → guaranteed BaseGraph cache MISS, so
+    // Fresh temp vault → fresh content digest → guaranteed BaseGraph cache MISS, so
     // the mock's unresolvedRaw is actually exercised (the cache key does not
     // include the mock payload). Without the cross-vault skip this would report
     // count 4 / distinct 3 (the pre-fix raw-key aggregation) → this test FAILS

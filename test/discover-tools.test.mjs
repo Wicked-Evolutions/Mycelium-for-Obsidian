@@ -168,14 +168,22 @@ test('discover_tools: each tool entry has name, category, tier — no extra sche
 
     assert.equal(typeof entry.tier, 'string', `tier must be a string: ${JSON.stringify(entry)}`);
     assert.ok(
-      entry.tier === 'filesystem' || entry.tier === 'cli',
-      `tier must be 'filesystem' or 'cli': ${JSON.stringify(entry)}`
+      entry.tier === 'filesystem' || entry.tier === 'app-contact' || entry.tier === 'cli',
+      `tier must be 'filesystem', 'app-contact', or 'cli': ${JSON.stringify(entry)}`
     );
 
     // Compact entries must NOT contain full schema fields
     assert.equal(entry.description, undefined, 'compact entry must not include description');
     assert.equal(entry.inputSchema, undefined, 'compact entry must not include inputSchema');
   }
+});
+
+test('discover_tools: open_vault is explicitly classified as app-contact', async () => {
+  const payload = await callDiscover({ limit: 10000 });
+  const found = payload.tools.find(t => t.name === 'open_vault');
+  assert.ok(found);
+  assert.equal(found.category, 'Graph Orientation');
+  assert.equal(found.tier, 'app-contact');
 });
 
 test('discover_tools: discover_tools itself appears in the inventory', async () => {
