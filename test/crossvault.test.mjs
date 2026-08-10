@@ -26,12 +26,14 @@
 
 import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
+import path from 'node:path';
 
 import { createTempVault, cleanup } from './helpers.mjs';
 import { loadConfig } from '../dist/config.js';
 import { createCrossVaultHandlers } from '../dist/tools/crossvault.js';
 import { createSemanticHandlers } from '../dist/tools/semantic.js';
 import { checkOllamaAvailability } from '../dist/embeddings/ollama.js';
+import { EmbeddingStorage } from '../dist/embeddings/storage.js';
 
 // ─── Vault fixtures ──────────────────────────────────────────────────────────
 
@@ -855,6 +857,51 @@ describe('get_ecosystem_stats — structural fields (no embedding dependency)', 
       data.totalEmbeddings, sumFromVaults,
       `totalEmbeddings (${data.totalEmbeddings}) should equal sum of per-vault embeddings (${sumFromVaults})`,
     );
+  });
+
+  test('file coverage is based on current indexed files, not embedding chunks', async () => {
+    const statsVault = createTempVault({
+      'One.md': '# One\n\nIndexed with multiple chunks.',
+      'Two.md': '# Two\n\nCurrent but unindexed.',
+    });
+    const dbPath = path.join(statsVault, '.mcp-obsidian', 'embeddings.db');
+    const store = new EmbeddingStorage(dbPath);
+    store.store('One.md', [0.1, 0.2], 'hash-a', { chunked: true }, 'block-a', 'Chunk A');
+    store.store('One.md', [0.2, 0.3], 'hash-b', { chunked: true }, 'block-b', 'Chunk B');
+    store.store('One.md', [0.3, 0.4], 'hash-c', { chunked: true }, 'block-c', 'Chunk C');
+    store.store('Deleted.md', [0.4, 0.5], 'hash-deleted', {}, null, 'Deleted content');
+    store.close();
+
+    process.env.OBSIDIAN_VAULTS = JSON.stringify({ StatsVault: statsVault });
+    const statsHandlers = createCrossVaultHandlers(loadConfig());
+
+    try {
+      const res = await statsHandlers.get_ecosystem_stats();
+      const data = payload(res, 'get_ecosystem_stats truthful coverage');
+      const vaultStat = data.vaults.find(v => v.vault === 'StatsVault');
+
+      assert.ok(vaultStat, 'StatsVault entry present');
+      assert.equal(vaultStat.totalFiles, 2, 'legacy totalFiles aliases current Markdown files');
+      assert.equal(vaultStat.currentMarkdownFiles, 2, 'two current Markdown files');
+      assert.equal(vaultStat.totalEmbeddings, 4, 'legacy totalEmbeddings aliases all chunks');
+      assert.equal(vaultStat.embeddingChunks, 4, 'all chunks include stale rows');
+      assert.equal(vaultStat.currentIndexedFiles, 1, 'one current file has indexed rows');
+      assert.equal(vaultStat.staleIndexedFiles, 1, 'deleted DB key is stale');
+      assert.equal(vaultStat.currentEmbeddingChunks, 3, 'current chunks exclude stale row');
+      assert.equal(vaultStat.staleEmbeddingChunks, 1, 'stale chunk count is separate');
+      assert.equal(vaultStat.fileCoveragePercent, 50, '1 of 2 current files is covered');
+      assert.equal(vaultStat.indexedPercent, 50, 'legacy indexedPercent aliases truthful coverage');
+      assert.equal(vaultStat.embeddingChunksPerCurrentIndexedFile, 3, 'weighted current chunks per indexed file');
+      assert.equal(vaultStat.embeddingChunksPerCurrentMarkdownFile, 1.5, 'weighted current chunks per Markdown file');
+      assert.equal(data.overallIndexedPercent, 50, 'overall legacy percent aliases truthful coverage');
+      assert.equal(data.overallFileCoveragePercent, 50, 'overall file coverage is truthful');
+      assert.equal(data.totalCurrentEmbeddingChunks, 3, 'top-level current chunk total');
+      assert.equal(data.totalStaleEmbeddingChunks, 1, 'top-level stale chunk total');
+      assert.equal('staleIndexedFileSamples' in vaultStat, false, 'ecosystem stats omit stale path samples');
+    } finally {
+      process.env.OBSIDIAN_VAULTS = JSON.stringify({ VaultA: vaultA, VaultB: vaultB });
+      cleanup(statsVault);
+    }
   });
 });
 

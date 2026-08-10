@@ -251,6 +251,15 @@ To use the 28 CLI-only tools, you need Obsidian 1.12+ with CLI enabled. In Obsid
 | `get_similar` | Find notes similar to a given note |
 | `index_status` | Check indexing status and stats |
 
+`index_status` separates file coverage from embedding chunk density. `currentMarkdownFiles`
+counts current non-hidden Markdown files; `currentIndexedFiles` counts current files
+with at least one stored embedding row; `staleIndexedFiles` counts deleted, unsafe,
+or redundant legacy index keys not counted as current coverage. `fileCoveragePercent`
+is based on current indexed files divided by current Markdown files. `embeddingChunks`,
+`currentEmbeddingChunks`, and `staleEmbeddingChunks` are chunk counts, not file
+coverage. `uniqueFiles` and `totalEmbeddings` remain as legacy aliases for indexed
+DB path count and all stored embedding chunks.
+
 #### Frontmatter Queries (1)
 
 | Tool | Description |
@@ -286,6 +295,13 @@ Example:
 | `get_broken_links` | Find wikilinks pointing to non-existent notes |
 | `get_stale_notes` | Find notes not modified within N days |
 
+Broken-link reports distinguish physical occurrences from unique legacy target
+strings. `brokenLinkCount` remains a physical-occurrence count and is also exposed
+as `brokenLinkOccurrenceCount`; `uniqueUnresolvedTargetStringCount` groups by the
+same target string emitted in each occurrence, not by canonical destination identity.
+Occurrence entries include `sourceText`, `lineNumber`, `columnStart`, and
+`occurrenceIndexOnLine` so repeated identical links on one line remain distinct.
+
 #### Section Editing (3)
 
 | Tool | Description |
@@ -303,6 +319,12 @@ Example:
 | `find_note_by_name` | Find a note by name across vaults |
 | `get_cross_vault_links` | Find legacy candidates, validate native URI declarations, and compose eligible declarations into a typed read-only cross-vault graph overlay |
 | `get_ecosystem_stats` | Statistics across the entire knowledge ecosystem (all vaults) |
+
+`get_ecosystem_stats` uses the same truthful index accounting as `index_status`
+but reports aggregate counts only. The legacy `indexedPercent` and
+`overallIndexedPercent` fields now alias file coverage rather than embedding
+chunks divided by files. Stale path samples are available only from targeted
+`index_status` calls, not from ecosystem-wide stats.
 
 `get_cross_vault_links` preserves its original unresolved-wikilink candidate fields and adds a separate `nativeUriInventory`. This first slice recognizes the documented `[Label](obsidian://open?vault=...&file=...)` inline-link form; bare URI text and angle-bracket autolinks are not relationship declarations in this contract. The inventory scans Markdown notes only, ignores code and image embeds, retains each source occurrence, validates configured destination vaults and exact vault-relative note paths, and returns canonical URIs plus actionable diagnostics. Results distinguish valid, noncanonical, malformed, unsupported, unknown/ambiguous vault, invalid path, missing destination, and same-vault URI cases. It never rewrites a note.
 

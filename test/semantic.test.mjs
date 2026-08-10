@@ -20,12 +20,18 @@
 
 import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import path from 'node:path';
 import { createTempVault, cleanup } from './helpers.mjs';
 import { loadConfig } from '../dist/config.js';
 import { createSemanticHandlers } from '../dist/tools/semantic.js';
 import { checkOllamaAvailability } from '../dist/embeddings/ollama.js';
 import { EmbeddingStorage } from '../dist/embeddings/storage.js';
+import {
+  calculateIndexCoverage,
+  coveragePercent,
+  findCurrentMarkdownPathByIdentity,
+} from '../dist/embeddings/index-stats.js';
 
 // ---------------------------------------------------------------------------
 // Vault fixture — 2 notes with meaningful, distinct content
@@ -94,6 +100,156 @@ function parseJson(res) {
 }
 
 // ---------------------------------------------------------------------------
+// index coverage accounting helpers
+// ---------------------------------------------------------------------------
+
+describe('index coverage accounting helpers', () => {
+  test('coveragePercent preserves truthful boundary values', () => {
+    assert.equal(coveragePercent(0, 10), 0, 'zero indexed files stays 0');
+    assert.equal(coveragePercent(1, 100000), 0.01, 'tiny positive coverage is not rounded down to 0');
+    assert.equal(coveragePercent(99999, 100000), 99.99, 'partial coverage is not rounded up to 100');
+    assert.equal(coveragePercent(2, 2), 100, 'exactly complete coverage is 100');
+    assert.equal(coveragePercent(1000001, 1000000), 100.01, 'tiny over-count is not rounded down to 100');
+    assert.equal(coveragePercent(2, 1), 200, 'impossible over-count remains visible');
+  });
+
+  test('DB path aliases are matched to current files by filesystem identity', (t) => {
+    const identityDir = createTempVault({
+      'Canonical/Note.md': '# Note\n\nIdentity fixture.',
+    });
+
+    try {
+      fs.mkdirSync(path.join(identityDir, 'Alias'), { recursive: true });
+      fs.linkSync(
+        path.join(identityDir, 'Canonical/Note.md'),
+        path.join(identityDir, 'Alias/Note.md'),
+      );
+    } catch {
+      t.skip('filesystem does not support hardlink identity fixture');
+      cleanup(identityDir);
+      return;
+    }
+
+    try {
+      const coverage = calculateIndexCoverage(
+        identityDir,
+        ['Canonical/Note.md'],
+        [{ filePath: 'Alias/Note.md', embeddingChunks: 4 }],
+      );
+      const resolvedAlias = path.join(identityDir, 'Alias/Note.md');
+
+      assert.equal(coverage.currentIndexedFiles, 1, 'alias path resolves to the current note identity');
+      assert.equal(coverage.staleIndexedFiles, 0, 'identity alias is not stale');
+      assert.equal(coverage.currentEmbeddingChunks, 4, 'alias chunks are counted as current');
+      assert.equal(
+        findCurrentMarkdownPathByIdentity(identityDir, ['Canonical/Note.md'], resolvedAlias),
+        'Canonical/Note.md',
+        'identity helper returns the enumerated current path',
+      );
+    } finally {
+      cleanup(identityDir);
+    }
+  });
+
+  test('representative selection prefers exact path, display key, then original DB key', (t) => {
+    const tieDir = createTempVault({
+      'Exact/Note.md': '# Exact\n\nTie fixture.',
+      'Display/Note.md': '# Display\n\nTie fixture.',
+      'Original/Note.md': '# Original\n\nTie fixture.',
+    });
+
+    try {
+      fs.mkdirSync(path.join(tieDir, 'ExactAlias'), { recursive: true });
+      fs.mkdirSync(path.join(tieDir, 'A\u0301'), { recursive: true });
+      fs.mkdirSync(path.join(tieDir, 'B'), { recursive: true });
+      fs.linkSync(path.join(tieDir, 'Exact/Note.md'), path.join(tieDir, 'ExactAlias/Note.md'));
+      fs.linkSync(path.join(tieDir, 'Display/Note.md'), path.join(tieDir, 'A\u0301/Note.md'));
+      fs.linkSync(path.join(tieDir, 'Display/Note.md'), path.join(tieDir, 'B/Note.md'));
+    } catch {
+      t.skip('filesystem does not support hardlink tie-break fixtures');
+      cleanup(tieDir);
+      return;
+    }
+
+    try {
+      const exactCoverage = calculateIndexCoverage(
+        tieDir,
+        ['Exact/Note.md'],
+        [
+          { filePath: 'ExactAlias/Note.md', embeddingChunks: 5 },
+          { filePath: 'Exact/Note.md', embeddingChunks: 2 },
+        ],
+      );
+      assert.equal(exactCoverage.currentEmbeddingChunks, 2, 'exact current path wins representative selection');
+      assert.equal(exactCoverage.staleEmbeddingChunks, 5, 'non-exact alias becomes redundant stale');
+
+      const displayCoverage = calculateIndexCoverage(
+        tieDir,
+        ['Display/Note.md'],
+        [
+          { filePath: 'A\u0301/Note.md', embeddingChunks: 5 },
+          { filePath: 'B/Note.md', embeddingChunks: 2 },
+        ],
+      );
+      assert.equal(displayCoverage.currentEmbeddingChunks, 2, 'lower normalized display key wins when no key is exact');
+      assert.equal(displayCoverage.staleEmbeddingChunks, 5, 'raw-first alias becomes redundant stale');
+
+      const originalKeyCoverage = calculateIndexCoverage(
+        tieDir,
+        ['Original/Note.md'],
+        [
+          { filePath: 'z/../Original/Note.md', embeddingChunks: 5 },
+          { filePath: './Original/Note.md', embeddingChunks: 2 },
+        ],
+      );
+      assert.equal(originalKeyCoverage.currentEmbeddingChunks, 2, 'original DB key breaks equal display-key ties');
+      assert.equal(originalKeyCoverage.staleEmbeddingChunks, 5, 'losing original-key alias becomes redundant stale');
+    } finally {
+      cleanup(tieDir);
+    }
+  });
+
+  test('normalization-distinct current files are not conflated when the filesystem supports them', (t) => {
+    const unicodeDir = createTempVault();
+    const nfdName = 'Cafe\u0301.md';
+    const nfcName = 'Caf\u00e9.md';
+
+    fs.writeFileSync(path.join(unicodeDir, nfdName), '# NFD\n');
+
+    try {
+      fs.writeFileSync(path.join(unicodeDir, nfcName), '# NFC\n', { flag: 'wx' });
+    } catch (error) {
+      if (error && error.code === 'EEXIST') {
+        t.skip('filesystem does not support distinct NFC and NFD filenames');
+        cleanup(unicodeDir);
+        return;
+      }
+      throw error;
+    }
+
+    try {
+      const coverage = calculateIndexCoverage(
+        unicodeDir,
+        [nfdName, nfcName],
+        [
+          { filePath: nfdName, embeddingChunks: 2 },
+          { filePath: nfcName, embeddingChunks: 3 },
+        ],
+      );
+
+      assert.equal(coverage.currentMarkdownFiles, 2, 'both Unicode spellings are distinct current files');
+      assert.equal(coverage.currentIndexedFiles, 2, 'both physical Unicode files are counted current');
+      assert.equal(coverage.staleIndexedFiles, 0, 'neither Unicode path is stale');
+      assert.equal(coverage.currentEmbeddingChunks, 5, 'current chunks include both Unicode files');
+      assert.equal(coverage.staleEmbeddingChunks, 0, 'no Unicode chunks are marked stale');
+      assert.equal(coverage.fileCoveragePercent, 100, 'coverage is complete when both files are indexed');
+    } finally {
+      cleanup(unicodeDir);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
 // index_status — ALWAYS RUN
 // No Ollama required for the always-run assertions; the handler probes Ollama
 // and includes the result in its output, but never fails if Ollama is absent.
@@ -154,6 +310,85 @@ describe('index_status (always-run)', () => {
     const data = parseJson(res);
     assert.equal(typeof data.vault, 'string', 'data.vault is present');
     assert.equal(typeof data.totalEmbeddings, 'number', 'totalEmbeddings is present');
+  });
+
+  test('reports current, stale, redundant, and chunk-density metrics without Ollama', async () => {
+    const statsDir = createTempVault({
+      'Note.md': '# Note\n\nCurrent indexed note.',
+      'Chunked.md': '# Chunked\n\nCurrent chunked note.',
+    });
+    const dbPath = path.join(statsDir, '.mcp-obsidian', 'embeddings.db');
+    const store = new EmbeddingStorage(dbPath);
+
+    store.store('Note.md', [0.1, 0.2], 'hash-note', {}, null, 'Note content');
+    store.store('./Note.md', [0.2, 0.3], 'hash-note-legacy', {}, null, 'Duplicate key content');
+    store.store('./Note.md', [0.25, 0.35], 'hash-note-legacy-b', {}, 'legacy-b', 'Duplicate key content B');
+    store.store('Chunked.md', [0.3, 0.4], 'hash-a', { chunked: true }, 'block-a', 'Chunk A');
+    store.store('Chunked.md', [0.4, 0.5], 'hash-b', { chunked: true }, 'block-b', 'Chunk B');
+    store.store('Deleted.md', [0.5, 0.6], 'hash-deleted', {}, null, 'Deleted content');
+    store.store('/tmp/not-in-vault.md', [0.6, 0.7], 'hash-unsafe', {}, null, 'Unsafe content');
+    store.store('C:\\Users\\j\\not-in-vault.md', [0.7, 0.8], 'hash-windows-drive', {}, null, 'Unsafe Windows content');
+    store.store('\\\\server\\share\\not-in-vault.md', [0.8, 0.9], 'hash-windows-unc', {}, null, 'Unsafe UNC content');
+    store.close();
+
+    process.env.OBSIDIAN_VAULTS = JSON.stringify({ StatsVault: statsDir });
+    const statsHandlers = createSemanticHandlers(loadConfig());
+
+    try {
+      const res = await statsHandlers.index_status({ vault: 'StatsVault' });
+      assert.equal(res.isError, false, `index_status failed: ${res.content[0].text}`);
+      const data = parseJson(res);
+
+      assert.equal(data.currentMarkdownFiles, 2, 'two current Markdown files');
+      assert.equal(data.indexedFilePathCount, 7, 'seven distinct DB path keys');
+      assert.equal(data.uniqueFiles, 7, 'legacy uniqueFiles aliases DB path count');
+      assert.equal(data.currentIndexedFiles, 2, 'current indexed files dedupe canonical collisions');
+      assert.equal(data.staleIndexedFiles, 5, 'stale includes deleted, unsafe, and redundant keys');
+      assert.equal(data.embeddingChunks, 9, 'all embedding rows are counted');
+      assert.equal(data.totalEmbeddings, 9, 'legacy totalEmbeddings aliases all chunks');
+      assert.equal(data.currentEmbeddingChunks, 3, 'current chunks exclude stale/redundant rows');
+      assert.equal(data.staleEmbeddingChunks, 6, 'stale chunks include deleted, unsafe, and redundant rows');
+      assert.equal(data.fileCoveragePercent, 100, 'both current Markdown files have one current row');
+      assert.equal(data.embeddingChunksPerCurrentIndexedFile, 1.5, 'current chunks per current indexed file');
+      assert.equal(data.embeddingChunksPerCurrentMarkdownFile, 1.5, 'current chunks per current Markdown file');
+      assert.ok(data.staleIndexedFileSamples.includes('Deleted.md'), 'safe stale sample includes deleted relative path');
+      assert.ok(!data.staleIndexedFileSamples.some(p => p.includes('/tmp')), 'unsafe absolute DB key is omitted from samples');
+      assert.ok(!data.staleIndexedFileSamples.some(p => p.includes('C:')), 'Windows drive DB key is omitted from samples');
+      assert.ok(!data.staleIndexedFileSamples.some(p => p.includes('server')), 'Windows UNC DB key is omitted from samples');
+    } finally {
+      process.env.OBSIDIAN_VAULTS = JSON.stringify({ TestVault: vaultDir });
+      cleanup(statsDir);
+    }
+  });
+
+  test('index coverage safely resolves Unicode-normalized DB keys', async () => {
+    const nfdName = 'Cafe\u0301.md';
+    const nfcName = 'Caf\u00e9.md';
+    const unicodeDir = createTempVault({
+      [nfdName]: '# Cafe\n\nUnicode path fixture.',
+    });
+    const dbPath = path.join(unicodeDir, '.mcp-obsidian', 'embeddings.db');
+    const store = new EmbeddingStorage(dbPath);
+    store.store(nfcName, [0.1, 0.2], 'hash-unicode', {}, null, 'Unicode content');
+    store.close();
+
+    process.env.OBSIDIAN_VAULTS = JSON.stringify({ UnicodeVault: unicodeDir });
+    const unicodeHandlers = createSemanticHandlers(loadConfig());
+
+    try {
+      const res = await unicodeHandlers.index_status({ vault: 'UnicodeVault' });
+      assert.equal(res.isError, false, `index_status failed: ${res.content[0].text}`);
+      const data = parseJson(res);
+
+      assert.equal(data.currentMarkdownFiles, 1, 'one Unicode-named Markdown file');
+      assert.equal(data.indexedFilePathCount, 1, 'one indexed DB key');
+      assert.equal(data.currentIndexedFiles, 1, 'normalized DB key resolves to current file');
+      assert.equal(data.staleIndexedFiles, 0, 'normalized current key is not stale');
+      assert.equal(data.fileCoveragePercent, 100, 'coverage is complete');
+    } finally {
+      process.env.OBSIDIAN_VAULTS = JSON.stringify({ TestVault: vaultDir });
+      cleanup(unicodeDir);
+    }
   });
 
   test('unknown vault name returns an error response', async () => {
@@ -429,6 +664,50 @@ describe('index_file (Ollama-gated)', () => {
       // Restore original vault config
       process.env.OBSIDIAN_VAULTS = JSON.stringify({ TestVault: vaultDir });
       cleanup(freshDir);
+    }
+  });
+
+  test('index_file canonicalizes filesystem aliases and removes legacy duplicate keys', async (t) => {
+    if (!ollamaAvailable) { t.skip('Ollama not available'); return; }
+
+    const caseDir = createTempVault({
+      'README.md': '# README\n\nA canonical note with enough content for embedding.',
+    });
+    const aliasPath = 'readme.md';
+
+    try {
+      if (!fs.existsSync(path.join(caseDir, aliasPath))) {
+        t.skip('filesystem does not resolve case-variant path aliases');
+        return;
+      }
+
+      process.env.OBSIDIAN_VAULTS = JSON.stringify({ CaseVault: caseDir });
+      const caseHandlers = createSemanticHandlers(loadConfig());
+      const dbPath = path.join(caseDir, '.mcp-obsidian', 'embeddings.db');
+      const legacyStore = new EmbeddingStorage(dbPath);
+      legacyStore.store(aliasPath, [0.1, 0.2], 'legacy-hash', {}, null, 'Legacy case alias content');
+      legacyStore.close();
+
+      const res = await caseHandlers.index_file({ vault: 'CaseVault', path: aliasPath });
+      assert.equal(res.isError, false, `index_file failed: ${res.content[0].text}`);
+      const data = parseJson(res);
+      assert.equal(data.path, 'README.md', 'handler returns the enumerated current path');
+
+      const status = await caseHandlers.index_status({ vault: 'CaseVault' });
+      const statusData = parseJson(status);
+      assert.equal(statusData.currentIndexedFiles, 1, 'canonicalized file is current');
+      assert.equal(statusData.staleIndexedFiles, 0, 'legacy alias key was removed');
+
+      const store = new EmbeddingStorage(dbPath);
+      try {
+        assert.ok(store.get('README.md'), 'embedding is stored under the enumerated current path');
+        assert.equal(store.get(aliasPath), null, 'legacy case alias key is deleted');
+      } finally {
+        store.close();
+      }
+    } finally {
+      process.env.OBSIDIAN_VAULTS = JSON.stringify({ TestVault: vaultDir });
+      cleanup(caseDir);
     }
   });
 });

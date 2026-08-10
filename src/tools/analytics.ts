@@ -12,11 +12,25 @@ import { parseMarkdownFile, extractTitle } from '../parsers/markdown.js';
 import {
   extractWikilinks,
   resolveWikilink,
-  buildFileIndex,
   buildMultiFileIndex
 } from '../parsers/wikilink.js';
 import { vaultParam, limitParam } from './schema-helpers.js';
 import { withAnnotations, ToolAnnotations } from './safety.js';
+
+interface BrokenLinkOccurrence {
+  source: string;
+  target: string;
+  lineNumber: number;
+  sourceText: string;
+  columnStart: number;
+  occurrenceIndexOnLine: number;
+}
+
+interface UniqueUnresolvedTargetString {
+  target: string;
+  occurrenceCount: number;
+  sourceCount: number;
+}
 
 /**
  * Tool definitions
@@ -135,11 +149,11 @@ async function collectFiles(
  */
 async function buildBacklinkIndex(
   vaultPath: string
-): Promise<{ backlinkCounts: Map<string, number>; brokenLinks: Array<{ source: string; target: string; lineNumber: number }> }> {
+): Promise<{ backlinkCounts: Map<string, number>; brokenLinks: BrokenLinkOccurrence[] }> {
   // Use multi-candidate index so duplicate-basename links credit the same-folder note
   const multiIndex = await buildMultiFileIndex(vaultPath);
   const backlinkCounts = new Map<string, number>();
-  const brokenLinks: Array<{ source: string; target: string; lineNumber: number }> = [];
+  const brokenLinks: BrokenLinkOccurrence[] = [];
 
   // Initialize all files with 0 backlinks (derive from multi-index)
   for (const paths of multiIndex.values()) {
@@ -159,8 +173,10 @@ async function buildBacklinkIndex(
       const sourceAbsPath = path.join(vaultPath, file.relativePath);
       const content = await fs.readFile(sourceAbsPath, 'utf-8');
       const links = extractWikilinks(content);
+      const occurrenceDetails = getWikilinkOccurrenceDetails(content, links.map(link => link.raw));
 
-      for (const link of links) {
+      for (let linkIndex = 0; linkIndex < links.length; linkIndex++) {
+        const link = links[linkIndex];
         // Pass sourcePath so same-folder notes win the tiebreak when basenames collide
         const resolved = await resolveWikilink(link.target, vaultPath, undefined, sourceAbsPath, multiIndex);
 
@@ -168,19 +184,19 @@ async function buildBacklinkIndex(
           const relTarget = path.relative(vaultPath, resolved);
           backlinkCounts.set(relTarget, (backlinkCounts.get(relTarget) || 0) + 1);
         } else {
-          // Broken link — find line number
-          const lines = content.split('\n');
-          let lineNum = 0;
-          for (let i = 0; i < lines.length; i++) {
-            if (lines[i].includes(link.raw)) {
-              lineNum = i + 1;
-              break;
-            }
-          }
+          const occurrence = occurrenceDetails[linkIndex] ?? {
+            lineNumber: 0,
+            columnStart: 0,
+            occurrenceIndexOnLine: 0,
+            sourceText: link.raw
+          };
           brokenLinks.push({
             source: file.relativePath,
             target: link.target,
-            lineNumber: lineNum
+            lineNumber: occurrence.lineNumber,
+            sourceText: occurrence.sourceText,
+            columnStart: occurrence.columnStart,
+            occurrenceIndexOnLine: occurrence.occurrenceIndexOnLine
           });
         }
       }
@@ -190,6 +206,86 @@ async function buildBacklinkIndex(
   }
 
   return { backlinkCounts, brokenLinks };
+}
+
+function getWikilinkOccurrenceDetails(
+  content: string,
+  rawLinksInParseOrder: string[]
+): Array<{ lineNumber: number; columnStart: number; occurrenceIndexOnLine: number; sourceText: string }> {
+  const lineStarts = getLineStarts(content);
+  const perLineCounts = new Map<number, number>();
+  const details: Array<{ lineNumber: number; columnStart: number; occurrenceIndexOnLine: number; sourceText: string }> = [];
+
+  let searchFrom = 0;
+  for (const raw of rawLinksInParseOrder) {
+    const rawStart = content.indexOf(raw, searchFrom);
+    if (rawStart === -1) {
+      details.push({ lineNumber: 0, columnStart: 0, occurrenceIndexOnLine: 0, sourceText: raw });
+      continue;
+    }
+
+    const sourceStart = rawStart > 0 && content[rawStart - 1] === '!' ? rawStart - 1 : rawStart;
+    const sourceText = sourceStart < rawStart ? `!${raw}` : raw;
+    const lineNumber = lineNumberForOffset(lineStarts, sourceStart);
+    const columnStart = sourceStart - lineStarts[lineNumber - 1] + 1;
+    const occurrenceIndexOnLine = (perLineCounts.get(lineNumber) ?? 0) + 1;
+    perLineCounts.set(lineNumber, occurrenceIndexOnLine);
+
+    details.push({ lineNumber, columnStart, occurrenceIndexOnLine, sourceText });
+    searchFrom = rawStart + raw.length;
+  }
+
+  return details;
+}
+
+function getLineStarts(content: string): number[] {
+  const starts = [0];
+  for (let i = 0; i < content.length; i++) {
+    if (content[i] === '\n') {
+      starts.push(i + 1);
+    }
+  }
+  return starts;
+}
+
+function lineNumberForOffset(lineStarts: number[], offset: number): number {
+  let low = 0;
+  let high = lineStarts.length - 1;
+
+  while (low <= high) {
+    const mid = Math.floor((low + high) / 2);
+    if (lineStarts[mid] <= offset) {
+      low = mid + 1;
+    } else {
+      high = mid - 1;
+    }
+  }
+
+  return high + 1;
+}
+
+function uniqueUnresolvedTargetStrings(
+  brokenLinks: BrokenLinkOccurrence[]
+): UniqueUnresolvedTargetString[] {
+  const grouped = new Map<string, { occurrenceCount: number; sources: Set<string> }>();
+
+  for (const link of brokenLinks) {
+    const group = grouped.get(link.target) ?? { occurrenceCount: 0, sources: new Set<string>() };
+    group.occurrenceCount += 1;
+    group.sources.add(link.source);
+    grouped.set(link.target, group);
+  }
+
+  return [...grouped.entries()]
+    .map(([target, group]) => ({
+      target,
+      occurrenceCount: group.occurrenceCount,
+      sourceCount: group.sources.size
+    }))
+    .sort((a, b) => (
+      b.occurrenceCount - a.occurrenceCount ||
+      a.target.localeCompare(b.target)
+    ));
 }
 
 /**
@@ -219,6 +315,7 @@ export function createAnalyticsHandlers(config: Config) {
 
         // Build backlink index (also finds broken links)
         const { backlinkCounts, brokenLinks } = await buildBacklinkIndex(vault.path);
+        const uniqueTargets = uniqueUnresolvedTargetStrings(brokenLinks);
 
         // Orphans (zero backlinks, excluding root-level files)
         const orphans = files
@@ -242,10 +339,13 @@ export function createAnalyticsHandlers(config: Config) {
               totalFiles: files.length,
               orphanNotes: orphans.length,
               brokenLinks: brokenLinks.length,
+              brokenLinkOccurrenceCount: brokenLinks.length,
+              uniqueUnresolvedTargetStringCount: uniqueTargets.length,
               staleNotes: staleNotes.length,
               staleDaysThreshold: staleDays,
               topOrphans: orphans.slice(0, 10),
               topBrokenLinks: brokenLinks.slice(0, 10),
+              topUniqueUnresolvedTargetStrings: uniqueTargets.slice(0, 10),
               topStaleNotes: staleNotes.slice(0, 10)
             }, null, 2)
           }],
@@ -322,6 +422,7 @@ export function createAnalyticsHandlers(config: Config) {
         const limit = args.limit || 50;
 
         const { brokenLinks } = await buildBacklinkIndex(vault.path);
+        const uniqueTargets = uniqueUnresolvedTargetStrings(brokenLinks);
 
         return {
           content: [{
@@ -329,7 +430,10 @@ export function createAnalyticsHandlers(config: Config) {
             text: JSON.stringify({
               vault: vault.name,
               brokenLinkCount: brokenLinks.length,
-              brokenLinks: brokenLinks.slice(0, limit)
+              brokenLinkOccurrenceCount: brokenLinks.length,
+              uniqueUnresolvedTargetStringCount: uniqueTargets.length,
+              brokenLinks: brokenLinks.slice(0, limit),
+              uniqueUnresolvedTargetStrings: uniqueTargets.slice(0, limit)
             }, null, 2)
           }],
           isError: false
