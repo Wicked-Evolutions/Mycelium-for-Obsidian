@@ -4,7 +4,7 @@
 
 If you discover a security vulnerability in mcp-obsidian, **do not open a public issue.**
 
-Instead, please use [GitHub's private vulnerability reporting](https://github.com/Wicked-Evolutions/mcp-obsidian/security/advisories/new) to report it directly.
+Instead, please use [GitHub's private vulnerability reporting](https://github.com/Wicked-Evolutions/Mycelium-for-Obsidian/security/advisories/new) to report it directly.
 
 Include:
 - Description of the vulnerability

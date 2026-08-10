@@ -40,6 +40,9 @@
   ],
   "author": "Wicked Evolutions",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Wicked-Evolutions/Mycelium-for-Obsidian.git"
