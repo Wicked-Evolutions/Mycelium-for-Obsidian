@@ -11,18 +11,21 @@
  */
 import { test, describe, before } from 'node:test';
 import assert from 'node:assert/strict';
+import { envFlag, optionalVaultSkipReason, withTemporaryEnv } from './support.mjs';
 
 const LINKED = process.env.LIVE_TEST_VAULT;
-const skip = !LINKED
-  ? 'set LIVE_TEST_VAULT to run — see docs/live-e2e.md'
-  : (!process.env.LIVE_OLLAMA ? 'set LIVE_OLLAMA=1 (+ Ollama running) to run the semantic live e2e' : false);
+const DIRECTORY = process.env.LIVE_TEST_DIRECTORY?.trim() || undefined;
+const skip = optionalVaultSkipReason()
+  || (!envFlag(process.env.LIVE_OLLAMA) ? 'set LIVE_OLLAMA=1 (+ Ollama running) to run the semantic live e2e' : false);
 
 const { loadConfig } = await import('../../dist/config.js');
 const { createAllHandlers } = await import('../../dist/tools/index.js');
 
-function makeHandlers() {
-  delete process.env.OBSIDIAN_DISABLED_TOOLS;
-  return createAllHandlers(loadConfig());
+async function makeHandlers() {
+  return withTemporaryEnv(
+    { OBSIDIAN_DISABLED_TOOLS: undefined },
+    () => createAllHandlers(loadConfig()),
+  );
 }
 
 function parse(res) {
@@ -32,12 +35,29 @@ function parse(res) {
 
 describe('live: semantic search via real Ollama', { skip }, () => {
   let handlers;
-  before(() => { handlers = makeHandlers(); });
+  before(async () => { handlers = await makeHandlers(); });
 
   test('index_vault then semantic_search returns ranked hits with the graph block', async () => {
     // index_vault writes ONLY the derived semantic index (no note mutation).
-    const idx = await handlers.index_vault({ vault: LINKED });
-    assert.equal(idx.isError, false, `index_vault errored: ${idx.content?.[0]?.text}`);
+    const indexSummary = parse(await handlers.index_vault({
+      vault: LINKED,
+      ...(DIRECTORY ? { directory: DIRECTORY } : {}),
+    }));
+    assert.ok(indexSummary.totalFiles > 0, 'the semantic live target must contain Markdown files');
+    assert.equal(indexSummary.errors, 0, 'index_vault must complete without per-file errors');
+    assert.equal(
+      indexSummary.indexedFiles + indexSummary.skipped + indexSummary.errors,
+      indexSummary.totalFiles,
+      'index_vault file accounting must reconcile exactly',
+    );
+
+    const status = parse(await handlers.index_status({ vault: LINKED }));
+    assert.equal(status.ollama?.available, true, 'Ollama must be reachable during the live lane');
+    assert.equal(status.ollama?.hasModel, true, 'the configured embedding model must be installed');
+    assert.ok(
+      typeof status.ollama?.model === 'string' && status.ollama.model.length > 0,
+      'the live receipt must identify a configured embedding model',
+    );
 
     const out = parse(await handlers.semantic_search({ vault: LINKED, query: 'the main idea', limit: 5 }));
     assert.ok(Array.isArray(out.results), 'results must be an array');

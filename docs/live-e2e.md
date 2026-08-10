@@ -7,7 +7,7 @@ embeddings). GitHub CI cannot host Obsidian or Ollama, so this lane fills that g
 
 **This is a hard pre-release gate, and the AI team runs it — not the user.** Before
 cutting any release, an AI operator runs `npm run test:live` against a real
-environment and confirms it green. It is not part of CI.
+environment and records the exact suite and test counts. It is not part of CI.
 
 ## Test tiers
 
@@ -15,10 +15,19 @@ environment and confirms it green. It is not part of CI.
 |---|---|---|---|
 | Headless | `npm test` / `npm run test:coverage` | local + **CI (Node 20 & 22)** | everything with no external services (mocks, fixtures, contracts, provider parity) |
 | **Live e2e** | `npm run test:live` | **AI operator, in-session only** | real Obsidian provider + real Ollama embeddings |
+| Live diagnostic | `npm run test:live:optional` | local troubleshooting | the same suites, but missing prerequisites may skip |
 
 `test:live` globs **only** `test/live/*.live.mjs`, so live tests never run in the
-headless suite or CI. Each live test also **skips itself** unless its env vars are
-set, so a bare `npm run test:live` (no env) exits green with everything skipped.
+headless suite or CI. Its preflight requires a selected mapped vault and an
+explicitly enabled Ollama lane. Missing prerequisites exit nonzero with a
+sanitized `NOT RUN` receipt. The optional command remains useful for diagnostics,
+but a skipped diagnostic run is never release evidence.
+
+Preflight validates configuration shape only. It intentionally does not inspect
+paths, start services, open vaults, or substitute probes for the product paths.
+The graph and semantic suites are the authoritative runtime checks; an unavailable
+Obsidian CLI, closed target vault, missing Ollama service, or handler failure makes
+the strict command fail.
 
 ### CI Node-version asymmetry (know this)
 
@@ -54,31 +63,39 @@ Export the real vault map plus the live selectors, then run:
 
 ```bash
 # The real multi-vault map the server would use (name -> absolute path):
-export OBSIDIAN_VAULTS='{"01 Influencentricity Platform Legacy":"/abs/path/to/01 ...", "02 Wicked Evolutions":"/abs/path/to/02 ..."}'
+export OBSIDIAN_VAULTS='{"ExampleVault":"/absolute/path/to/example-vault", "ConceptVault":"/absolute/path/to/concept-vault"}'
 
 # A well-LINKED vault (open in Obsidian) — asserts provider:"obsidian" + resolvedEdgeCount>0:
-export LIVE_TEST_VAULT="01 Influencentricity Platform Legacy"
+export LIVE_TEST_VAULT="ExampleVault"
 
 # Optional: a CONCEPT-first vault — asserts unresolved concept-link counts > 0:
-export LIVE_CONCEPT_VAULT="02 Wicked Evolutions"
+export LIVE_CONCEPT_VAULT="ConceptVault"
 
-# Optional: enable the semantic lane (requires Ollama up):
+# Required: enable the semantic lane (requires Ollama up):
 export LIVE_OLLAMA=1
+
+# Optional: bound semantic indexing to a representative directory in that vault.
+# The graph assertion still evaluates the whole vault; the handler validates this path.
+export LIVE_TEST_DIRECTORY="Path/To/Representative Notes"
 
 npm run test:live
 ```
 
 ## Interpreting results
 
-- **All green (nothing failed)** → the live gate passes; safe to proceed with the release checks.
+- **Required graph and semantic suites executed with 0 failures** → record each
+  suite name plus the total test/pass/fail/skip counts. Only then does the live
+  gate pass. The optional concept-vault case may remain skipped.
+- **`NOT RUN`** → strict preflight rejected missing or malformed prerequisites.
+  The message intentionally omits vault names, paths, and the full vault map.
 - **`provider` was `"filesystem"`** → the Obsidian exact-graph provider did not engage.
   Check the prereqs (CLI registered, vault open, MCP reconnected). The assertion
   message echoes `providerFallbackReason`. Inspect `providerState` to distinguish
   disabled eval, missing CLI registration, an unavailable app, and an attempted
   eval failure. Its invocation fields describe the graph build, including cached
   builds; they do not claim eval ran again for every response.
-- **Skipped** → the corresponding env var is unset. A fully-skipped run is *not* a
-  pass for release purposes — set the env and run for real before cutting a version.
+- **Skipped diagnostic** → the corresponding env var is unset. A fully-skipped
+  `test:live:optional` run is not a pass for release purposes.
 
 ## What the lane asserts today
 
@@ -86,7 +103,9 @@ npm run test:live
   with exact, invoked `providerState` and `resolvedEdgeCount > 0` on a linked
   vault, and (optionally) surfaces unresolved concept-links on a concept-first vault.
 - `test/live/semantic.live.mjs` — `index_vault` then `semantic_search` returns
+  a non-empty, exactly reconciled index summary with zero per-file errors, then
   ranked hits carrying a `path`, a numeric `similarity` + `fusionScore`,
-  `fusionMethod: "rrf"`, and the additive `graph` block.
+  `fusionMethod: "rrf"`, and the additive `graph` block. `LIVE_TEST_DIRECTORY`
+  may bound the indexing pass without changing the exact whole-vault graph lane.
 
 Extend this lane whenever a behavior can only be proven against real Obsidian/Ollama.
