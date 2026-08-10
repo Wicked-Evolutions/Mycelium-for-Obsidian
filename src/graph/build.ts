@@ -16,6 +16,11 @@ import {
   ProviderResult
 } from './types.js';
 import { FilesystemProvider } from './providers.js';
+import {
+  abortableYield,
+  isAbortError,
+  throwIfAborted
+} from '../cli/vault-target.js';
 
 /**
  * Build a BaseGraph from an explicit provider. Used directly by the
@@ -32,7 +37,8 @@ export async function buildVaultGraph(
   config?: Config,
   vaultName?: string,
   selectionState?: GraphProviderState,
-  reusableFilesystemGraph?: BaseGraph
+  reusableFilesystemGraph?: BaseGraph,
+  options: { allowFallback?: boolean; signal?: AbortSignal } = {}
 ): Promise<BaseGraph> {
   let result: ProviderResult;
   let usedProvider: 'obsidian' | 'filesystem' = provider.name;
@@ -41,23 +47,25 @@ export async function buildVaultGraph(
 
   try {
     if (provider.name === 'filesystem' && reusableFilesystemGraph) {
-      result = providerResultFromGraph(reusableFilesystemGraph);
+      result = await providerResultFromGraph(reusableFilesystemGraph, options.signal);
       reusedFallback = true;
     } else {
-      result = await provider.build(vaultPath);
+      result = await provider.build(vaultPath, { signal: options.signal });
     }
   } catch (err) {
-    if (provider.name === 'obsidian') {
+    throwIfAborted(options.signal);
+    if (isAbortError(err)) throw err;
+    if (provider.name === 'obsidian' && options.allowFallback !== false) {
       // Graceful degradation: Obsidian unreachable / eval failed → filesystem.
       // Capture a SANITIZED reason so the silent degrade (issue #32) becomes
       // observable. This branch is the ONLY place providerFallbackReason is set:
       // a filesystem provider selected normally never reaches here.
       if (reusableFilesystemGraph) {
-        result = providerResultFromGraph(reusableFilesystemGraph);
+        result = await providerResultFromGraph(reusableFilesystemGraph, options.signal);
         reusedFallback = true;
       } else {
         const fs = new FilesystemProvider();
-        result = await fs.build(vaultPath);
+        result = await fs.build(vaultPath, { signal: options.signal });
       }
       usedProvider = 'filesystem';
       providerFallbackReason = sanitizeFallbackReason(err);
@@ -79,7 +87,8 @@ export async function buildVaultGraph(
   };
   const graph = reusedFallback
     ? { ...reusableFilesystemGraph!, providerState }
-    : normalize(result, usedProvider, providerState);
+    : await normalize(result, usedProvider, providerState, options.signal);
+  throwIfAborted(options.signal);
   if (providerFallbackReason) {
     graph.providerFallbackReason = providerFallbackReason;
   } else {
@@ -97,9 +106,15 @@ function defaultProviderState(provider: GraphProvider['name']): GraphProviderSta
   };
 }
 
-function providerResultFromGraph(graph: BaseGraph): ProviderResult {
+async function providerResultFromGraph(
+  graph: BaseGraph,
+  signal?: AbortSignal
+): Promise<ProviderResult> {
   const resolvedLinks = new Map<string, Map<string, number>>();
-  for (const edge of graph.edges) {
+  for (let index = 0; index < graph.edges.length; index += 1) {
+    if (signal && index % 512 === 0) await abortableYield(signal);
+    else throwIfAborted(signal);
+    const edge = graph.edges[index];
     let targets = resolvedLinks.get(edge.source);
     if (!targets) {
       targets = new Map();
@@ -146,23 +161,31 @@ export function sanitizeFallbackReason(err: unknown): string {
 /**
  * Normalize a ProviderResult (resolvedLinks adjacency) into a BaseGraph.
  */
-export function normalize(
+export async function normalize(
   result: ProviderResult,
   provider: 'obsidian' | 'filesystem',
-  providerState: GraphProviderState = defaultProviderState(provider)
-): BaseGraph {
+  providerState: GraphProviderState = defaultProviderState(provider),
+  signal?: AbortSignal
+): Promise<BaseGraph> {
+  throwIfAborted(signal);
   const nodeSet = new Set<string>(result.nodes);
   const edges: GraphEdge[] = [];
   const inDegree = new Map<string, number>();
   const outDegree = new Map<string, number>();
 
   // Ensure every node has a degree entry (0 default).
+  let nodeIndex = 0;
   for (const n of nodeSet) {
+    if (signal && nodeIndex % 512 === 0) await abortableYield(signal);
+    nodeIndex += 1;
     inDegree.set(n, 0);
     outDegree.set(n, 0);
   }
 
+  let sourceIndex = 0;
   for (const [source, targets] of result.resolvedLinks) {
+    if (signal && sourceIndex % 256 === 0) await abortableYield(signal);
+    sourceIndex += 1;
     // A source that appears in resolvedLinks but not in the node set still
     // contributes edges; register it as a node too.
     if (!nodeSet.has(source)) {
@@ -171,7 +194,10 @@ export function normalize(
       if (!outDegree.has(source)) outDegree.set(source, 0);
     }
     let outCount = 0;
+    let targetIndex = 0;
     for (const [target, count] of targets) {
+      if (signal && targetIndex % 512 === 0) await abortableYield(signal);
+      targetIndex += 1;
       if (target === source) continue; // no self-edges
       if (!nodeSet.has(target)) {
         nodeSet.add(target);

@@ -33,7 +33,7 @@ export const vaultParam = {
  *
  * @param names - The vault names from config.vaults.map(v => v.name)
  */
-export function vaultParamWithEnum(names: string[]): {
+export function vaultParamWithEnum(names: string[], required = false): {
   type: 'string';
   description: string;
   enum: string[];
@@ -41,7 +41,9 @@ export function vaultParamWithEnum(names: string[]): {
   const list = names.join(', ');
   return {
     type: 'string',
-    description: `Vault name. Configured vaults: ${list}. Defaults to first vault if omitted.`,
+    description: required
+      ? `Vault name. Configured vaults: ${list}. Required; no default is inferred.`
+      : `Vault name. Configured vaults: ${list}. Defaults to first vault if omitted.`,
     enum: names
   };
 }
@@ -57,15 +59,20 @@ export function vaultParamWithEnum(names: string[]): {
  * @param names  - The vault names from config.vaults.map(v => v.name).
  */
 export function injectVaultEnum(
-  tools: Array<{ inputSchema: { properties?: Record<string, unknown> } }>,
+  tools: Array<{
+    inputSchema: {
+      properties?: Record<string, unknown>;
+      required?: string[];
+    };
+  }>,
   names: string[]
 ): void {
   if (names.length === 0) return;
-  const enriched = vaultParamWithEnum(names);
   for (const tool of tools) {
     const props = tool.inputSchema.properties;
     if (props && 'vault' in props) {
-      props['vault'] = enriched;
+      const required = tool.inputSchema.required?.includes('vault') === true;
+      props['vault'] = vaultParamWithEnum(names, required);
     }
   }
 }

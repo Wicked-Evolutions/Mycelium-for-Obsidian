@@ -19,7 +19,13 @@ import { createTempVault, cleanup } from './helpers.mjs';
 const { loadConfig } = await import('../dist/config.js');
 const { createAllHandlers } = await import('../dist/tools/index.js');
 const graphMod = await import('../dist/graph/index.js');
-const { extractWikilinks } = await import('../dist/parsers/wikilink.js');
+const {
+  extractWikilinks,
+  extractWikilinksCooperative,
+} = await import('../dist/parsers/wikilink.js');
+const { distributeRank } = await import('../dist/graph/pagerank.js');
+const { parseJsonCancellable } = await import('../dist/graph/json-parse.js');
+const { parseEvalJson } = await import('../dist/graph/providers.js');
 
 // ---------------------------------------------------------------------------
 // Synthetic vault topology
@@ -91,13 +97,31 @@ describe('WikiLink additive extraction contract', () => {
     assert.equal(c.path, 'Cross');
     assert.equal(c.subpath, 'blk');
   });
+
+  test('cooperative extraction preserves the synchronous parser contract', async () => {
+    const content = 'A [[Note#Heading|alias]] and ![[Embed]] and [[V:Cross#blk]].';
+    assert.deepEqual(
+      await extractWikilinksCooperative(content, new AbortController().signal),
+      extractWikilinks(content),
+    );
+  });
+
+  test('a request abort interrupts parsing within one very large note', async () => {
+    const controller = new AbortController();
+    const pending = extractWikilinksCooperative(
+      `${'plain text '.repeat(1_000_000)}[[Never Reached]]`,
+      controller.signal,
+    );
+    setImmediate(() => controller.abort());
+    await assert.rejects(pending, error => error?.name === 'AbortError');
+  });
 });
 
 // ---------------------------------------------------------------------------
 // PageRank unit (deterministic params)
 // ---------------------------------------------------------------------------
 describe('pageRank', () => {
-  test('ratified defaults exist and sum ~= 1', () => {
+  test('ratified defaults exist and sum ~= 1', async () => {
     assert.equal(graphMod.PAGERANK_DEFAULTS.damping, 0.85);
     assert.equal(graphMod.PAGERANK_DEFAULTS.maxIterations, 20);
     assert.equal(graphMod.PAGERANK_DEFAULTS.tolerance, 1e-7);
@@ -108,7 +132,7 @@ describe('pageRank', () => {
       { source: 'c', target: 'b' },
       { source: 'a', target: 'c' },
     ];
-    const pr = graphMod.pageRank(nodes, edges);
+    const pr = await graphMod.pageRank(nodes, edges);
     const sum = [...pr.values()].reduce((s, v) => s + v, 0);
     assert.ok(Math.abs(sum - 1) < 1e-6, `pagerank should sum to ~1, got ${sum}`);
     // b has the most inbound → highest rank.
@@ -116,19 +140,104 @@ describe('pageRank', () => {
     assert.ok(pr.get('b') > pr.get('c'), 'most-linked node ranks highest');
   });
 
-  test('empty graph yields empty map', () => {
-    assert.equal(graphMod.pageRank([], []).size, 0);
+  test('empty graph yields empty map', async () => {
+    assert.equal((await graphMod.pageRank([], [])).size, 0);
   });
+
+  test('a request abort interrupts active PageRank work', async () => {
+    const nodes = Array.from({ length: 20_000 }, (_, index) => `n${index}`);
+    const edges = nodes.map((node, index) => ({
+      source: node,
+      target: nodes[(index + 1) % nodes.length],
+    }));
+    const controller = new AbortController();
+    const pending = graphMod.pageRank(nodes, edges, { signal: controller.signal });
+    setImmediate(() => controller.abort());
+
+    await assert.rejects(pending, error => error?.name === 'AbortError');
+  });
+
+  test('a request abort interrupts one high-fan-out distribution unit', async () => {
+    const controller = new AbortController();
+    const fanOut = Array.from({ length: 250_000 }, () => 1);
+    const pending = distributeRank(
+      [fanOut, []],
+      [fanOut.length, 0],
+      [0.5, 0.5],
+      [0, 0],
+      0.85,
+      controller.signal,
+    );
+    setImmediate(() => controller.abort());
+    await assert.rejects(pending, error => error?.name === 'AbortError');
+  });
+});
+
+test('large exact-provider JSON parsing is cancellable', async () => {
+  const activeMessagePorts = () => process._getActiveHandles()
+    .filter(handle => handle?.constructor?.name === 'MessagePort').length;
+  const baselinePorts = activeMessagePorts();
+  const controller = new AbortController();
+  const raw = JSON.stringify({ values: Array.from({ length: 300_000 }, (_, i) => i) });
+  const pending = parseJsonCancellable(raw, controller.signal);
+  setImmediate(() => controller.abort());
+  await assert.rejects(pending, error => error?.name === 'AbortError');
+  assert.equal(
+    activeMessagePorts(),
+    baselinePorts,
+    'cancellation settles only after the parse worker releases its message port',
+  );
+});
+
+test('concurrent JSON cancellations release every worker before settling', async () => {
+  const activeMessagePorts = () => process._getActiveHandles()
+    .filter(handle => handle?.constructor?.name === 'MessagePort').length;
+  const baselinePorts = activeMessagePorts();
+  const raw = JSON.stringify({ values: Array.from({ length: 200_000 }, (_, i) => i) });
+  const controllers = Array.from({ length: 5 }, () => new AbortController());
+  const pending = controllers.map(controller =>
+    parseJsonCancellable(raw, controller.signal));
+  setImmediate(() => controllers.forEach(controller => controller.abort()));
+
+  await Promise.all(pending.map(operation =>
+    assert.rejects(operation, error => error?.name === 'AbortError')));
+  assert.equal(activeMessagePorts(), baselinePorts);
+});
+
+test('exact-provider fallback scanning is cancellable', async () => {
+  const controller = new AbortController();
+  const raw = `${'prefix '.repeat(30_000)}{"nodes":[]} trailing`;
+  const pending = parseEvalJson(raw, controller.signal);
+  setImmediate(() => controller.abort());
+  await assert.rejects(pending, error => error?.name === 'AbortError');
+});
+
+test('filesystem graph work observes cancellation without producing a partial result', async () => {
+  const files = {};
+  for (let index = 0; index < 700; index++) {
+    files[`notes/N${index}.md`] = `[[N${(index + 1) % 700}]]\n`;
+  }
+  const dir = createTempVault(files);
+  const controller = new AbortController();
+  try {
+    const pending = new graphMod.FilesystemProvider().build(dir, {
+      signal: controller.signal,
+    });
+    setImmediate(() => controller.abort());
+    await assert.rejects(pending, error => error?.name === 'AbortError');
+  } finally {
+    cleanup(dir);
+  }
 });
 
 // ---------------------------------------------------------------------------
 // Leveling unit — band orientation (high PR → low level; leaf floor)
 // ---------------------------------------------------------------------------
 describe('assignLevels band orientation', () => {
-  test('leaf floor (in-degree 0) is L5 regardless of PageRank', () => {
+  test('leaf floor (in-degree 0) is L5 regardless of PageRank', async () => {
     const pr = new Map([['leaf', 0.9], ['hub', 0.1]]);
     const inDeg = new Map([['leaf', 0], ['hub', 5]]);
-    const { levels } = graphMod.assignLevels(pr, inDeg);
+    const { levels } = await graphMod.assignLevels(pr, inDeg);
     assert.equal(levels.get('leaf'), 5, 'zero in-degree node must be L5 (leaf floor)');
   });
 });
@@ -138,6 +247,11 @@ describe('assignLevels band orientation', () => {
 // ---------------------------------------------------------------------------
 describe('analyze_link_hierarchy — synthetic topology (filesystem provider)', () => {
   let dir, h;
+  const analyze = (handler, args = {}) => handler.analyze_link_hierarchy({
+    vault: 'Vault',
+    providerMode: 'filesystem',
+    ...args,
+  });
 
   before(() => {
     graphMod.clearGraphCaches();
@@ -151,12 +265,19 @@ describe('analyze_link_hierarchy — synthetic topology (filesystem provider)', 
   });
 
   test('uses filesystem provider when eval_obsidian disabled', async () => {
-    const p = parse(await h.analyze_link_hierarchy({ vault: 'Vault' }));
+    const p = parse(await analyze(h));
     assert.equal(p.provider, 'filesystem');
+    assert.deepEqual(p.decisionState, {
+      requestedMode: 'filesystem',
+      targetReadiness: 'not_probed',
+      probeInvoked: false,
+      openInvoked: false,
+      analysisInvoked: true,
+    });
   });
 
   test('default exclusion prunes the generated cluster and echoes activeExclude', async () => {
-    const p = parse(await h.analyze_link_hierarchy({ vault: 'Vault' }));
+    const p = parse(await analyze(h));
     assert.equal(p.usedDefaultExclude, true);
     // 5 generated nodes (manifest + g1..g4) pruned.
     assert.equal(p.excludedNodes, 5, `expected 5 excluded, got ${p.excludedNodes}`);
@@ -169,7 +290,7 @@ describe('analyze_link_hierarchy — synthetic topology (filesystem provider)', 
   });
 
   test('the spine (Hub + Mid) lands in the top bands', async () => {
-    const p = parse(await h.analyze_link_hierarchy({ vault: 'Vault' }));
+    const p = parse(await analyze(h));
     const hub = p.nodes.find((n) => n.path === 'Hub.md');
     const mid = p.nodes.find((n) => n.path === 'Mid.md');
     assert.ok(hub && mid, 'Hub and Mid must be present in the ranked output');
@@ -183,7 +304,7 @@ describe('analyze_link_hierarchy — synthetic topology (filesystem provider)', 
   });
 
   test('embeds + duplicate + heading links all credit Hub via contributor edge counts', async () => {
-    const p = parse(await h.analyze_link_hierarchy({ vault: 'Vault' }));
+    const p = parse(await analyze(h));
     const hub = p.nodes.find((n) => n.path === 'Hub.md');
     const fromL1 = hub.topContributors.find((c) => c.source === 'L1.md');
     assert.ok(fromL1, 'L1 must be a contributor to Hub');
@@ -192,14 +313,14 @@ describe('analyze_link_hierarchy — synthetic topology (filesystem provider)', 
   });
 
   test('leaves with no inbound are L5 (leaf floor)', async () => {
-    const p = parse(await h.analyze_link_hierarchy({ vault: 'Vault' }));
+    const p = parse(await analyze(h));
     const l1 = p.nodes.find((n) => n.path === 'L1.md');
     assert.ok(l1, 'L1 present');
     assert.equal(l1.level, 5, 'leaf with zero inbound is L5');
   });
 
   test('excluded nodes can be surfaced with {where: []} (defaults off)', async () => {
-    const p = parse(await h.analyze_link_hierarchy({ vault: 'Vault', exclude: { where: [] } }));
+    const p = parse(await analyze(h, { exclude: { where: [] } }));
     assert.equal(p.usedDefaultExclude, false);
     assert.equal(p.excludedNodes, 0, 'no exclusions when where:[] passed');
     const paths = p.nodes.map((n) => n.path);
@@ -208,8 +329,7 @@ describe('analyze_link_hierarchy — synthetic topology (filesystem provider)', 
 
   test('custom exclude (AND semantics) prunes by frontmatter', async () => {
     const p = parse(
-      await h.analyze_link_hierarchy({
-        vault: 'Vault',
+      await analyze(h, {
         exclude: { where: [{ field: 'node_type', op: 'equals', value: 'generated' }] },
       })
     );
@@ -219,8 +339,8 @@ describe('analyze_link_hierarchy — synthetic topology (filesystem provider)', 
   });
 
   test('scope filters OUTPUT only, not ranking', async () => {
-    const full = parse(await h.analyze_link_hierarchy({ vault: 'Vault' }));
-    const scoped = parse(await h.analyze_link_hierarchy({ vault: 'Vault', scope: 'Hub' }));
+    const full = parse(await analyze(h));
+    const scoped = parse(await analyze(h, { scope: 'Hub' }));
     // Ranking population is identical; only the returned detail is filtered.
     assert.equal(scoped.rankedNodes, full.rankedNodes, 'ranking uses whole graph regardless of scope');
     assert.ok(scoped.nodes.every((n) => n.path.startsWith('Hub')), 'scoped output only includes Hub*');
@@ -228,19 +348,19 @@ describe('analyze_link_hierarchy — synthetic topology (filesystem provider)', 
   });
 
   test('compact omits contributor breakdown', async () => {
-    const p = parse(await h.analyze_link_hierarchy({ vault: 'Vault', compact: true }));
+    const p = parse(await analyze(h, { compact: true }));
     assert.ok(p.nodes.every((n) => n.topContributors === undefined), 'compact has no topContributors');
   });
 
   test('response carries the orientation note and level bands', async () => {
-    const p = parse(await h.analyze_link_hierarchy({ vault: 'Vault' }));
+    const p = parse(await analyze(h));
     assert.equal(p.note, 'levels are structural orientation, not importance.');
     assert.equal(p.levelBands.L0, '>= p99 (top hubs)');
     assert.equal(p.levelBands.L5, 'post-exclusion in-degree 0 (leaf floor)');
   });
 
   test('histogram counts sum to ranked + excluded', async () => {
-    const p = parse(await h.analyze_link_hierarchy({ vault: 'Vault' }));
+    const p = parse(await analyze(h));
     const sum = p.histogram.reduce((s, b) => s + b.count, 0);
     assert.equal(sum, p.totalNodes, 'histogram (incl. excluded bucket) sums to total nodes');
   });
@@ -248,7 +368,7 @@ describe('analyze_link_hierarchy — synthetic topology (filesystem provider)', 
   // #37: link-resolution aggregates ALWAYS present in the output. The synthetic
   // vault has exactly one unresolved wikilink: Hub.md → [[Missing Note]].
   test('output always carries resolved/unresolved link counts (#37)', async () => {
-    const p = parse(await h.analyze_link_hierarchy({ vault: 'Vault' }));
+    const p = parse(await analyze(h));
     assert.equal(typeof p.resolvedEdgeCount, 'number', 'resolvedEdgeCount present');
     assert.equal(typeof p.unresolvedLinkCount, 'number', 'unresolvedLinkCount present');
     assert.equal(typeof p.distinctUnresolvedTargets, 'number', 'distinctUnresolvedTargets present');
@@ -301,7 +421,10 @@ describe('analyze_link_hierarchy — required vault + empty-vault guard', () => 
     const emptyDir = createTempVault({});
     const eh = makeHandlers(emptyDir);
     try {
-      const res = await eh.analyze_link_hierarchy({ vault: 'Vault' });
+      const res = await eh.analyze_link_hierarchy({
+        vault: 'Vault',
+        providerMode: 'filesystem',
+      });
       assert.equal(res.isError, false, 'empty valid vault is a SUCCESS, not an error');
       const body = JSON.parse(res.content[0].text);
       assert.equal(body.emptyVault, true, 'emptyVault flag set');
@@ -367,28 +490,29 @@ describe('getGraphSignals hook + cache', () => {
 // (non-inverted) band semantics: high PageRank → LOW level number.
 // ---------------------------------------------------------------------------
 const { assignLevels } = await import('../dist/graph/levels.js');
+const percentilePagerank = new Map();
+const percentileInDegree = new Map();
+for (let index = 0; index < 30; index++) {
+  percentilePagerank.set(`n${index}`, index + 1);
+  percentileInDegree.set(`n${index}`, 1);
+}
+percentileInDegree.set('n5', 0);
+const {
+  levels: percentileLevels,
+  smallVault: usedSmallVaultFallback,
+} = await assignLevels(percentilePagerank, percentileInDegree);
 
 describe('assignLevels — percentile path (>25 ranked nodes)', () => {
-  const pagerank = new Map();
-  const inDegree = new Map();
-  for (let i = 0; i < 30; i++) {
-    pagerank.set(`n${i}`, i + 1); // n29 highest (30) … n0 lowest (1)
-    inDegree.set(`n${i}`, 1);     // all have inbound edges …
-  }
-  inDegree.set('n5', 0);          // … except n5 → leaf floor
-
-  const { levels, smallVault } = assignLevels(pagerank, inDegree);
-
   test('takes the percentile path, not the small-vault fallback', () => {
-    assert.equal(smallVault, false);
+    assert.equal(usedSmallVaultFallback, false);
   });
   test('top PageRank → L0 (high PR maps to LOW level; not inverted)', () => {
-    assert.equal(levels.get('n29'), 0);
+    assert.equal(percentileLevels.get('n29'), 0);
   });
   test('lowest non-leaf PageRank → L4 (below p50)', () => {
-    assert.equal(levels.get('n0'), 4);
+    assert.equal(percentileLevels.get('n0'), 4);
   });
   test('in-degree 0 → L5 leaf floor (overrides percentile)', () => {
-    assert.equal(levels.get('n5'), 5);
+    assert.equal(percentileLevels.get('n5'), 5);
   });
 });

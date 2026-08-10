@@ -29,6 +29,8 @@ if (canMock) {
         if (action.type === 'deferred') return action.promise;
         return action.payload ?? exactPayload;
       },
+      evalInRegisteredVault: async () => exactPayload,
+      execCliForRegisteredVault: async () => '',
       isCliAvailable: async () => probeStatus === 'available',
       probeObsidianCli: async () => {
         probeCalls += 1;
@@ -220,33 +222,36 @@ describe('Sprint 04 provider state matrix and cache recovery', {
     assert.strictEqual(second.signals, first.signals);
   });
 
-  test('hierarchy uses one provider decision and surfaces state on empty vaults', async () => {
+  test('explicit filesystem hierarchy never probes Obsidian and surfaces state on empty vaults', async () => {
     const config = configFor(dir);
     const handlers = createAllHandlers(config);
-    const out = parse(await handlers.analyze_link_hierarchy({ vault: 'Vault' }));
-    assert.equal(probeCalls, 1, 'no second base-graph acquisition');
-    assert.equal(out.provider, 'obsidian');
+    const out = parse(await handlers.analyze_link_hierarchy({
+      vault: 'Vault',
+      providerMode: 'filesystem',
+    }));
+    assert.equal(probeCalls, 0, 'explicit filesystem mode performs no Obsidian probe');
+    assert.equal(evalCalls, 0, 'explicit filesystem mode performs no Obsidian eval');
+    assert.equal(out.provider, 'filesystem');
     assert.deepEqual(out.providerState, {
-      selectedProvider: 'obsidian',
-      approximate: false,
-      exactProviderAvailability: 'available',
-      exactProviderInvoked: true,
+      selectedProvider: 'filesystem',
+      approximate: true,
+      exactProviderAvailability: 'not_probed',
+      exactProviderInvoked: false,
     });
 
     const empty = createTempVault({});
     try {
       graphMod.clearGraphCaches();
       probeCalls = 0;
-      evalPlan = [{
-        type: 'success',
-        payload: JSON.stringify({ nodes: [], links: {}, unresolvedRaw: {} }),
-      }];
       const emptyHandlers = createAllHandlers(configFor(empty));
-      const emptyOut = parse(await emptyHandlers.analyze_link_hierarchy({ vault: 'Vault' }));
+      const emptyOut = parse(await emptyHandlers.analyze_link_hierarchy({
+        vault: 'Vault',
+        providerMode: 'filesystem',
+      }));
       assert.equal(emptyOut.emptyVault, true);
-      assert.equal(emptyOut.provider, 'obsidian');
-      assert.equal(emptyOut.providerState.exactProviderInvoked, true);
-      assert.equal(probeCalls, 1);
+      assert.equal(emptyOut.provider, 'filesystem');
+      assert.equal(emptyOut.providerState.exactProviderInvoked, false);
+      assert.equal(probeCalls, 0);
     } finally {
       cleanup(empty);
     }

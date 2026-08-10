@@ -35,6 +35,8 @@ if (canMock) {
     namedExports: {
       execCli: async () => '',
       execCliForVault: async () => '',
+      execCliForRegisteredVault: async () => '',
+      evalInRegisteredVault: async () => JSON.stringify({ nodes: [], links: {} }),
       evalInObsidian: async () => {
         if (evalShouldThrow) {
           // ENOBUFS-style, multiline, with absolute paths — exactly what the #32
@@ -57,6 +59,7 @@ if (canMock) {
 
 const { loadConfig } = await import('../dist/config.js');
 const { createAllHandlers } = await import('../dist/tools/index.js');
+const { createGraphHandlers } = await import('../dist/tools/graph.js');
 const graphMod = await import('../dist/graph/index.js');
 const { attachGraphSignals, annotateCrossVault } = await import('../dist/tools/graph-annotate.js');
 
@@ -73,8 +76,8 @@ function parse(res) {
   return JSON.parse(res.content[0].text);
 }
 
-// ── (a) analyze_link_hierarchy ───────────────────────────────────────────────
-describe('surface (a) analyze_link_hierarchy (#32)', { skip: !canMock ? 'requires --experimental-test-module-mocks' : false }, () => {
+// ── (a) graph API + explicit analyzer contract ──────────────────────────────
+describe('surface (a) graph fallback and explicit analyzer (#32/#45)', { skip: !canMock ? 'requires --experimental-test-module-mocks' : false }, () => {
   let dir;
   before(() => {
     graphMod.clearGraphCaches();
@@ -90,12 +93,11 @@ describe('surface (a) analyze_link_hierarchy (#32)', { skip: !canMock ? 'require
     graphMod.clearGraphCaches();
   });
 
-  test('Obsidian attempted+threw → provider:filesystem + providerFallbackReason present/sanitized', async () => {
+  test('legacy reusable graph API preserves attempted-exact fallback observability', async () => {
     graphMod.clearGraphCaches();
     isCliAvailableReturn = true;
     evalShouldThrow = true;
-    const h = createAllHandlers(loadConfig());
-    const p = parse(await h.analyze_link_hierarchy({ vault: 'Vault' }));
+    const p = await graphMod.getGraphSignals(loadConfig(), 'Vault');
     assert.equal(p.provider, 'filesystem');
     assert.ok(p.providerFallbackReason, 'reason present on fallback');
     assert.match(p.providerFallbackReason, /Obsidian/);
@@ -104,24 +106,36 @@ describe('surface (a) analyze_link_hierarchy (#32)', { skip: !canMock ? 'require
     assert.ok(p.providerFallbackReason.length <= 280, 'bounded');
   });
 
-  test('Obsidian success → NO providerFallbackReason', async () => {
+  test('explicit filesystem analyzer never attempts Obsidian and has no fallback reason', async () => {
     graphMod.clearGraphCaches();
     isCliAvailableReturn = true;
-    evalShouldThrow = false;
+    evalShouldThrow = true;
     const h = createAllHandlers(loadConfig());
-    const p = parse(await h.analyze_link_hierarchy({ vault: 'Vault' }));
-    assert.equal(p.provider, 'obsidian');
-    assert.equal(p.providerFallbackReason, undefined, 'absent on obsidian success');
+    const p = parse(await h.analyze_link_hierarchy({
+      vault: 'Vault',
+      providerMode: 'filesystem',
+    }));
+    assert.equal(p.provider, 'filesystem');
+    assert.equal(p.providerFallbackReason, undefined);
+    assert.equal(p.providerState.exactProviderAvailability, 'not_probed');
   });
 
-  test('normal filesystem (no Obsidian attempt) → NO providerFallbackReason', async () => {
-    graphMod.clearGraphCaches();
-    isCliAvailableReturn = false; // CLI down → filesystem selected normally
-    evalShouldThrow = false;
-    const h = createAllHandlers(loadConfig());
+  test('default exact analyzer returns a decision, never a fallback graph', async () => {
+    const config = loadConfig();
+    const h = createGraphHandlers(config, {
+      canonicalize: async () => dir,
+      inspect: async () => ({
+        status: 'closed',
+        probeInvoked: true,
+        canonicalPath: dir,
+        vaultId: 'abcdef0123456789',
+      }),
+    });
     const p = parse(await h.analyze_link_hierarchy({ vault: 'Vault' }));
-    assert.equal(p.provider, 'filesystem');
-    assert.equal(p.providerFallbackReason, undefined, 'absent on normal filesystem');
+    assert.equal(p.status, 'decision_required');
+    assert.equal(p.provider, undefined);
+    assert.equal(p.providerState, undefined);
+    assert.equal(p.providerFallbackReason, undefined);
   });
 });
 

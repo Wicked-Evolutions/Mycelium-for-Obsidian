@@ -16,6 +16,8 @@
  * PageRank in the pruned graph.
  */
 
+import { abortableYield, throwIfAborted } from '../cli/vault-target.js';
+
 export const SMALL_VAULT_THRESHOLD = 25;
 
 const PERCENTILE_CUTS = [
@@ -53,10 +55,12 @@ function percentile(sortedAsc: number[], p: number): number {
  * @param inDegree  path → BASE-graph inbound degree (for leaf-floor detection;
  *                  per the brief the leaf floor is in-degree 0)
  */
-export function assignLevels(
+export async function assignLevels(
   pagerank: Map<string, number>,
-  inDegree: Map<string, number>
-): LevelResult {
+  inDegree: Map<string, number>,
+  signal?: AbortSignal
+): Promise<LevelResult> {
+  throwIfAborted(signal);
   const levels = new Map<string, number>();
   const rankedNodes = [...pagerank.keys()];
   const n = rankedNodes.length;
@@ -70,8 +74,15 @@ export function assignLevels(
   if (smallVault) {
     // Coarse absolute bands relative to max PageRank in the pruned graph.
     let maxPr = 0;
-    for (const v of pagerank.values()) maxPr = Math.max(maxPr, v);
-    for (const node of rankedNodes) {
+    let valueIndex = 0;
+    for (const v of pagerank.values()) {
+      if (signal && valueIndex % 512 === 0) await abortableYield(signal);
+      valueIndex += 1;
+      maxPr = Math.max(maxPr, v);
+    }
+    for (let index = 0; index < rankedNodes.length; index += 1) {
+      if (signal && index % 512 === 0) await abortableYield(signal);
+      const node = rankedNodes[index];
       if ((inDegree.get(node) || 0) === 0) {
         levels.set(node, 5); // leaf floor
         continue;
@@ -91,10 +102,14 @@ export function assignLevels(
   }
 
   // Percentile banding.
+  await abortableYield(signal);
   const sorted = [...pagerank.values()].sort((a, b) => a - b);
+  await abortableYield(signal);
   const cuts = PERCENTILE_CUTS.map((c) => ({ level: c.level, value: percentile(sorted, c.p) }));
 
-  for (const node of rankedNodes) {
+  for (let index = 0; index < rankedNodes.length; index += 1) {
+    if (signal && index % 512 === 0) await abortableYield(signal);
+    const node = rankedNodes[index];
     if ((inDegree.get(node) || 0) === 0) {
       levels.set(node, 5); // leaf floor overrides percentile
       continue;

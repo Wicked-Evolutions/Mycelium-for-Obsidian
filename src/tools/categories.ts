@@ -19,6 +19,7 @@ import { sectionTools } from './sections.js';
 import { queryTools } from './query.js';
 import { analyticsTools } from './analytics.js';
 import { graphTools } from './graph.js';
+import { vaultTools } from './vault.js';
 import { fsPromotedTools } from './fs-promoted.js';
 import { cliTools } from './cli-tools.js';
 
@@ -54,7 +55,7 @@ function buildModuleIndex(): Map<string, string> {
     ['sections', sectionTools],
     ['query', queryTools],
     ['analytics', analyticsTools],
-    ['graph', graphTools],
+    ['graph', [...graphTools, ...vaultTools]],
     ['fs-promoted', fsPromotedTools],
     ['cli-tools', cliTools],
   ];
@@ -118,3 +119,6 @@ export function categorySummary(tools: Tool[]): Array<{ category: string; count:
  * The CLI-tier category label — tools in this bucket require a running Obsidian instance.
  */
 export const CLI_TIER_LABEL = CATEGORY_LABELS['cli-tools'];
+
+/** Always-exposed tools whose explicit invocation contacts or opens Obsidian. */
+export const APP_CONTACT_TOOL_NAMES = new Set(['open_vault']);

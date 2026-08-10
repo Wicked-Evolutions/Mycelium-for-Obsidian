@@ -81,7 +81,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 });
 
 // Handle tool calls
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
+server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
   const { name, arguments: args } = request.params;
 
   console.error(`[mcp-obsidian] Tool call: ${name}`);
@@ -95,7 +95,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 
   try {
-    const result = await handler(args as Record<string, unknown>);
+    const result = await handler(
+      args as Record<string, unknown>,
+      { signal: extra.signal }
+    );
+    console.error(`[mcp-obsidian] Tool complete: ${name}`);
     return {
       content: result.content,
       isError: result.isError

@@ -20,16 +20,42 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { Config } from '../config.js';
-import { extractWikilinks, buildMultiFileIndex, resolveWikilink, normalizeUnresolvedKey } from '../parsers/wikilink.js';
-import { evalInObsidian, probeObsidianCli } from '../cli/bridge.js';
-import { GraphProvider, GraphProviderState, ProviderResult } from './types.js';
+import {
+  extractWikilinksCooperative,
+  buildMultiFileIndex,
+  resolveWikilink,
+  normalizeUnresolvedKey
+} from '../parsers/wikilink.js';
+import { parseJsonCancellable } from './json-parse.js';
+import {
+  evalInObsidian,
+  evalInRegisteredVault,
+  probeObsidianCli
+} from '../cli/bridge.js';
+import {
+  abortableYield,
+  canonicalPathsEqual,
+  isAbortError,
+  throwIfAborted
+} from '../cli/vault-target.js';
+import {
+  GraphBuildContext,
+  GraphProvider,
+  GraphProviderState,
+  ProviderResult
+} from './types.js';
 
 /**
  * Recursively collect all .md files (vault-relative paths, with .md).
  */
-async function collectMarkdownPaths(vaultPath: string): Promise<string[]> {
+async function collectMarkdownPaths(
+  vaultPath: string,
+  signal?: AbortSignal
+): Promise<string[]> {
   const out: string[] = [];
+  let visitedEntries = 0;
   async function walk(dir: string): Promise<void> {
+    throwIfAborted(signal);
     let dirents;
     try {
       dirents = await fs.readdir(dir, { withFileTypes: true });
@@ -37,6 +63,9 @@ async function collectMarkdownPaths(vaultPath: string): Promise<string[]> {
       return;
     }
     for (const d of dirents) {
+      visitedEntries += 1;
+      if (signal && visitedEntries % 256 === 0) await abortableYield(signal);
+      else throwIfAborted(signal);
       if (d.name.startsWith('.')) continue;
       const full = path.join(dir, d.name);
       if (d.isDirectory()) {
@@ -55,9 +84,11 @@ async function collectMarkdownPaths(vaultPath: string): Promise<string[]> {
 export class FilesystemProvider implements GraphProvider {
   readonly name = 'filesystem' as const;
 
-  async build(vaultPath: string): Promise<ProviderResult> {
-    const nodes = await collectMarkdownPaths(vaultPath);
-    const multiIndex = await buildMultiFileIndex(vaultPath);
+  async build(vaultPath: string, context?: GraphBuildContext): Promise<ProviderResult> {
+    const signal = context?.signal;
+    const nodes = await collectMarkdownPaths(vaultPath, signal);
+    throwIfAborted(signal);
+    const multiIndex = await buildMultiFileIndex(vaultPath, signal);
     const resolvedLinks = new Map<string, Map<string, number>>();
 
     // Vault-level link-resolution aggregates (issue #37). SAME-VAULT only.
@@ -65,18 +96,26 @@ export class FilesystemProvider implements GraphProvider {
     let unresolvedLinkCount = 0;
     const unresolvedTargets = new Set<string>();
 
-    for (const rel of nodes) {
+    for (let nodeIndex = 0; nodeIndex < nodes.length; nodeIndex += 1) {
+      if (signal && nodeIndex % 64 === 0) await abortableYield(signal);
+      else throwIfAborted(signal);
+      const rel = nodes[nodeIndex];
       const sourceAbs = path.join(vaultPath, rel);
       let content: string;
       try {
-        content = await fs.readFile(sourceAbs, 'utf-8');
-      } catch {
+        content = await fs.readFile(sourceAbs, { encoding: 'utf8', signal });
+      } catch (error) {
+        if (isAbortError(error)) throw error;
         continue;
       }
-      const links = extractWikilinks(content);
+      throwIfAborted(signal);
+      const links = await extractWikilinksCooperative(content, signal);
       const targets = new Map<string, number>();
 
-      for (const link of links) {
+      for (let linkIndex = 0; linkIndex < links.length; linkIndex += 1) {
+        if (signal && linkIndex % 256 === 0) await abortableYield(signal);
+        else throwIfAborted(signal);
+        const link = links[linkIndex];
         // Cross-vault links are EXTERNAL → out-only, never an internal edge
         // and never counted in the same-vault aggregates.
         if (link.vault) continue;
@@ -139,9 +178,18 @@ export class FilesystemProvider implements GraphProvider {
  */
 export class ObsidianProvider implements GraphProvider {
   readonly name = 'obsidian' as const;
-  constructor(private config: Config, private vaultName?: string) {}
+  constructor(
+    private config: Config,
+    private vaultName?: string,
+    private exactTarget?: {
+      registeredVaultId: string;
+      expectedCanonicalPath: string;
+    }
+  ) {}
 
-  async build(vaultPath: string): Promise<ProviderResult> {
+  async build(vaultPath: string, context?: GraphBuildContext): Promise<ProviderResult> {
+    const signal = context?.signal;
+    throwIfAborted(signal);
     // Build resolvedLinks + node set + RAW unresolved aggregation inside Obsidian
     // in one eval round-trip. app.metadataCache.unresolvedLinks is same-vault by
     // nature and keyed source(.md) → { targetText → count } (issue #37). The eval
@@ -175,12 +223,34 @@ export class ObsidianProvider implements GraphProvider {
       '    }',
       '  }',
       "  const nodes = app.vault.getMarkdownFiles().map(f => f.path);",
-      '  return JSON.stringify({ nodes, links, unresolvedRaw });',
+      '  const adapter = app.vault.adapter;',
+      "  const basePath = typeof adapter?.getBasePath === 'function' ? adapter.getBasePath() : adapter?.basePath;",
+      '  return JSON.stringify({ nodes, links, unresolvedRaw, basePath });',
       '})()'
     ].join('\n');
 
-    const raw = await evalInObsidian(this.config, this.vaultName, code, 60000);
-    const parsed = parseEvalJson(raw);
+    const raw = this.exactTarget
+      ? await evalInRegisteredVault(
+          this.exactTarget.registeredVaultId,
+          code,
+          60_000,
+          signal
+        )
+      : await evalInObsidian(this.config, this.vaultName, code, 60_000, signal);
+    await abortableYield(signal);
+    const parsed = await parseEvalJson(raw, signal);
+    await abortableYield(signal);
+
+    if (this.exactTarget) {
+      if (typeof parsed.basePath !== 'string') {
+        throw new Error('Exact Obsidian target did not report its vault identity.');
+      }
+      const observedCanonical = await fs.realpath(parsed.basePath);
+      if (!canonicalPathsEqual(observedCanonical, this.exactTarget.expectedCanonicalPath)) {
+        throw new Error('Exact Obsidian target identity did not match the configured vault.');
+      }
+    }
+    throwIfAborted(signal);
 
     const nodes: string[] = Array.isArray(parsed.nodes) ? parsed.nodes : [];
     const resolvedLinks = new Map<string, Map<string, number>>();
@@ -188,10 +258,16 @@ export class ObsidianProvider implements GraphProvider {
     // resolvedEdgeCount = sum of counts in the FILTERED resolvedLinks (after the
     // .md filter above + the self-link exclusion below), so it matches the edges.
     let resolvedEdgeCount = 0;
-    for (const src of Object.keys(links)) {
+    const sources = Object.keys(links);
+    for (let sourceIndex = 0; sourceIndex < sources.length; sourceIndex += 1) {
+      if (signal && sourceIndex % 256 === 0) await abortableYield(signal);
+      const src = sources[sourceIndex];
       const inner = links[src];
       const m = new Map<string, number>();
-      for (const t of Object.keys(inner)) {
+      const targets = Object.keys(inner);
+      for (let targetIndex = 0; targetIndex < targets.length; targetIndex += 1) {
+        if (signal && targetIndex % 512 === 0) await abortableYield(signal);
+        const t = targets[targetIndex];
         if (t === src) continue; // self-links excluded for parity with fs provider
         m.set(t, inner[t]);
         resolvedEdgeCount += inner[t];
@@ -206,7 +282,10 @@ export class ObsidianProvider implements GraphProvider {
     const unresolvedRaw = (parsed.unresolvedRaw || {}) as Record<string, number>;
     let unresolvedLinkCount = 0;
     const distinctUnresolved = new Set<string>();
-    for (const rawKey of Object.keys(unresolvedRaw)) {
+    const unresolvedKeys = Object.keys(unresolvedRaw);
+    for (let keyIndex = 0; keyIndex < unresolvedKeys.length; keyIndex += 1) {
+      if (signal && keyIndex % 256 === 0) await abortableYield(signal);
+      const rawKey = unresolvedKeys[keyIndex];
       const key = normalizeUnresolvedKey(rawKey);
       if (key === null) continue; // cross-vault → not a same-vault unresolved link
       unresolvedLinkCount += unresolvedRaw[rawKey];
@@ -227,32 +306,47 @@ export class ObsidianProvider implements GraphProvider {
  * The eval bridge may wrap output in quotes or prefix it. Try to parse a JSON
  * object from the returned string robustly.
  */
-function parseEvalJson(raw: string): {
+export async function parseEvalJson(raw: string, signal?: AbortSignal): Promise<{
   nodes?: string[];
   links?: Record<string, Record<string, number>>;
   unresolvedRaw?: Record<string, number>;
-} {
-  let s = raw.trim();
+  basePath?: string;
+}> {
+  const s = raw;
   // The eval result is a JS string literal containing JSON; it may itself be
   // wrapped in quotes (e.g. '"{...}"'). Unwrap one layer of quoting if present.
   try {
-    const first = JSON.parse(s);
+    const first = await parseJsonCancellable<unknown>(s, signal);
     if (typeof first === 'string') {
-      return JSON.parse(first);
+      return await parseJsonCancellable(first, signal);
     }
     if (first && typeof first === 'object') {
       return first;
     }
-  } catch {
+  } catch (error) {
+    if (signal?.aborted) throw error;
     // fall through to substring extraction
   }
   // Last resort: extract the first {...} block.
-  const start = s.indexOf('{');
-  const end = s.lastIndexOf('}');
+  const { start, end } = await findObjectBounds(s, signal);
   if (start >= 0 && end > start) {
-    return JSON.parse(s.slice(start, end + 1));
+    return await parseJsonCancellable(s.slice(start, end + 1), signal);
   }
-  throw new Error(`Could not parse eval_obsidian graph result: ${raw.slice(0, 200)}`);
+  throw new Error('Could not parse the exact Obsidian graph response.');
+}
+
+async function findObjectBounds(
+  value: string,
+  signal?: AbortSignal
+): Promise<{ start: number; end: number }> {
+  let start = -1;
+  let end = -1;
+  for (let index = 0; index < value.length; index += 1) {
+    if (signal && index % (64 * 1024) === 0) await abortableYield(signal);
+    if (start < 0 && value[index] === '{') start = index;
+    if (value[index] === '}') end = index;
+  }
+  return { start, end };
 }
 
 // ─── Provider selection ──────────────────────────────────────────────────────

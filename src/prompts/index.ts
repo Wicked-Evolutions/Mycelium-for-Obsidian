@@ -101,10 +101,14 @@ export function getPromptMessages(
   switch (name) {
     case 'orient':
       if (vault) {
-        // WITH vault: analyze_link_hierarchy REQUIRES an explicit vault (#33-B) —
-        // we have one, so prime the tool call and the concept-link interpretation.
+        // WITH vault: start with side-effect-free exact intent. A closed or
+        // unprepared target returns the consent choices instead of opening or
+        // silently approximating.
         text =
-          `Orient me in ${VAULT_CLAUSE}. First call the \`get_started\` tool, then call \`analyze_link_hierarchy\`${VAULT_ARG}. ` +
+          `Orient me in ${VAULT_CLAUSE}. First call the \`get_started\` tool, then call \`analyze_link_hierarchy\`${VAULT_ARG} with providerMode "exact". ` +
+          `If it returns decision_required, present its message and actions exactly and wait for my choice. ` +
+          `If I choose filesystem, call \`analyze_link_hierarchy\`${VAULT_ARG} with providerMode "filesystem". ` +
+          `If I choose exact, call \`open_vault\`${VAULT_ARG}; only after it reports a prepared snapshot, call \`analyze_link_hierarchy\`${VAULT_ARG} with providerMode "exact" again. ` +
           `Using both results, give me a plain-language orientation: (1) the SHAPE of the vault (total notes, the level histogram L0→L5, ` +
           `which provider built the graph — obsidian or filesystem); (2) the CENTRAL notes — list the top hubs (L0–L1 nodes, highest PageRank) by name; ` +
           `(3) what was EXCLUDED from ranking and why (the excludedNodes count and the active exclusion rule); ` +
@@ -119,7 +123,9 @@ export function getPromptMessages(
         text =
           `Orient me in a vault. \`analyze_link_hierarchy\` now REQUIRES an explicit vault, so do NOT call it blind. ` +
           `First call the \`get_started\` tool to list the configured vaults, then ASK me which vault to orient. ` +
-          `Once I pick one, call \`analyze_link_hierarchy\` with that vault and give me a plain-language orientation: ` +
+          `Once I pick one, call \`analyze_link_hierarchy\` with that vault and providerMode "exact". ` +
+          `If it returns decision_required, present its message and actions exactly and wait for my choice; use providerMode "filesystem" only if I choose approximation, or call \`open_vault\` only if I choose exact preparation. ` +
+          `After a graph result, give me a plain-language orientation: ` +
           `(1) the SHAPE of the vault (total notes, the level histogram L0→L5, which provider built the graph — obsidian or filesystem); ` +
           `(2) the CENTRAL notes — the top hubs (L0–L1 nodes, highest PageRank) by name; ` +
           `(3) what was EXCLUDED from ranking and why; (4) WHERE TO BEGIN — 2–4 concrete starting notes based on the hubs. ` +

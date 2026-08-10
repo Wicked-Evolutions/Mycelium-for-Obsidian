@@ -18,17 +18,21 @@ environment and records the exact suite and test counts. It is not part of CI.
 | **Live e2e** | `npm run test:live` | **AI operator, in-session only** | real Obsidian provider + real Ollama embeddings |
 | Live diagnostic | `npm run test:live:optional` | local troubleshooting | the same suites, but missing prerequisites may skip |
 
-`test:live` globs **only** `test/live/*.live.mjs`, so live tests never run in the
-headless suite or CI. Its preflight requires a selected mapped vault and an
+`test:live` names the graph and semantic live files explicitly, so live tests
+never run in the headless suite or CI. The graph file is listed first and files
+run sequentially, so the closed-vault consent case completes before semantic
+work can contact the same target. Its preflight requires a selected mapped vault and an
 explicitly enabled Ollama lane. Missing prerequisites exit nonzero with a
 sanitized `NOT RUN` receipt. The optional command remains useful for diagnostics,
 but a skipped diagnostic run is never release evidence.
 
 Preflight validates configuration shape only. It intentionally does not inspect
 paths, start services, open vaults, or substitute probes for the product paths.
-The graph and semantic suites are the authoritative runtime checks; an unavailable
-Obsidian CLI, closed target vault, missing Ollama service, or handler failure makes
-the strict command fail.
+The graph suite itself requires the selected target to begin closed, proves the
+side-effect-free decision response, explicitly invokes `open_vault`, and then
+consumes the prepared exact snapshot. An unavailable Obsidian CLI, a target that
+was already open, missing Ollama service, or handler failure makes the strict
+command fail.
 
 ### CI Node-version asymmetry (know this)
 
@@ -67,14 +71,14 @@ outside the CI runners on which it executes.
 
 ## Prerequisites for the live lane
 
-1. **Obsidian 1.12+ with installer 1.12.7+ running** and the CLI **enabled and registered**
+1. **Obsidian 1.12+ with installer 1.12.7+ installed** and the CLI **enabled and registered**
    (Settings → General → *Command line interface* → follow the register prompt).
-2. The **target vault(s) OPEN** in Obsidian — the CLI `eval` command only reaches
-   vaults that have an open window.
-3. **Reconnect the MCP server after any Obsidian restart** — a restart can drop
-   the CLI bridge; if the provider silently degrades you will see
-   `provider: "filesystem"` + a `providerFallbackReason`. The `eval` bridge can
-   also be intermittent; re-run if a run degrades unexpectedly.
+2. The configured `LIVE_TEST_VAULT` must be **CLOSED** in Obsidian when the command
+   starts. Other vault windows may remain open. The graph suite fails rather than
+   weakening this prerequisite.
+3. The configured vault path must resolve to exactly one entry in Obsidian's local
+   vault registry. Duplicate, malformed, missing, basename-only, or mismatched
+   registrations fail closed.
 4. For the semantic test: **Ollama running** with the embedding model available.
    Indexing embeds every note — point `LIVE_TEST_VAULT` at a **small/medium**
    vault for this lane.
@@ -87,7 +91,7 @@ Export the real vault map plus the live selectors, then run:
 # The real multi-vault map the server would use (name -> absolute path):
 export OBSIDIAN_VAULTS='{"ExampleVault":"/absolute/path/to/example-vault", "ConceptVault":"/absolute/path/to/concept-vault"}'
 
-# A well-LINKED vault (open in Obsidian) — asserts provider:"obsidian" + resolvedEdgeCount>0:
+# A well-LINKED vault that is currently CLOSED in Obsidian:
 export LIVE_TEST_VAULT="ExampleVault"
 
 # Optional: a CONCEPT-first vault — asserts unresolved concept-link counts > 0:
@@ -110,20 +114,27 @@ npm run test:live
   gate pass. The optional concept-vault case may remain skipped.
 - **`NOT RUN`** → strict preflight rejected missing or malformed prerequisites.
   The message intentionally omits vault names, paths, and the full vault map.
-- **`provider` was `"filesystem"`** → the Obsidian exact-graph provider did not engage.
-  Check the prereqs (CLI registered, vault open, MCP reconnected). The assertion
-  message echoes `providerFallbackReason`. Inspect `providerState` to distinguish
-  disabled eval, missing CLI registration, an unavailable app, and an attempted
-  eval failure. Its invocation fields describe the graph build, including cached
-  builds; they do not claim eval ran again for every response.
+- **Initial result was not `decision_required` with `targetReadiness: "closed"`** →
+  the target did not begin in the required closed state or a prior snapshot exists
+  in that server session. Close the target and restart the test process.
+- **`open_vault` returned `exact_unavailable`** → inspect its sanitized
+  `decisionState` for `cli_unavailable`, `loading`, `unregistered`, `ambiguous`,
+  `probe_failed`, or `stale`. It never stores a filesystem approximation.
+- **Exact analysis returned `decision_required` or `exact_unavailable` after
+  preparation** → the session snapshot is missing, changed, or no longer matches
+  the canonical registration. Run a fresh explicit preparation; do not treat a
+  filesystem result as equivalent evidence.
 - **Skipped diagnostic** → the corresponding env var is unset. A fully-skipped
   `test:live:optional` run is not a pass for release purposes.
 
 ## What the lane asserts today
 
-- `test/live/graph.live.mjs` — `analyze_link_hierarchy` returns `provider: "obsidian"`
-  with exact, invoked `providerState` and `resolvedEdgeCount > 0` on a linked
-  vault, and (optionally) surfaces unresolved concept-links on a concept-first vault.
+- `test/live/graph.live.mjs` — a closed target first returns the ratified consent
+  choices without opening or graph provenance; explicit `open_vault` dispatches
+  the open and prepares one exact snapshot; exact analysis returns
+  `provider: "obsidian"` with resolved edges; and repeating `open_vault` while the
+  target is already open reports `openInvoked: false`. The optional concept-first
+  case prepares its target explicitly before asserting unresolved concept links.
 - `test/live/semantic.live.mjs` — `index_vault` then `semantic_search` returns
   a non-empty, exactly reconciled index summary with zero per-file errors, then
   ranked hits carrying a `path`, a numeric `similarity` + `fusionScore`,

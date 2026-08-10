@@ -82,6 +82,8 @@ if (canMock) {
         }
         return mockCliResult;
       },
+      execCliForRegisteredVault: async () => mockCliResult,
+      evalInRegisteredVault: async () => mockEvalResult,
       evalInObsidian: async (config, mcpVaultName, code, _timeoutMs) => {
         lastEvalCall = { config, mcpVaultName, code };
         if (typeof mockEvalResult === 'string' && mockEvalResult.startsWith('Error:')) {

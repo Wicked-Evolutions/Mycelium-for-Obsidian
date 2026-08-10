@@ -24,10 +24,19 @@ export { pageRank, PAGERANK_DEFAULTS } from './pagerank.js';
 export { assignLevels, levelHistogram, SMALL_VAULT_THRESHOLD } from './levels.js';
 export {
   getGraphSignals,
+  getFilesystemGraphSignals,
+  getGraphSignalsFromBase,
   getBaseGraph,
   clearGraphCaches,
   invalidateGraphCache
 } from './signals.js';
+export {
+  replacePreparedExactGraph,
+  getPreparedExactGraph,
+  invalidatePreparedExactGraph,
+  clearPreparedExactGraphs,
+  withPreparedGraphLock
+} from './prepared.js';
 export { computeGraphDigest, hashExclude } from './digest.js';
 export {
   DeclaredCrossVaultGraphBuilder,

@@ -34,6 +34,8 @@ if (canMock) {
     namedExports: {
       execCli: async () => '',
       execCliForVault: async () => '',
+      execCliForRegisteredVault: async () => '',
+      evalInRegisteredVault: async () => JSON.stringify({ nodes: [], links: {} }),
       evalInObsidian: async (_config, _vault, _code) => {
         evalCalled += 1;
         // The provider expects a JSON string of { nodes, links }.

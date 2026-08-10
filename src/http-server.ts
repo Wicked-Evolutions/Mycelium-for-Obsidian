@@ -20,6 +20,7 @@ import { allTools, createAllHandlers } from './tools/index.js';
 export interface HttpServerOptions {
   port: number;
   config: Config;
+  handlers?: ReturnType<typeof createAllHandlers>;
 }
 
 export function createHttpServer(options: HttpServerOptions) {
@@ -69,7 +70,7 @@ export function createHttpServer(options: HttpServerOptions) {
   };
 
   // Create all handlers
-  const allHandlers = createAllHandlers(config);
+  const allHandlers = options.handlers ?? createAllHandlers(config);
   const vault = getPrimaryVault(config);
 
   // Health check (no auth required)
@@ -84,6 +85,13 @@ export function createHttpServer(options: HttpServerOptions) {
 
   // Execute any tool by name
   app.post('/call', authMiddleware, async (req: Request, res: Response) => {
+    const controller = new AbortController();
+    const abortRequest = () => controller.abort();
+    const abortOnClose = () => {
+      if (!res.writableEnded) controller.abort();
+    };
+    req.once('aborted', abortRequest);
+    res.once('close', abortOnClose);
     try {
       const { tool, args = {} } = req.body;
 
@@ -99,7 +107,7 @@ export function createHttpServer(options: HttpServerOptions) {
         });
       }
 
-      const result = await handler(args);
+      const result = await handler(args, { signal: controller.signal });
 
       if (result.isError) {
         return res.status(500).json({ error: result.content[0]?.text });
@@ -109,7 +117,10 @@ export function createHttpServer(options: HttpServerOptions) {
       const data = JSON.parse(result.content[0]?.text || '{}');
       res.json(data);
     } catch (error) {
-      res.status(500).json({ error: String(error) });
+      if (!res.headersSent) res.status(500).json({ error: String(error) });
+    } finally {
+      req.removeListener('aborted', abortRequest);
+      res.removeListener('close', abortOnClose);
     }
   });
 

@@ -108,20 +108,29 @@ function buildVaultNameMap(config: Config): Map<string, string> {
 /**
  * Execute an Obsidian CLI command and return the output.
  */
-export function execCli(args: string[], timeoutMs: number = 10000): Promise<string> {
+export function execCli(
+  args: string[],
+  timeoutMs: number = 10000,
+  signal?: AbortSignal
+): Promise<string> {
   return new Promise((resolve, reject) => {
     const candidates = obsidianCliCandidatesForPlatform();
     const options = {
       timeout: timeoutMs,
       encoding: 'utf8',
       maxBuffer: OBSIDIAN_CLI_MAX_BUFFER,
-      env: process.env
+      env: process.env,
+      signal
     } as const;
 
     const run = (candidateIndex: number): void => {
       execFile(candidates[candidateIndex], args, options, (error, stdout, stderr) => {
       if (error) {
         const code = (error as NodeJS.ErrnoException).code;
+        if (signal?.aborted || code === 'ABORT_ERR') {
+          reject(error);
+          return;
+        }
         if (code === 'ENOENT' && candidateIndex + 1 < candidates.length) {
           run(candidateIndex + 1);
           return;
@@ -180,7 +189,8 @@ export function execCliForVault(
   mcpVaultName: string | undefined,
   command: string,
   args: string[] = [],
-  timeoutMs: number = 10000
+  timeoutMs: number = 10000,
+  signal?: AbortSignal
 ): Promise<string> {
   const nameMap = buildVaultNameMap(config);
 
@@ -200,7 +210,21 @@ export function execCliForVault(
   }
 
   const fullArgs = [`vault=${cliVaultName}`, command, ...args];
-  return execCli(fullArgs, timeoutMs);
+  return execCli(fullArgs, timeoutMs, signal);
+}
+
+/** Execute a command against one previously verified registered vault ID. */
+export function execCliForRegisteredVault(
+  vaultId: string,
+  command: string,
+  args: string[] = [],
+  timeoutMs: number = 10000,
+  signal?: AbortSignal
+): Promise<string> {
+  if (!/^[a-f0-9]{16}$/i.test(vaultId)) {
+    return Promise.reject(new Error('Invalid registered Obsidian vault ID.'));
+  }
+  return execCli([`vault=${vaultId}`, command, ...args], timeoutMs, signal);
 }
 
 /**
@@ -210,9 +234,38 @@ export async function evalInObsidian(
   config: Config,
   mcpVaultName: string | undefined,
   code: string,
-  timeoutMs: number = 10000
+  timeoutMs: number = 10000,
+  signal?: AbortSignal
 ): Promise<string> {
-  const result = await execCliForVault(config, mcpVaultName, 'eval', [`code=${code}`], timeoutMs);
+  const result = await execCliForVault(
+    config,
+    mcpVaultName,
+    'eval',
+    [`code=${code}`],
+    timeoutMs,
+    signal
+  );
+  // eval output starts with "=> " prefix
+  if (result.startsWith('=> ')) {
+    return result.slice(3);
+  }
+  return result;
+}
+
+/** Execute eval against one verified registered vault ID. */
+export async function evalInRegisteredVault(
+  vaultId: string,
+  code: string,
+  timeoutMs: number = 10000,
+  signal?: AbortSignal
+): Promise<string> {
+  const result = await execCliForRegisteredVault(
+    vaultId,
+    'eval',
+    [`code=${code}`],
+    timeoutMs,
+    signal
+  );
   // eval output starts with "=> " prefix
   if (result.startsWith('=> ')) {
     return result.slice(3);

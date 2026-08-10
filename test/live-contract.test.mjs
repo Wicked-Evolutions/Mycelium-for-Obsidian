@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
 import {
@@ -12,6 +13,7 @@ const repoRoot = path.resolve(new URL('..', import.meta.url).pathname);
 const preflight = path.join(repoRoot, 'test', 'live', 'preflight.mjs');
 const graphLive = path.join(repoRoot, 'test', 'live', 'graph.live.mjs');
 const semanticLive = path.join(repoRoot, 'test', 'live', 'semantic.live.mjs');
+const packageJson = JSON.parse(readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
 
 function validEnv(overrides = {}) {
   return {
@@ -128,4 +130,16 @@ test('optional live suites skip cleanly when only LIVE_TEST_VAULT is set', () =>
   assert.match(output, /# SKIP set a valid LIVE_TEST_VAULT and OBSIDIAN_VAULTS map/);
   assert.match(output, /# cancelled 0/);
   assert.doesNotMatch(output, /hookFailed|Invalid OBSIDIAN_VAULTS JSON/);
+});
+
+test('live scripts pin graph consent before semantic work without a glob', () => {
+  for (const name of ['test:live', 'test:live:optional']) {
+    const script = packageJson.scripts[name];
+    const graphIndex = script.indexOf('test/live/graph.live.mjs');
+    const semanticIndex = script.indexOf('test/live/semantic.live.mjs');
+    assert.ok(graphIndex >= 0, `${name} names the graph live file`);
+    assert.ok(semanticIndex > graphIndex, `${name} runs graph before semantic`);
+    assert.match(script, /--test-concurrency=1/);
+    assert.doesNotMatch(script, /test\/live\/\*\.live\.mjs/);
+  }
 });

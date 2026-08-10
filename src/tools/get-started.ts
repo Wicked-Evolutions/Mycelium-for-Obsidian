@@ -3,7 +3,7 @@
  *
  * Returns a combined orientation response:
  *  - DYNAMIC (from config at call time): vault names, total tool count, categories with counts
- *  - STATIC guidance: resolver-first workflow, wikilink syntax, CLI vs filesystem tiers
+ *  - STATIC guidance: resolver-first workflow, wikilink syntax, and capability tiers
  *
  * Dependency: imports categories.ts only (never index.ts — avoids circular import).
  */
@@ -11,7 +11,11 @@
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { Config } from '../config.js';
 import { ToolResponse } from '../types/index.js';
-import { categorySummary, CLI_TIER_LABEL } from './categories.js';
+import {
+  APP_CONTACT_TOOL_NAMES,
+  categorySummary,
+  CLI_TIER_LABEL
+} from './categories.js';
 import { withAnnotations, ToolAnnotations } from './safety.js';
 
 // We need access to allTools at call time to count/categorize. Because importing
@@ -24,7 +28,7 @@ const rawGetStartedTools: Tool[] = [
   {
     name: 'get_started',
     description:
-      'Orientation guide for this Obsidian MCP instance. Returns configured vault names, total tool count, tool categories with counts, and static guidance on resolver-first workflow, wikilink syntax, and CLI vs filesystem tiers. Call this first in a new session.',
+      'Orientation guide for this Obsidian MCP instance. Returns configured vault names, total tool count, tool categories with counts, and static guidance on filesystem, explicit app-contact, and CLI tiers. Call this first in a new session.',
     inputSchema: {
       type: 'object',
       properties: {},
@@ -60,7 +64,8 @@ export const STATIC_GUIDANCE = {
   ].join(' '),
 
   tiers: [
-    `Filesystem tier (no Obsidian required): all tools except the "${CLI_TIER_LABEL}" category.`,
+    `Filesystem tier (no Obsidian required): all tools except the "${CLI_TIER_LABEL}" category and explicit app-contact tools.`,
+    `App-contact tier (explicit local Obsidian contact): ${[...APP_CONTACT_TOOL_NAMES].join(', ')}.`,
     `CLI tier (requires Obsidian 1.12+ with installer 1.12.7+ running and CLI enabled): "${CLI_TIER_LABEL}" tools.`,
     'If a CLI-tier tool returns an error about Obsidian not available, ensure Obsidian is open.',
   ].join(' '),

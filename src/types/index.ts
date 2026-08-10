@@ -107,3 +107,33 @@ export interface ToolResponse {
   content: Array<{ type: 'text'; text: string }>;
   isError: boolean;
 }
+
+/** Request-scoped transport context passed through every handler wrapper. */
+export interface ToolRequestContext {
+  signal?: AbortSignal;
+}
+
+export type GraphProviderMode = 'exact' | 'filesystem';
+
+export type GraphTargetReadiness =
+  | 'not_probed'
+  | 'closed'
+  | 'open_unprepared'
+  | 'exact_ready'
+  | 'prepared'
+  | 'loading'
+  | 'eval_disabled'
+  | 'cli_unavailable'
+  | 'unregistered'
+  | 'ambiguous'
+  | 'unsupported_platform'
+  | 'probe_failed'
+  | 'stale';
+
+export interface GraphDecisionState {
+  requestedMode: GraphProviderMode;
+  targetReadiness: GraphTargetReadiness;
+  probeInvoked: boolean;
+  openInvoked: boolean;
+  analysisInvoked: boolean;
+}
