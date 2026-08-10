@@ -29,10 +29,9 @@ jobs:
       - name: Build
         run: npm run build
 
-      # Single test execution: test:coverage runs the headless tests under c8,
-      # serving as BOTH the pass/fail gate (c8 propagates the test runner exit
-      # code) and the baseline coverage report. Tests run once, build runs once
-      # (test:coverage does not rebuild) — no double-build, no double-test-run.
+      # test:coverage runs the headless tests once under c8 and serves as both the
+      # pass/fail gate and baseline coverage report. The later package gate builds
+      # again through npm pack's prepare lifecycle, but does not rerun this suite.
       - name: Test with coverage
         run: npm run test:coverage
 
@@ -44,3 +43,6 @@ jobs:
           name: coverage-lcov
           path: coverage/lcov.info
           if-no-files-found: warn
+
+      - name: Verify npm package
+        run: npm run test:package

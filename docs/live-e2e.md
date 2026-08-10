@@ -14,6 +14,7 @@ environment and records the exact suite and test counts. It is not part of CI.
 | Tier | Command | Where it runs | Covers |
 |---|---|---|---|
 | Headless | `npm test` / `npm run test:coverage` | local + **CI (Node 20 & 22)** | everything with no external services (mocks, fixtures, contracts, provider parity) |
+| npm package | `npm run test:package` | local + **CI (Node 20 & 22)** | tarball boundary, clean install, native binding, installed stdio handshake, version and tool surface |
 | **Live e2e** | `npm run test:live` | **AI operator, in-session only** | real Obsidian provider + real Ollama embeddings |
 | Live diagnostic | `npm run test:live:optional` | local troubleshooting | the same suites, but missing prerequisites may skip |
 
@@ -40,8 +41,29 @@ CI runs the headless suite on **Node 20 and Node 22**:
   before Node 22.3, so the mock-gated suites **skip** on 20 (via their `canMock`
   guard). That is why Node 20 reports more skips than Node 22.
 
-Both legs are **0 failures**. Node 20 proves `better-sqlite3` compiles and the
-non-mock paths pass; Node 22 is the authoritative full-suite run.
+Both legs must report **0 failures**. A passing npm-package lane proves a clean
+installation and compatible native-binding load on its `ubuntu-latest` Node 20 or
+22 runner. Node 20 also exercises the non-mock paths; Node 22 is the authoritative
+full headless-suite run.
+
+### npm package verification
+
+`npm run test:package` creates and removes one isolated temporary root. It stages
+the package build inputs there, packs the current npm/server candidate, rejects
+files outside the declared package boundary, installs the tarball with lifecycle
+scripts enabled and npm's automatic audit disabled, loads `better-sqlite3` from
+that installed tree, and runs an MCP stdio smoke test against a synthetic read-only
+vault. The installed server version and ordered tool names must match the staged
+build. Lifecycle scripts execute normally and are not an operating-system sandbox;
+the verifier supplies only the system/compiler/network settings needed by npm and
+does not forward vault, live-test, or unrelated secret environment variables.
+
+Record the command's sanitized receipt: Node/npm/platform/architecture, package
+identity and integrity, package entry count, normalized native-binding path, server
+identity, tool count, and marker-file result. Production audit evidence is captured
+separately because registry advisory data is time-varying and detailed triage is
+private. This lane does not validate Obsidian, Ollama, MCPB, publication, or platforms
+outside the CI runners on which it executes.
 
 ## Prerequisites for the live lane
 
