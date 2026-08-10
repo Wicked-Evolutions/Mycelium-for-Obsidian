@@ -21,8 +21,8 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { Config } from '../config.js';
 import { extractWikilinks, buildMultiFileIndex, resolveWikilink, normalizeUnresolvedKey } from '../parsers/wikilink.js';
-import { evalInObsidian, isCliAvailable } from '../cli/bridge.js';
-import { GraphProvider, ProviderResult } from './types.js';
+import { evalInObsidian, probeObsidianCli } from '../cli/bridge.js';
+import { GraphProvider, GraphProviderState, ProviderResult } from './types.js';
 
 /**
  * Recursively collect all .md files (vault-relative paths, with .md).
@@ -267,15 +267,64 @@ export async function selectProvider(
   config: Config,
   vaultName?: string
 ): Promise<GraphProvider> {
+  return (await selectProviderWithState(config, vaultName)).provider;
+}
+
+export interface GraphProviderSelection {
+  provider: GraphProvider;
+  state: GraphProviderState;
+  decisionKey: string;
+}
+
+function selection(
+  provider: GraphProvider,
+  state: GraphProviderState
+): GraphProviderSelection {
+  const decisionKey = [
+    state.selectedProvider,
+    state.exactProviderAvailability,
+    state.degradationReason ?? 'none'
+  ].join(':');
+  return { provider, state, decisionKey };
+}
+
+/** Select a provider and retain a safe, explicit eligibility receipt. */
+export async function selectProviderWithState(
+  config: Config,
+  vaultName?: string
+): Promise<GraphProviderSelection> {
   const evalDisabled = config.disabledTools.has('eval_obsidian');
-  if (!evalDisabled) {
-    try {
-      if (await isCliAvailable()) {
-        return new ObsidianProvider(config, vaultName);
-      }
-    } catch {
-      // isCliAvailable threw — fall through to filesystem.
-    }
+  if (evalDisabled) {
+    return selection(new FilesystemProvider(), {
+      selectedProvider: 'filesystem',
+      approximate: true,
+      exactProviderAvailability: 'disabled',
+      exactProviderInvoked: false,
+      degradationReason: 'eval_disabled'
+    });
   }
-  return new FilesystemProvider();
+
+  const probe = await probeObsidianCli();
+  if (probe.status === 'available') {
+    return selection(new ObsidianProvider(config, vaultName), {
+      selectedProvider: 'obsidian',
+      approximate: false,
+      exactProviderAvailability: 'available',
+      exactProviderInvoked: false
+    });
+  }
+
+  const degradationReason =
+    probe.status === 'cli_unavailable'
+      ? 'cli_unavailable'
+      : probe.status === 'obsidian_unavailable'
+        ? 'obsidian_unavailable'
+        : 'cli_probe_failed';
+  return selection(new FilesystemProvider(), {
+    selectedProvider: 'filesystem',
+    approximate: true,
+    exactProviderAvailability: probe.status,
+    exactProviderInvoked: false,
+    degradationReason
+  });
 }

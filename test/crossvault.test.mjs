@@ -1048,6 +1048,12 @@ describe('semantic_search_all — graph annotation (PR-A #25)', () => {
           meta.provider === 'obsidian' || meta.provider === 'filesystem',
           `${vaultName}.provider is obsidian|filesystem — got: ${meta.provider}`,
         );
+        assert.equal(typeof meta.providerState, 'object', `${vaultName}.providerState is present`);
+        assert.equal(
+          meta.providerState.approximate,
+          meta.provider === 'filesystem',
+          `${vaultName}.approximate agrees with provider`,
+        );
       } else {
         assert.equal(typeof meta.graphUnavailableReason, 'string', `${vaultName} has a reason when unavailable`);
       }

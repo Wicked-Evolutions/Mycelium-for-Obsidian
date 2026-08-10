@@ -1,10 +1,12 @@
 /**
  * Obsidian CLI Bridge
  * Executes Obsidian CLI commands from the MCP server.
- * Requires Obsidian 1.12+ with CLI enabled and the app running.
+ * Requires Obsidian 1.12+ with installer 1.12.7+, CLI enabled, and the app running.
  */
 
 import { execFile } from 'child_process';
+import { accessSync, constants, realpathSync } from 'fs';
+import * as path from 'path';
 import { Config } from '../config.js';
 
 /**
@@ -20,6 +22,59 @@ import { Config } from '../config.js';
  * `execCli` actually passes it.
  */
 export const OBSIDIAN_CLI_MAX_BUFFER = 256 * 1024 * 1024;
+
+export type ObsidianCliProbeStatus =
+  | 'available'
+  | 'cli_unavailable'
+  | 'obsidian_unavailable'
+  | 'unknown';
+
+export interface ObsidianCliProbe {
+  status: ObsidianCliProbeStatus;
+}
+
+export class ObsidianCliError extends Error {
+  constructor(
+    public readonly kind: Exclude<ObsidianCliProbeStatus, 'available'>,
+    message: string
+  ) {
+    super(message);
+    this.name = 'ObsidianCliError';
+  }
+}
+
+function isAppUnavailableText(value: string): boolean {
+  return /ECONNREFUSED|not running|CLI is unable to find Obsidian|make sure Obsidian is running/i.test(value);
+}
+
+const MACOS_BUNDLED_CLI = '/Applications/Obsidian.app/Contents/MacOS/obsidian-cli';
+
+function findRegisteredMacCli(): string | undefined {
+  for (const directory of (process.env.PATH ?? '').split(path.delimiter)) {
+    if (!directory) continue;
+    const candidate = path.join(directory, 'obsidian');
+    try {
+      accessSync(candidate, constants.X_OK);
+      if (path.basename(realpathSync(candidate)).toLowerCase() === 'obsidian-cli') {
+        return candidate;
+      }
+    } catch {
+      // Continue through PATH. Missing entries and broken links are expected.
+    }
+  }
+  return undefined;
+}
+
+/** Ordered executable candidates that never resolve the macOS GUI binary. */
+export function obsidianCliCandidatesForPlatform(platform = process.platform): string[] {
+  if (platform !== 'darwin') return ['obsidian'];
+  const registered = findRegisteredMacCli();
+  return [
+    MACOS_BUNDLED_CLI,
+    'obsidian-cli',
+    ...(registered ? [registered] : [])
+  ];
+}
 
 // Map our MCP vault paths to Obsidian CLI vault names
 // CLI uses the folder name as vault name, we use short aliases
@@ -55,19 +110,41 @@ function buildVaultNameMap(config: Config): Map<string, string> {
  */
 export function execCli(args: string[], timeoutMs: number = 10000): Promise<string> {
   return new Promise((resolve, reject) => {
-    execFile('obsidian', args, {
+    const candidates = obsidianCliCandidatesForPlatform();
+    const options = {
       timeout: timeoutMs,
       encoding: 'utf8',
       maxBuffer: OBSIDIAN_CLI_MAX_BUFFER,
-      env: { ...process.env, PATH: `${process.env.PATH}:/Applications/Obsidian.app/Contents/MacOS` }
-    }, (error, stdout, stderr) => {
+      env: process.env
+    } as const;
+
+    const run = (candidateIndex: number): void => {
+      execFile(candidates[candidateIndex], args, options, (error, stdout, stderr) => {
       if (error) {
-        // Check if Obsidian is not running
-        if (stderr?.includes('ECONNREFUSED') || stderr?.includes('not running')) {
-          reject(new Error('Obsidian app is not running. Start Obsidian to use CLI-based tools.'));
+        const code = (error as NodeJS.ErrnoException).code;
+        if (code === 'ENOENT' && candidateIndex + 1 < candidates.length) {
+          run(candidateIndex + 1);
           return;
         }
-        reject(new Error(`CLI error: ${error.message}\n${stderr || ''}`));
+        if (code === 'ENOENT') {
+          reject(new ObsidianCliError('cli_unavailable', 'Obsidian CLI is not installed or registered.'));
+          return;
+        }
+        if (isAppUnavailableText(`${error.message}\n${stdout || ''}\n${stderr || ''}`)) {
+          reject(new ObsidianCliError(
+            'obsidian_unavailable',
+            'Obsidian app is not running. Start Obsidian to use CLI-based tools.'
+          ));
+          return;
+        }
+        reject(new ObsidianCliError('unknown', `CLI error: ${error.message}\n${stderr || ''}`));
+        return;
+      }
+      if (isAppUnavailableText(stderr || '')) {
+        reject(new ObsidianCliError(
+          'obsidian_unavailable',
+          'Obsidian app is not running. Start Obsidian to use CLI-based tools.'
+        ));
         return;
       }
       // Filter out installer warning and loading messages
@@ -80,12 +157,18 @@ export function execCli(args: string[], timeoutMs: number = 10000): Promise<stri
 
       // Obsidian CLI exits 0 even on errors — check for Error: prefix in output
       if (result.startsWith('Error:')) {
-        reject(new Error(result));
+        reject(new ObsidianCliError(
+          isAppUnavailableText(result) ? 'obsidian_unavailable' : 'unknown',
+          result
+        ));
         return;
       }
 
       resolve(result);
-    });
+      });
+    };
+
+    run(0);
   });
 }
 
@@ -141,10 +224,18 @@ export async function evalInObsidian(
  * Check if the Obsidian CLI is available and the app is running.
  */
 export async function isCliAvailable(): Promise<boolean> {
+  return (await probeObsidianCli()).status === 'available';
+}
+
+/** Probe CLI registration and app reachability without exposing raw errors. */
+export async function probeObsidianCli(): Promise<ObsidianCliProbe> {
   try {
     await execCli(['version'], 5000);
-    return true;
-  } catch {
-    return false;
+    return { status: 'available' };
+  } catch (err) {
+    if (err instanceof ObsidianCliError) {
+      return { status: err.kind };
+    }
+    return { status: 'unknown' };
   }
 }

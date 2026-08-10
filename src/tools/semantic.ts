@@ -548,6 +548,7 @@ export function createSemanticHandlers(config: Config) {
                 ? {
                     // PR-A (#25): surface the graph provider additively (top-level).
                     provider: graphAttach.provider,
+                    providerState: graphAttach.providerState,
                     // #32: only when the Obsidian provider degraded to filesystem.
                     ...(graphAttach.providerFallbackReason
                       ? { providerFallbackReason: graphAttach.providerFallbackReason }

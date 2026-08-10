@@ -61,7 +61,7 @@ export const STATIC_GUIDANCE = {
 
   tiers: [
     `Filesystem tier (no Obsidian required): all tools except the "${CLI_TIER_LABEL}" category.`,
-    `CLI tier (requires Obsidian 1.12+ running with CLI enabled): "${CLI_TIER_LABEL}" tools.`,
+    `CLI tier (requires Obsidian 1.12+ with installer 1.12.7+ running and CLI enabled): "${CLI_TIER_LABEL}" tools.`,
     'If a CLI-tier tool returns an error about Obsidian not available, ensure Obsidian is open.',
   ].join(' '),
 };

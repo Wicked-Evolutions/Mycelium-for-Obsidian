@@ -10,8 +10,10 @@ export { buildVaultGraph, normalize } from './build.js';
 export {
   FilesystemProvider,
   ObsidianProvider,
-  selectProvider
+  selectProvider,
+  selectProviderWithState
 } from './providers.js';
+export type { GraphProviderSelection } from './providers.js';
 export {
   resolveExclude,
   computeExcludedSet,

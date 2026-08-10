@@ -2,7 +2,7 @@
 
 Multi-vault Obsidian MCP server — full AI operations toolset for file management, wikilinks, semantic search, frontmatter queries, daily notes, tasks, properties, templates, and more.
 
-Two-tier architecture: 75 tools work without Obsidian running + 28 CLI tools access Obsidian's runtime API when the app is running with [CLI enabled](https://obsidian.md/help/cli) (1.12+).
+Two-tier architecture: 75 tools work without Obsidian running + 28 CLI tools access Obsidian's runtime API when the app is running with [CLI enabled](https://obsidian.md/help/cli) (Obsidian 1.12+ with installer 1.12.7+).
 
 New in 1.4.0: **graph orientation** — `analyze_link_hierarchy` ranks your vault's link graph into hub→leaf structural levels (Obsidian-authoritative when the app is running); **graph-aware search** — every `semantic_search` hit carries its structural role; **slash commands** — five human-triggered MCP prompts (`/orient`, `/search`, `/excluded`, `/vault-health`, `/get-started`); an opt-in **reranker + HyDE**; a **read-only / untrusted-content safety surface**; and honest **concept-link reporting** for vaults that link concepts before creating notes. See [CHANGELOG](CHANGELOG.md).
 
@@ -173,7 +173,7 @@ Comma-separated list. Disabled tools are removed from both the tool list and han
 ## Features
 
 - **Unified Multi-Vault**: Single server process handles all vaults. Most tools accept an optional `vault` parameter; authoritative graph orientation (`analyze_link_hierarchy`) requires an explicit one.
-- **Two-Tier Architecture**: 75 tools always available + 28 CLI tools when Obsidian 1.12+ is running
+- **Two-Tier Architecture**: 75 tools always available + 28 CLI tools when Obsidian 1.12+ with installer 1.12.7+ is running
 - **Orientation & Self-Correction**: `get_started` and `discover_tools` map the server's surface; configured vault names surface as an `enum` in each tool's input schema; unknown vault/note names return closest-match suggestions instead of bare errors
 - **File Operations**: List, read, create, update, delete, move files with frontmatter support
 - **Wikilink Resolution**: Resolve `[[wikilinks]]`, get outlinks/backlinks, follow link chains
@@ -189,12 +189,22 @@ Comma-separated list. Disabled tools are removed from both the tool list and han
 - **Commands & History**: Execute Obsidian commands, access file version history (CLI)
 - **Tool Filtering**: Disable specific tools via `OBSIDIAN_DISABLED_TOOLS` env var
 
+Graph-bearing responses keep the legacy top-level `provider` as the effective
+producer and add `providerState` as build provenance. It states whether the
+filesystem result is approximate, whether the exact Obsidian provider was
+eligible and invoked, and a stable degradation reason such as `cli_unavailable`,
+`obsidian_unavailable`, or `eval_failed`. Cached results retain the provenance of
+the build that produced them. Provider eligibility is rechecked before graph
+caches are reused, so an unchanged vault upgrades from filesystem to exact when
+Obsidian becomes available. `providerFallbackReason` remains the bounded,
+sanitized detail only for an attempted Obsidian eval that fell back.
+
 ## Two-Tier Architecture
 
 | Tier | Tools | Requires | Always Available |
 |------|-------|----------|-----------------|
 | **Filesystem** | 75 tools | Node.js only | Yes — works without Obsidian running |
-| **CLI-only** | 28 tools | Obsidian 1.12+ running | No — graceful error if app not running |
+| **CLI-only** | 28 tools | Obsidian 1.12+ with installer 1.12.7+ running | No — graceful error if app not running |
 
 **Filesystem tools** read and write vault files directly. They work whether Obsidian is open or not.
 
@@ -204,7 +214,7 @@ If Obsidian is not running, CLI tools return a clear error message. All filesyst
 
 ### Enabling the Obsidian CLI
 
-To use the 28 CLI-only tools, you need Obsidian 1.12+ with CLI enabled. In Obsidian: **Settings → General → Enable "Command line interface"**, then follow the prompt to register. See the [Obsidian CLI documentation](https://obsidian.md/help/cli) for install and troubleshooting details.
+To use the 28 CLI-only tools, you need Obsidian 1.12+ installed with installer 1.12.7+ and CLI enabled. In Obsidian: **Settings → General → Enable "Command line interface"**, then follow the prompt to register. See the [Obsidian CLI documentation](https://obsidian.md/help/cli) for install and troubleshooting details.
 
 ## Available Tools (103)
 
@@ -442,7 +452,7 @@ The additive `declaredCrossVaultGraph` projects only validated cross-vault decla
 
 ---
 
-### CLI-Only (28 tools — require Obsidian 1.12+)
+### CLI-Only (28 tools — require Obsidian 1.12+ with installer 1.12.7+)
 
 These tools access Obsidian's runtime state, plugin systems, or internal databases. They require the Obsidian app to be running with [CLI enabled](https://obsidian.md/help/cli). If Obsidian is not running, they return a clear error message.
 
@@ -568,7 +578,7 @@ src/
 ├── config.ts             # Config loading + resolveVault() helper
 ├── types/index.ts        # TypeScript type definitions
 ├── cli/
-│   └── bridge.ts         # Obsidian CLI bridge (1.12+)
+│   └── bridge.ts         # Obsidian CLI bridge (1.12+, installer 1.12.7+)
 ├── parsers/
 │   ├── markdown.ts       # Markdown/frontmatter parsing, section extraction
 │   ├── wikilink.ts       # Wikilink parsing + resolution
@@ -610,7 +620,7 @@ Three tools can cause data loss if used incorrectly. Understand their behavior b
 
 ## Known Limitations
 
-- **CLI-only tools require Obsidian running** — a subset of tools need Obsidian 1.12+ with [CLI enabled](https://obsidian.md/help/cli). If Obsidian is not running, these tools return a clear error while all other tools continue working.
+- **CLI-only tools require Obsidian running** — a subset of tools need Obsidian 1.12+ with installer 1.12.7+ and [CLI enabled](https://obsidian.md/help/cli). If Obsidian is not running, these tools return a clear error while all other tools continue working.
 - **Unicode filenames** — Files with curly apostrophes (U+2019) and some Unicode characters may fail to resolve.
 - **Vault path changes** — If a vault folder is renamed on disk, the `OBSIDIAN_VAULTS` environment variable must be updated manually.
 

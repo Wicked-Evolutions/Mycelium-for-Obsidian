@@ -47,6 +47,12 @@ describe('live: graph orientation via the real Obsidian provider', { skip }, () 
       `expected the Obsidian (exact-graph) provider, got "${out.provider}" — reason: ${out.providerFallbackReason ?? 'n/a'}. ` +
       `Is Obsidian running with CLI enabled + "${LINKED}" open? (reconnect the MCP server after an Obsidian restart — see docs/live-e2e.md)`
     );
+    assert.deepEqual(out.providerState, {
+      selectedProvider: 'obsidian',
+      approximate: false,
+      exactProviderAvailability: 'available',
+      exactProviderInvoked: true,
+    });
     assert.ok(out.resolvedEdgeCount > 0, `expected resolvedEdgeCount > 0 on a linked vault, got ${out.resolvedEdgeCount}`);
     assert.equal(typeof out.unresolvedLinkCount, 'number', 'unresolvedLinkCount must always be present (#37)');
     assert.equal(typeof out.distinctUnresolvedTargets, 'number', 'distinctUnresolvedTargets must always be present (#37)');
@@ -59,6 +65,8 @@ describe('live: graph orientation via the real Obsidian provider', { skip }, () 
     async () => {
       const out = parse(await handlers.analyze_link_hierarchy({ vault: CONCEPT, compact: true, limit: 5 }));
       assert.equal(out.provider, 'obsidian', `expected obsidian provider, got "${out.provider}" (${out.providerFallbackReason ?? 'n/a'})`);
+      assert.equal(out.providerState?.approximate, false);
+      assert.equal(out.providerState?.exactProviderInvoked, true);
       assert.ok(out.unresolvedLinkCount > 0, `a concept-first vault should have unresolved concept-links, got ${out.unresolvedLinkCount}`);
       assert.ok(out.distinctUnresolvedTargets > 0, `expected distinct unresolved concept targets, got ${out.distinctUnresolvedTargets}`);
     }

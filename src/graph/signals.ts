@@ -15,7 +15,10 @@
 import { Config, resolveVault } from '../config.js';
 import { BaseGraph, GraphSignals, NodeSignals } from './types.js';
 import { buildVaultGraph } from './build.js';
-import { selectProvider } from './providers.js';
+import {
+  GraphProviderSelection,
+  selectProviderWithState
+} from './providers.js';
 import { computeGraphDigest, hashExclude } from './digest.js';
 import { resolveExclude, computeExcludedSet, ExcludeInput } from './exclude.js';
 import { pageRank } from './pagerank.js';
@@ -25,6 +28,8 @@ import { assignLevels } from './levels.js';
 
 interface BaseCacheEntry {
   digest: string;
+  decisionKey: string;
+  identity: string;
   graph: BaseGraph;
 }
 const baseCache = new Map<string, BaseCacheEntry>(); // key: vaultPath
@@ -33,6 +38,14 @@ interface RankedCacheEntry {
   signals: GraphSignals;
 }
 const rankedCache = new Map<string, RankedCacheEntry>(); // key: vaultPath|digest|excludeHash
+let requestSequence = 0;
+const latestSequenceByVault = new Map<string, number>();
+
+interface BaseRequestContext {
+  digest: string;
+  selection: GraphProviderSelection;
+  sequence: number;
+}
 
 /**
  * Test/maintenance helper: clear all session caches.
@@ -40,6 +53,7 @@ const rankedCache = new Map<string, RankedCacheEntry>(); // key: vaultPath|diges
 export function clearGraphCaches(): void {
   baseCache.clear();
   rankedCache.clear();
+  latestSequenceByVault.clear();
 }
 
 /**
@@ -60,23 +74,80 @@ export function invalidateGraphCache(vaultPath: string): void {
 export async function getBaseGraph(
   config: Config,
   vaultName: string | undefined,
-  vaultPath: string
+  vaultPath: string,
+  context?: BaseRequestContext
 ): Promise<BaseGraph> {
-  const digest = await computeGraphDigest(vaultPath);
+  const sequence = context?.sequence ?? beginGraphRequest(vaultPath);
+  const digest = context?.digest ?? await computeGraphDigest(vaultPath);
+  const selection = context?.selection ?? await selectProviderWithState(config, vaultName);
   const cached = baseCache.get(vaultPath);
-  if (cached && cached.digest === digest) {
+  const exactRetryRequired =
+    selection.provider.name === 'obsidian' && cached?.graph.provider === 'filesystem';
+  if (
+    cached &&
+    cached.digest === digest &&
+    cached.decisionKey === selection.decisionKey &&
+    !exactRetryRequired
+  ) {
     return cached.graph;
   }
-  const provider = await selectProvider(config, vaultName);
-  const graph = await buildVaultGraph(vaultPath, provider, config, vaultName);
-  baseCache.set(vaultPath, { digest, graph });
-  // Base graph changed → drop any ranked signals for the old digest.
-  for (const key of [...rankedCache.keys()]) {
-    if (key.startsWith(vaultPath + '|') && !key.startsWith(`${vaultPath}|${digest}|`)) {
-      rankedCache.delete(key);
+
+  const reusableFilesystemGraph =
+    cached?.digest === digest && cached.graph.provider === 'filesystem'
+      ? cached.graph
+      : undefined;
+  const built = await buildVaultGraph(
+    vaultPath,
+    selection.provider,
+    config,
+    vaultName,
+    selection.state,
+    reusableFilesystemGraph
+  );
+  const identity = [
+    vaultPath,
+    digest,
+    selection.decisionKey,
+    built.provider,
+    built.providerState.degradationReason ?? 'none'
+  ].join('|');
+  const graph = { ...built, cacheIdentity: identity };
+
+  // Only the newest-started request may replace the shared cache. This prevents
+  // a late fallback from poisoning a newer exact-provider result.
+  if (latestSequenceByVault.get(vaultPath) === sequence) {
+    const previousIdentity = cached?.identity;
+    baseCache.set(vaultPath, {
+      digest,
+      decisionKey: selection.decisionKey,
+      identity,
+      graph
+    });
+    if (previousIdentity && previousIdentity !== identity) {
+      for (const key of [...rankedCache.keys()]) {
+        if (key.startsWith(vaultPath + '|')) rankedCache.delete(key);
+      }
     }
   }
   return graph;
+}
+
+function beginGraphRequest(vaultPath: string): number {
+  const sequence = ++requestSequence;
+  latestSequenceByVault.set(vaultPath, sequence);
+  return sequence;
+}
+
+function withBaseMetadata(signals: GraphSignals, baseGraph: BaseGraph): GraphSignals {
+  return {
+    ...signals,
+    provider: baseGraph.provider,
+    providerState: baseGraph.providerState,
+    baseGraph,
+    ...(baseGraph.providerFallbackReason
+      ? { providerFallbackReason: baseGraph.providerFallbackReason }
+      : { providerFallbackReason: undefined })
+  };
 }
 
 /**
@@ -90,15 +161,20 @@ export async function getGraphSignals(
 ): Promise<GraphSignals> {
   const vault = resolveVault(config, vaultName);
   const vaultPath = vault.path;
+  const sequence = beginGraphRequest(vaultPath);
 
   const digest = await computeGraphDigest(vaultPath);
+  const selection = await selectProviderWithState(config, vaultName);
   const excludeHash = hashExclude(exclude?.where);
-  const rankedKey = `${vaultPath}|${digest}|${excludeHash}`;
+  const graph = await getBaseGraph(config, vaultName, vaultPath, {
+    digest,
+    selection,
+    sequence
+  });
+  const rankedKey = `${vaultPath}|${graph.cacheIdentity}|${excludeHash}`;
 
   const cachedRanked = rankedCache.get(rankedKey);
-  if (cachedRanked) return cachedRanked.signals;
-
-  const graph = await getBaseGraph(config, vaultName, vaultPath);
+  if (cachedRanked) return withBaseMetadata(cachedRanked.signals, graph);
 
   // Resolve exclusion predicate, prune.
   const resolved = resolveExclude(exclude);
@@ -171,6 +247,8 @@ export async function getGraphSignals(
   const signals: GraphSignals = {
     vault: vault.name,
     provider: graph.provider,
+    providerState: graph.providerState,
+    baseGraph: graph,
     // Carry the Obsidian→filesystem degrade reason (issue #32) through the
     // ranked cache so cache hits keep it. Only present when set on the base graph.
     ...(graph.providerFallbackReason
@@ -189,6 +267,8 @@ export async function getGraphSignals(
     distinctUnresolvedTargets: graph.distinctUnresolvedTargets
   };
 
-  rankedCache.set(rankedKey, { signals });
+  if (latestSequenceByVault.get(vaultPath) === sequence) {
+    rankedCache.set(rankedKey, { signals });
+  }
   return signals;
 }
