@@ -27,7 +27,7 @@ Presence of a target file proves configuration intent only. Record substitutions
 
 [Official Codex custom-agent documentation](https://developers.openai.com/codex/agent-configuration/subagents#custom-agents) defines each project TOML under `.codex/agents/` as a configuration layer for spawned sessions. The TOML `name` is the custom-agent identity, and file-level `model` and `model_reasoning_effort` values take precedence. The current Codex Desktop host exposes these project agents by name through its generated delegation surface. Exact selector syntax remains runtime-specific; `task_name` only labels a delegated task and must not be treated as the role selector.
 
-The tracked `mycelium_adversarial_reviewer` target is `gpt-5.6-sol` with `ultra` reasoning and a `read-only` sandbox. That is configuration intent, not proof that the target is installed, available, invoked, or effective. Record the host launch receipt for each material review and disclose that it is operational evidence rather than independent cryptographic self-attestation by the child model. Do not silently substitute a generic child while claiming the named role ran.
+The tracked `mycelium_adversarial_reviewer` target is `gpt-5.6-sol` with `xhigh` reasoning and a `read-only` sandbox. That is configuration intent, not proof that the target is installed, available, invoked, or effective. Record the host launch receipt for each material review and disclose that it is operational evidence rather than independent cryptographic self-attestation by the child model. Do not silently substitute a generic child while claiming the named role ran.
 
 ## Sprint sequence
 
@@ -58,7 +58,7 @@ Use the project agent definitions as current target mappings, not permanent role
 - Luna: inexpensive research and repository discovery.
 - Terra: everyday implementation.
 - 5.4 Mini: bounded tests and mechanical verification.
-- 5.6 SOL Ultra Mode: adversarial review of high-risk changes.
+- 5.6 SOL xhigh: adversarial review of high-risk changes. High is sufficient for bounded routine reviews; Ultra requires separate founder authorization.
 
 Models may change as availability and measured performance change. Canonical role meaning, authority, and evidence contracts remain separate from those mappings.
 
