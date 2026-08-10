@@ -1,6 +1,6 @@
 /**
  * CLI-only tools for Obsidian MCP
- * These tools REQUIRE the Obsidian CLI (1.12+) and cannot be replicated
+ * These tools REQUIRE the Obsidian CLI (1.12+, installer 1.12.7+) and cannot be replicated
  * via filesystem access. They access Obsidian's runtime state, plugin
  * systems, or internal databases.
  *
@@ -22,7 +22,7 @@ function withCliCheck(handler: (...args: any[]) => Promise<ToolResponse>): (...a
     const available = await isCliAvailable();
     if (!available) {
       return {
-        content: [{ type: 'text', text: 'Obsidian CLI is not available. Make sure Obsidian 1.12+ is running with CLI enabled.' }],
+        content: [{ type: 'text', text: 'Obsidian CLI is not available. Make sure Obsidian 1.12+ with installer 1.12.7+ is running and CLI enabled.' }],
         isError: true
       };
     }

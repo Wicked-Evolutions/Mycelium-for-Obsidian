@@ -90,6 +90,9 @@ if (canMock) {
         return mockEvalResult;
       },
       isCliAvailable: async () => mockIsCliAvailable,
+      probeObsidianCli: async () => ({
+        status: mockIsCliAvailable ? 'available' : 'cli_unavailable',
+      }),
     }
   });
 }
@@ -976,7 +979,7 @@ const LIVE_SKIP_REASON = canMock
   ? 'live integration uses real handlers — run under bare node --test (no mock flag)'
   : isLiveCli
     ? false
-    : 'Obsidian 1.12+ is not running or CLI is not enabled. Start Obsidian to run live tests.';
+    : 'Obsidian 1.12+ with installer 1.12.7+ is not running or CLI is not enabled. Start Obsidian to run live tests.';
 
 describe('live integration (skippable — requires Obsidian running)', { skip: LIVE_SKIP_REASON }, () => {
   // Synchronous describe body: tests registered immediately, no async registration.

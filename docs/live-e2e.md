@@ -36,7 +36,7 @@ non-mock paths pass; Node 22 is the authoritative full-suite run.
 
 ## Prerequisites for the live lane
 
-1. **Obsidian 1.12+ running** with the CLI **enabled and registered**
+1. **Obsidian 1.12+ with installer 1.12.7+ running** and the CLI **enabled and registered**
    (Settings → General → *Command line interface* → follow the register prompt).
 2. The **target vault(s) OPEN** in Obsidian — the CLI `eval` command only reaches
    vaults that have an open window.
@@ -73,15 +73,18 @@ npm run test:live
 - **All green (nothing failed)** → the live gate passes; safe to proceed with the release checks.
 - **`provider` was `"filesystem"`** → the Obsidian exact-graph provider did not engage.
   Check the prereqs (CLI registered, vault open, MCP reconnected). The assertion
-  message echoes `providerFallbackReason`.
+  message echoes `providerFallbackReason`. Inspect `providerState` to distinguish
+  disabled eval, missing CLI registration, an unavailable app, and an attempted
+  eval failure. Its invocation fields describe the graph build, including cached
+  builds; they do not claim eval ran again for every response.
 - **Skipped** → the corresponding env var is unset. A fully-skipped run is *not* a
   pass for release purposes — set the env and run for real before cutting a version.
 
 ## What the lane asserts today
 
 - `test/live/graph.live.mjs` — `analyze_link_hierarchy` returns `provider: "obsidian"`
-  with `resolvedEdgeCount > 0` on a linked vault, and (optionally) surfaces
-  unresolved concept-links on a concept-first vault.
+  with exact, invoked `providerState` and `resolvedEdgeCount > 0` on a linked
+  vault, and (optionally) surfaces unresolved concept-links on a concept-first vault.
 - `test/live/semantic.live.mjs` — `index_vault` then `semantic_search` returns
   ranked hits carrying a `path`, a numeric `similarity` + `fusionScore`,
   `fusionMethod: "rrf"`, and the additive `graph` block.

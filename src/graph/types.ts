@@ -21,6 +21,29 @@ export interface GraphEdge {
   count: number;  // occurrences in source (embeds included)
 }
 
+export type ExactProviderAvailability =
+  | 'available'
+  | 'disabled'
+  | 'cli_unavailable'
+  | 'obsidian_unavailable'
+  | 'unknown';
+
+export type GraphDegradationReason =
+  | 'eval_disabled'
+  | 'cli_unavailable'
+  | 'obsidian_unavailable'
+  | 'cli_probe_failed'
+  | 'eval_failed';
+
+/** Provenance of the graph build, retained unchanged across cache hits. */
+export interface GraphProviderState {
+  selectedProvider: 'obsidian' | 'filesystem';
+  approximate: boolean;
+  exactProviderAvailability: ExactProviderAvailability;
+  exactProviderInvoked: boolean;
+  degradationReason?: GraphDegradationReason;
+}
+
 /**
  * The raw, exclusion-INDEPENDENT graph. This is the expensive part and is
  * cached by `vault + stat-digest` only — it never depends on the exclude
@@ -37,6 +60,10 @@ export interface BaseGraph {
   outDegree: Map<string, number>;
   /** Which provider built this graph: "obsidian" (eval) or "filesystem". */
   provider: 'obsidian' | 'filesystem';
+  /** Explicit exact-versus-approximate build provenance. */
+  providerState: GraphProviderState;
+  /** Internal cache identity assigned by the graph orchestration layer. */
+  cacheIdentity?: string;
   /**
    * Present ONLY when the Obsidian provider was selected/attempted, threw, and
    * we degraded to the filesystem approximation (issue #32). A short, sanitized,
@@ -77,6 +104,10 @@ export interface NodeSignals {
 export interface GraphSignals {
   vault: string;
   provider: 'obsidian' | 'filesystem';
+  /** Explicit exact-versus-approximate build provenance. */
+  providerState: GraphProviderState;
+  /** The exact base graph accepted for this signal calculation. */
+  baseGraph: BaseGraph;
   /**
    * Present ONLY when the Obsidian provider was attempted and degraded to the
    * filesystem approximation (issue #32). Threaded from buildVaultGraph through

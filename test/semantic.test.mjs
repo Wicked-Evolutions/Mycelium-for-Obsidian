@@ -525,6 +525,12 @@ describe('semantic_search (Ollama-gated)', () => {
         data.provider === 'obsidian' || data.provider === 'filesystem',
         `provider is obsidian|filesystem — got: ${data.provider}`,
       );
+      assert.equal(typeof data.providerState, 'object', 'providerState present when graphAvailable');
+      assert.equal(
+        data.providerState.approximate,
+        data.provider === 'filesystem',
+        'approximation agrees with effective provider',
+      );
     }
   });
 

@@ -15,7 +15,7 @@ import { Config, resolveVault } from '../config.js';
 import { ToolResponse } from '../types/index.js';
 import { formatVaultError, VAULT_NOT_FOUND_HINT } from '../resolver-hints.js';
 import { vaultParam, limitParam } from './schema-helpers.js';
-import { getGraphSignals, getBaseGraph } from '../graph/signals.js';
+import { getGraphSignals } from '../graph/signals.js';
 import { levelHistogram } from '../graph/levels.js';
 import { NodeSignals } from '../graph/types.js';
 
@@ -103,7 +103,7 @@ export function createGraphHandlers(config: Config) {
 
         // Unknown vault throws a structured error (closest_matches + hint) that
         // the catch below renders via formatVaultError.
-        const vault = resolveVault(config, args.vault);
+        resolveVault(config, args.vault);
         const limit = args.limit ?? 50;
         const compact = args.compact === true;
 
@@ -119,6 +119,11 @@ export function createGraphHandlers(config: Config) {
                 text: JSON.stringify(
                   {
                     vault: result.vault,
+                    provider: result.provider,
+                    providerState: result.providerState,
+                    ...(result.providerFallbackReason
+                      ? { providerFallbackReason: result.providerFallbackReason }
+                      : {}),
                     emptyVault: true,
                     totalNodes: 0,
                     message: 'This vault has 0 notes. Pick another configured vault.'
@@ -132,7 +137,7 @@ export function createGraphHandlers(config: Config) {
           };
         }
 
-        const base = await getBaseGraph(config, args.vault, vault.path);
+        const base = result.baseGraph;
 
         // Build reverse adjacency (target → contributors) for the breakdown,
         // restricted to ranked (non-excluded) sources.
@@ -201,6 +206,7 @@ export function createGraphHandlers(config: Config) {
         const payload = {
           vault: result.vault,
           provider: result.provider,
+          providerState: result.providerState,
           // Observability for the silent Obsidian→filesystem degrade (#32):
           // present ONLY on the attempted-then-failed Obsidian path.
           ...(result.providerFallbackReason

@@ -6,6 +6,7 @@ All notable changes to mcp-obsidian are documented here.
 
 ### Changed
 
+- Graph-bearing responses now expose explicit exact-versus-approximate `providerState` provenance. Graph caches recheck provider eligibility and recover from filesystem fallback to the exact Obsidian provider without requiring a vault edit or server restart. macOS CLI probing now targets the dedicated `obsidian-cli` binary safely; CLI-tier compatibility requires Obsidian 1.12+ with installer 1.12.7+. (#62, #35)
 - `index_status` and `get_ecosystem_stats` now report file coverage, stale or redundant indexed paths, and embedding chunk density as separate values. Legacy `indexedPercent` and `overallIndexedPercent` now alias truthful file coverage instead of embedding chunks divided by files. (#61)
 - `get_broken_links` and `get_vault_health` now distinguish physical broken-link occurrences from unique unresolved target strings and include occurrence coordinates so repeated identical links on one line remain distinguishable. (#61)
 

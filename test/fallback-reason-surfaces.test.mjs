@@ -47,6 +47,9 @@ if (canMock) {
         return JSON.stringify({ nodes: mockNodes, links: mockLinks });
       },
       isCliAvailable: async () => isCliAvailableReturn,
+      probeObsidianCli: async () => ({
+        status: isCliAvailableReturn ? 'available' : 'cli_unavailable',
+      }),
       OBSIDIAN_CLI_MAX_BUFFER: 256 * 1024 * 1024,
     },
   });
@@ -124,9 +127,25 @@ describe('surface (a) analyze_link_hierarchy (#32)', { skip: !canMock ? 'require
 
 // ── (b) semantic_search graph metadata (attachGraphSignals) ──────────────────
 function fakeSignals(provider, providerFallbackReason) {
+  const fellBack = provider === 'filesystem' && providerFallbackReason;
   return {
     vault: 'V',
     provider,
+    providerState: fellBack
+      ? {
+          selectedProvider: 'obsidian',
+          approximate: true,
+          exactProviderAvailability: 'available',
+          exactProviderInvoked: true,
+          degradationReason: 'eval_failed',
+        }
+      : {
+          selectedProvider: provider,
+          approximate: provider === 'filesystem',
+          exactProviderAvailability: provider === 'obsidian' ? 'available' : 'cli_unavailable',
+          exactProviderInvoked: provider === 'obsidian',
+          ...(provider === 'filesystem' ? { degradationReason: 'cli_unavailable' } : {}),
+        },
     ...(providerFallbackReason ? { providerFallbackReason } : {}),
     signals: new Map(),
     activeExclude: [],
@@ -148,6 +167,7 @@ describe('surface (b) attachGraphSignals (#32)', () => {
     });
     assert.equal(out.graphAvailable, true);
     assert.equal(out.provider, 'filesystem');
+    assert.equal(out.providerState.degradationReason, 'eval_failed');
     assert.match(out.providerFallbackReason, /Obsidian/);
   });
 
@@ -160,6 +180,7 @@ describe('surface (b) attachGraphSignals (#32)', () => {
     });
     assert.equal(out.graphAvailable, true);
     assert.equal(out.provider, 'obsidian');
+    assert.equal(out.providerState.approximate, false);
     assert.equal(out.providerFallbackReason, undefined);
   });
 });
@@ -181,10 +202,12 @@ describe('surface (c) annotateCrossVault per-vault map (#32)', () => {
 
     assert.equal(out.graphByVault.Fellback.graphAvailable, true);
     assert.equal(out.graphByVault.Fellback.provider, 'filesystem');
+    assert.equal(out.graphByVault.Fellback.providerState.degradationReason, 'eval_failed');
     assert.match(out.graphByVault.Fellback.providerFallbackReason, /Obsidian/);
 
     assert.equal(out.graphByVault.Clean.graphAvailable, true);
     assert.equal(out.graphByVault.Clean.provider, 'obsidian');
+    assert.equal(out.graphByVault.Clean.providerState.approximate, false);
     assert.equal(out.graphByVault.Clean.providerFallbackReason, undefined);
   });
 });

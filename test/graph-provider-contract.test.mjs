@@ -40,6 +40,9 @@ if (canMock) {
         return JSON.stringify({ nodes: mockNodes, links: mockResolvedLinks });
       },
       isCliAvailable: async () => isCliAvailableReturn,
+      probeObsidianCli: async () => ({
+        status: isCliAvailableReturn ? 'available' : 'cli_unavailable',
+      }),
     },
   });
 }

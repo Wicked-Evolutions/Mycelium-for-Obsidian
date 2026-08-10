@@ -8,7 +8,13 @@
  */
 
 import { Config } from '../config.js';
-import { GraphProvider, BaseGraph, GraphEdge, ProviderResult } from './types.js';
+import {
+  GraphProvider,
+  BaseGraph,
+  GraphEdge,
+  GraphProviderState,
+  ProviderResult
+} from './types.js';
 import { FilesystemProvider } from './providers.js';
 
 /**
@@ -24,22 +30,35 @@ export async function buildVaultGraph(
   vaultPath: string,
   provider: GraphProvider,
   config?: Config,
-  vaultName?: string
+  vaultName?: string,
+  selectionState?: GraphProviderState,
+  reusableFilesystemGraph?: BaseGraph
 ): Promise<BaseGraph> {
   let result: ProviderResult;
   let usedProvider: 'obsidian' | 'filesystem' = provider.name;
   let providerFallbackReason: string | undefined;
+  let reusedFallback = false;
 
   try {
-    result = await provider.build(vaultPath);
+    if (provider.name === 'filesystem' && reusableFilesystemGraph) {
+      result = providerResultFromGraph(reusableFilesystemGraph);
+      reusedFallback = true;
+    } else {
+      result = await provider.build(vaultPath);
+    }
   } catch (err) {
     if (provider.name === 'obsidian') {
       // Graceful degradation: Obsidian unreachable / eval failed → filesystem.
       // Capture a SANITIZED reason so the silent degrade (issue #32) becomes
       // observable. This branch is the ONLY place providerFallbackReason is set:
       // a filesystem provider selected normally never reaches here.
-      const fs = new FilesystemProvider();
-      result = await fs.build(vaultPath);
+      if (reusableFilesystemGraph) {
+        result = providerResultFromGraph(reusableFilesystemGraph);
+        reusedFallback = true;
+      } else {
+        const fs = new FilesystemProvider();
+        result = await fs.build(vaultPath);
+      }
       usedProvider = 'filesystem';
       providerFallbackReason = sanitizeFallbackReason(err);
     } else {
@@ -52,11 +71,49 @@ export async function buildVaultGraph(
   void config;
   void vaultName;
 
-  const graph = normalize(result, usedProvider);
+  const providerState: GraphProviderState = {
+    ...(selectionState ?? defaultProviderState(provider.name)),
+    approximate: usedProvider === 'filesystem',
+    exactProviderInvoked: provider.name === 'obsidian',
+    ...(providerFallbackReason ? { degradationReason: 'eval_failed' as const } : {})
+  };
+  const graph = reusedFallback
+    ? { ...reusableFilesystemGraph!, providerState }
+    : normalize(result, usedProvider, providerState);
   if (providerFallbackReason) {
     graph.providerFallbackReason = providerFallbackReason;
+  } else {
+    delete graph.providerFallbackReason;
   }
   return graph;
+}
+
+function defaultProviderState(provider: GraphProvider['name']): GraphProviderState {
+  return {
+    selectedProvider: provider,
+    approximate: provider === 'filesystem',
+    exactProviderAvailability: provider === 'obsidian' ? 'available' : 'unknown',
+    exactProviderInvoked: false
+  };
+}
+
+function providerResultFromGraph(graph: BaseGraph): ProviderResult {
+  const resolvedLinks = new Map<string, Map<string, number>>();
+  for (const edge of graph.edges) {
+    let targets = resolvedLinks.get(edge.source);
+    if (!targets) {
+      targets = new Map();
+      resolvedLinks.set(edge.source, targets);
+    }
+    targets.set(edge.target, edge.count);
+  }
+  return {
+    nodes: graph.nodes,
+    resolvedLinks,
+    resolvedEdgeCount: graph.resolvedEdgeCount,
+    unresolvedLinkCount: graph.unresolvedLinkCount,
+    distinctUnresolvedTargets: graph.distinctUnresolvedTargets
+  };
 }
 
 /** Max length of the sanitized fallback reason (bounded payload). */
@@ -91,7 +148,8 @@ export function sanitizeFallbackReason(err: unknown): string {
  */
 export function normalize(
   result: ProviderResult,
-  provider: 'obsidian' | 'filesystem'
+  provider: 'obsidian' | 'filesystem',
+  providerState: GraphProviderState = defaultProviderState(provider)
 ): BaseGraph {
   const nodeSet = new Set<string>(result.nodes);
   const edges: GraphEdge[] = [];
@@ -133,6 +191,7 @@ export function normalize(
     inDegree,
     outDegree,
     provider,
+    providerState,
     // Vault-level link-resolution aggregates (issue #37). Come from whichever
     // provider actually produced `result` — on the Obsidian→filesystem degrade
     // (#32) these are the FILESYSTEM approximation's counts, matching provider.

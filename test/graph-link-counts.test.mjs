@@ -53,6 +53,7 @@ if (canMock) {
           unresolvedRaw: mockUnresolvedRaw,
         }),
       isCliAvailable: async () => true,
+      probeObsidianCli: async () => ({ status: 'available' }),
     },
   });
 }

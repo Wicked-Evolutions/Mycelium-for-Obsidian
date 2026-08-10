@@ -27,7 +27,7 @@
  */
 
 import type { Config } from '../config.js';
-import type { GraphSignals, NodeSignals } from '../graph/types.js';
+import type { GraphProviderState, GraphSignals, NodeSignals } from '../graph/types.js';
 import { getGraphSignals as defaultGetGraphSignals } from '../graph/signals.js';
 import type { FilterCondition } from './query.js';
 
@@ -88,6 +88,8 @@ export interface GraphAttachMeta {
    * unknown (the build threw before a provider was selected), so it is omitted.
    */
   provider?: 'obsidian' | 'filesystem';
+  /** Exact-versus-approximate provenance for the successful graph build. */
+  providerState?: GraphProviderState;
   /**
    * Present ONLY when the graph built (graphAvailable:true) BUT the Obsidian
    * provider was attempted and degraded to the filesystem approximation (#32).
@@ -140,6 +142,7 @@ export async function attachGraphSignals<T extends PathBearing>(opts: {
       results: annotated,
       graphAvailable: true,
       provider: signals.provider,
+      providerState: signals.providerState,
       // Additive (#32): only when the Obsidian provider degraded to filesystem.
       ...(signals.providerFallbackReason
         ? { providerFallbackReason: signals.providerFallbackReason }
@@ -171,6 +174,7 @@ export interface PerVaultGraphMeta {
   graphAvailable: boolean;
   graphUnavailableReason?: string;
   provider?: 'obsidian' | 'filesystem';
+  providerState?: GraphProviderState;
   /**
    * Per-vault Obsidian→filesystem degrade reason (#32). Present ONLY when that
    * vault's graph built via the fallback provider (sits with `provider` on the
@@ -253,6 +257,7 @@ export async function annotateCrossVault<T extends VaultPathBearing>(opts: {
       ...(attach.graphAvailable
         ? {
             provider: attach.provider,
+            providerState: attach.providerState,
             // Additive (#32): per-vault Obsidian→filesystem degrade reason.
             ...(attach.providerFallbackReason
               ? { providerFallbackReason: attach.providerFallbackReason }
