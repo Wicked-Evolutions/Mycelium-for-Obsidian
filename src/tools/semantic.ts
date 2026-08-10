@@ -16,6 +16,7 @@ import {
   OllamaConfig
 } from '../embeddings/ollama.js';
 import { getSharedStorage } from '../embeddings/storage.js';
+import { calculateIndexCoverage, findCurrentMarkdownPathByIdentity } from '../embeddings/index-stats.js';
 import { reciprocalRankFusion, RRF_K } from '../embeddings/rrf.js';
 import { vaultParam } from './schema-helpers.js';
 import { withAnnotations, ToolAnnotations } from './safety.js';
@@ -761,11 +762,22 @@ export function createSemanticHandlers(config: Config) {
 
         const store = getStorage(vault.path);
         const absolutePath = resolvePathInVault(vault.path, args.path);
+        const resolvedPathKey = path.relative(vault.path, absolutePath);
+        const currentMarkdownPaths = await collectMarkdownFiles(vault.path, vault.path);
+        const canonicalPath = findCurrentMarkdownPathByIdentity(
+          vault.path,
+          currentMarkdownPaths,
+          absolutePath
+        ) ?? resolvedPathKey;
 
         const content = await fs.readFile(absolutePath, 'utf-8');
 
         // Delete old embeddings for this file
-        store.delete(args.path);
+        for (const oldPath of new Set([canonicalPath, resolvedPathKey, args.path])) {
+          if (oldPath) {
+            store.delete(oldPath);
+          }
+        }
 
         // Extract sections for heading-based chunking
         const sections = extractSections(content.trim());
@@ -778,7 +790,7 @@ export function createSemanticHandlers(config: Config) {
           const result = await generateEmbedding(content, ollamaConfig);
 
           if (result.embedding && result.embedding.length > 0) {
-            store.store(args.path, result.embedding, contentHash, {
+            store.store(canonicalPath, result.embedding, contentHash, {
               indexedAt: new Date().toISOString(),
               chunked: false
             }, null, content);  // Pass content for FTS
@@ -799,7 +811,7 @@ export function createSemanticHandlers(config: Config) {
             const result = await generateEmbedding(sectionText, ollamaConfig);
 
             if (result.embedding && result.embedding.length > 0) {
-              store.store(args.path, result.embedding, sectionHash, {
+              store.store(canonicalPath, result.embedding, sectionHash, {
                 indexedAt: new Date().toISOString(),
                 heading: section.heading,
                 level: section.level,
@@ -816,7 +828,7 @@ export function createSemanticHandlers(config: Config) {
             type: 'text',
             text: JSON.stringify({
               indexed: true,
-              path: args.path,
+              path: canonicalPath,
               sections: indexedSections
             }, null, 2)
           }],
@@ -915,6 +927,13 @@ export function createSemanticHandlers(config: Config) {
         const vault = resolveVault(config, args.vault);
         const store = getStorage(vault.path);
         const stats = store.getStats();
+        const currentMarkdownPaths = await collectMarkdownFiles(vault.path, vault.path);
+        const coverage = calculateIndexCoverage(
+          vault.path,
+          currentMarkdownPaths,
+          store.getPathStats(),
+          { staleSampleLimit: 10 }
+        );
 
         // Check Ollama
         const ollama = await checkOllamaAvailability(ollamaConfig);
@@ -924,11 +943,22 @@ export function createSemanticHandlers(config: Config) {
             type: 'text',
             text: JSON.stringify({
               vault: vault.name,
-              totalEmbeddings: stats.totalEmbeddings,
-              uniqueFiles: stats.uniqueFiles,
+              totalEmbeddings: coverage.embeddingChunks,
+              uniqueFiles: coverage.indexedFilePathCount,
               lastUpdated: stats.lastUpdated
                 ? new Date(stats.lastUpdated).toISOString()
                 : null,
+              currentMarkdownFiles: coverage.currentMarkdownFiles,
+              indexedFilePathCount: coverage.indexedFilePathCount,
+              currentIndexedFiles: coverage.currentIndexedFiles,
+              staleIndexedFiles: coverage.staleIndexedFiles,
+              embeddingChunks: coverage.embeddingChunks,
+              currentEmbeddingChunks: coverage.currentEmbeddingChunks,
+              staleEmbeddingChunks: coverage.staleEmbeddingChunks,
+              fileCoveragePercent: coverage.fileCoveragePercent,
+              embeddingChunksPerCurrentIndexedFile: coverage.embeddingChunksPerCurrentIndexedFile,
+              embeddingChunksPerCurrentMarkdownFile: coverage.embeddingChunksPerCurrentMarkdownFile,
+              staleIndexedFileSamples: coverage.staleIndexedFileSamples,
               ollama: {
                 available: ollama.available,
                 model: ollamaConfig.model,

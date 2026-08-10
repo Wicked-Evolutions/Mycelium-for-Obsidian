@@ -28,6 +28,7 @@ import {
   OllamaConfig
 } from '../embeddings/ollama.js';
 import { getSharedStorage } from '../embeddings/storage.js';
+import { calculateIndexCoverage, coveragePercent, ratio } from '../embeddings/index-stats.js';
 import { withAnnotations, ToolAnnotations } from './safety.js';
 import { annotateCrossVault } from './graph-annotate.js';
 import { DeclaredCrossVaultGraphBuilder, normalizeVaultRelativePath } from '../graph/cross-vault.js';
@@ -367,26 +368,63 @@ export function createCrossVaultHandlers(config: Config) {
           totalFiles: number;
           totalEmbeddings: number;
           indexedPercent: number;
+          currentMarkdownFiles: number;
+          indexedFilePathCount: number;
+          currentIndexedFiles: number;
+          staleIndexedFiles: number;
+          embeddingChunks: number;
+          currentEmbeddingChunks: number;
+          staleEmbeddingChunks: number;
+          fileCoveragePercent: number;
+          embeddingChunksPerCurrentIndexedFile: number;
+          embeddingChunksPerCurrentMarkdownFile: number;
         }> = [];
 
         let totalFiles = 0;
         let totalEmbeddings = 0;
+        let totalIndexedFilePathCount = 0;
+        let totalCurrentIndexedFiles = 0;
+        let totalStaleIndexedFiles = 0;
+        let totalCurrentEmbeddingChunks = 0;
+        let totalStaleEmbeddingChunks = 0;
 
         for (const vault of config.vaults) {
-          const files = await countMarkdownFiles(vault.path, vault.path);
+          const files = await collectMarkdownFilePaths(vault.path, vault.path);
           const storage = getStorage(vault);
-          const stats = storage.getStats();
+          const coverage = calculateIndexCoverage(
+            vault.path,
+            files,
+            storage.getPathStats(),
+            { staleSampleLimit: 0 }
+          );
 
-          totalFiles += files;
-          totalEmbeddings += stats.totalEmbeddings;
+          totalFiles += coverage.currentMarkdownFiles;
+          totalEmbeddings += coverage.embeddingChunks;
+          totalIndexedFilePathCount += coverage.indexedFilePathCount;
+          totalCurrentIndexedFiles += coverage.currentIndexedFiles;
+          totalStaleIndexedFiles += coverage.staleIndexedFiles;
+          totalCurrentEmbeddingChunks += coverage.currentEmbeddingChunks;
+          totalStaleEmbeddingChunks += coverage.staleEmbeddingChunks;
 
           vaultStats.push({
             vault: vault.name,
-            totalFiles: files,
-            totalEmbeddings: stats.totalEmbeddings,
-            indexedPercent: files > 0 ? Math.round((stats.totalEmbeddings / files) * 100) : 0
+            totalFiles: coverage.currentMarkdownFiles,
+            totalEmbeddings: coverage.embeddingChunks,
+            indexedPercent: coverage.fileCoveragePercent,
+            currentMarkdownFiles: coverage.currentMarkdownFiles,
+            indexedFilePathCount: coverage.indexedFilePathCount,
+            currentIndexedFiles: coverage.currentIndexedFiles,
+            staleIndexedFiles: coverage.staleIndexedFiles,
+            embeddingChunks: coverage.embeddingChunks,
+            currentEmbeddingChunks: coverage.currentEmbeddingChunks,
+            staleEmbeddingChunks: coverage.staleEmbeddingChunks,
+            fileCoveragePercent: coverage.fileCoveragePercent,
+            embeddingChunksPerCurrentIndexedFile: coverage.embeddingChunksPerCurrentIndexedFile,
+            embeddingChunksPerCurrentMarkdownFile: coverage.embeddingChunksPerCurrentMarkdownFile
           });
         }
+
+        const overallFileCoveragePercent = coveragePercent(totalCurrentIndexedFiles, totalFiles);
 
         // Check Ollama
         const ollama = await checkOllamaAvailability(ollamaConfig);
@@ -398,7 +436,17 @@ export function createCrossVaultHandlers(config: Config) {
               vaultCount: config.vaults.length,
               totalFiles,
               totalEmbeddings,
-              overallIndexedPercent: totalFiles > 0 ? Math.round((totalEmbeddings / totalFiles) * 100) : 0,
+              overallIndexedPercent: overallFileCoveragePercent,
+              totalMarkdownFiles: totalFiles,
+              totalIndexedFilePathCount,
+              totalCurrentIndexedFiles,
+              totalStaleIndexedFiles,
+              totalEmbeddingChunks: totalEmbeddings,
+              totalCurrentEmbeddingChunks,
+              totalStaleEmbeddingChunks,
+              overallFileCoveragePercent,
+              embeddingChunksPerCurrentIndexedFile: ratio(totalCurrentEmbeddingChunks, totalCurrentIndexedFiles),
+              embeddingChunksPerCurrentMarkdownFile: ratio(totalCurrentEmbeddingChunks, totalFiles),
               vaults: vaultStats,
               ollama: {
                 available: ollama.available,
@@ -835,13 +883,13 @@ async function findNotesByName(
 }
 
 /**
- * Helper: Count markdown files in a vault
+ * Helper: Collect markdown file paths in a vault
  */
-async function countMarkdownFiles(
+async function collectMarkdownFilePaths(
   dirPath: string,
-  vaultPath: string
-): Promise<number> {
-  let count = 0;
+  vaultPath: string,
+  files: string[] = []
+): Promise<string[]> {
   const entries = await fs.readdir(dirPath, { withFileTypes: true });
 
   for (const entry of entries) {
@@ -850,13 +898,13 @@ async function countMarkdownFiles(
     const fullPath = path.join(dirPath, entry.name);
 
     if (entry.isDirectory()) {
-      count += await countMarkdownFiles(fullPath, vaultPath);
+      await collectMarkdownFilePaths(fullPath, vaultPath, files);
     } else if (entry.name.endsWith('.md')) {
-      count++;
+      files.push(path.relative(vaultPath, fullPath));
     }
   }
 
-  return count;
+  return files;
 }
 
 /**

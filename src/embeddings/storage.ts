@@ -7,6 +7,7 @@ import Database from 'better-sqlite3';
 import * as path from 'path';
 import * as fs from 'fs';
 import { cosineSimilarity } from './ollama.js';
+import type { EmbeddingPathStat } from './index-stats.js';
 
 export interface StoredEmbedding {
   id: number;
@@ -401,6 +402,23 @@ export class EmbeddingStorage {
       uniqueFiles: files,
       lastUpdated
     };
+  }
+
+  /**
+   * Get per-indexed-path row counts for coverage accounting.
+   */
+  getPathStats(): EmbeddingPathStat[] {
+    const rows = this.db.prepare(`
+      SELECT file_path as filePath, COUNT(*) as embeddingChunks
+      FROM embeddings
+      GROUP BY file_path
+      ORDER BY file_path
+    `).all() as Array<{ filePath: string; embeddingChunks: number }>;
+
+    return rows.map(row => ({
+      filePath: row.filePath,
+      embeddingChunks: row.embeddingChunks
+    }));
   }
 
   /**

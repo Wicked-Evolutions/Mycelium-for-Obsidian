@@ -205,7 +205,10 @@ describe('get_broken_links', () => {
     assertNonError(res, 'get_broken_links');
     const data = parseResult(res);
     assert.ok('brokenLinkCount' in data, 'has brokenLinkCount');
+    assert.ok('brokenLinkOccurrenceCount' in data, 'has brokenLinkOccurrenceCount');
+    assert.ok('uniqueUnresolvedTargetStringCount' in data, 'has uniqueUnresolvedTargetStringCount');
     assert.ok(Array.isArray(data.brokenLinks), 'has brokenLinks array');
+    assert.ok(Array.isArray(data.uniqueUnresolvedTargetStrings), 'has uniqueUnresolvedTargetStrings array');
   });
 
   test('detects the broken link to DefinitelyMissing123', async () => {
@@ -231,6 +234,9 @@ describe('get_broken_links', () => {
     assert.equal(typeof broken.source, 'string', 'broken link entry has source');
     assert.equal(typeof broken.target, 'string', 'broken link entry has target');
     assert.equal(typeof broken.lineNumber, 'number', 'broken link entry has lineNumber');
+    assert.equal(typeof broken.sourceText, 'string', 'broken link entry has sourceText');
+    assert.equal(typeof broken.columnStart, 'number', 'broken link entry has columnStart');
+    assert.equal(typeof broken.occurrenceIndexOnLine, 'number', 'broken link entry has occurrenceIndexOnLine');
     // Target is the raw wikilink text, without .md
     assert.equal(broken.target, 'DefinitelyMissing123', 'target is stored without .md extension');
   });
@@ -264,6 +270,11 @@ describe('get_broken_links', () => {
       data.brokenLinks.length,
       'brokenLinkCount equals brokenLinks.length',
     );
+    assert.equal(
+      data.brokenLinkOccurrenceCount,
+      data.brokenLinkCount,
+      'brokenLinkOccurrenceCount aliases physical occurrence count',
+    );
   });
 
   test('limit caps brokenLinks array', async () => {
@@ -272,6 +283,84 @@ describe('get_broken_links', () => {
     assert.ok(
       data.brokenLinks.length <= 1,
       `get_broken_links limit=1: expected at most 1, got ${data.brokenLinks.length}`,
+    );
+  });
+});
+
+describe('broken-link physical occurrence semantics', () => {
+  let occurrenceVaultDir;
+  let occurrenceHandlers;
+
+  before(() => {
+    occurrenceVaultDir = createTempVault({
+      'Links.md': [
+        '# Links',
+        '',
+        '[[Missing]] [[Missing]]',
+        'Next [[Missing]]',
+        '![[EmbedMissing]]',
+        '[[OtherMissing]]',
+      ].join('\n'),
+    });
+
+    process.env.OBSIDIAN_VAULTS = JSON.stringify({ OccurrenceVault: occurrenceVaultDir });
+    occurrenceHandlers = createAnalyticsHandlers(loadConfig());
+  });
+
+  after(() => {
+    delete process.env.OBSIDIAN_VAULTS;
+    if (occurrenceVaultDir) cleanup(occurrenceVaultDir);
+  });
+
+  test('repeated identical links are distinct physical occurrences', async () => {
+    const res = await occurrenceHandlers.get_broken_links({ vault: 'OccurrenceVault', limit: 10 });
+    assertNonError(res, 'occurrence get_broken_links');
+    const data = parseResult(res);
+
+    assert.equal(data.brokenLinkCount, 5, 'legacy count reports all physical occurrences');
+    assert.equal(data.brokenLinkOccurrenceCount, 5, 'physical occurrence count is explicit');
+    assert.equal(data.uniqueUnresolvedTargetStringCount, 3, 'three unique legacy target strings');
+
+    const missing = data.brokenLinks.filter(b => b.target === 'Missing');
+    assert.equal(missing.length, 3, 'Missing has three physical occurrences');
+    assert.deepEqual(
+      missing.map(b => [b.lineNumber, b.columnStart, b.occurrenceIndexOnLine]),
+      [
+        [3, 1, 1],
+        [3, 13, 2],
+        [4, 6, 1],
+      ],
+      'repeated links have distinct coordinates and per-line ordinals',
+    );
+
+    const embed = data.brokenLinks.find(b => b.target === 'EmbedMissing');
+    assert.ok(embed, 'embed occurrence present');
+    assert.equal(embed.sourceText, '![[EmbedMissing]]', 'sourceText includes embed marker');
+    assert.equal(embed.columnStart, 1, 'embed column starts at the ! marker');
+
+    const groupedMissing = data.uniqueUnresolvedTargetStrings.find(g => g.target === 'Missing');
+    assert.deepEqual(
+      groupedMissing,
+      { target: 'Missing', occurrenceCount: 3, sourceCount: 1 },
+      'unique target-string grouping counts occurrences and sources',
+    );
+  });
+
+  test('get_vault_health exposes occurrence and target-string summaries', async () => {
+    const res = await occurrenceHandlers.get_vault_health({ vault: 'OccurrenceVault' });
+    assertNonError(res, 'occurrence get_vault_health');
+    const data = parseResult(res);
+
+    assert.equal(data.brokenLinks, 5, 'legacy health count remains physical occurrences');
+    assert.equal(data.brokenLinkOccurrenceCount, 5, 'health exposes explicit occurrence count');
+    assert.equal(data.uniqueUnresolvedTargetStringCount, 3, 'health exposes unique target-string count');
+    assert.ok(
+      data.topBrokenLinks.some(b => b.target === 'Missing' && b.columnStart === 13),
+      'topBrokenLinks remains an occurrence sample with coordinates',
+    );
+    assert.ok(
+      data.topUniqueUnresolvedTargetStrings.some(g => g.target === 'Missing' && g.occurrenceCount === 3),
+      'topUniqueUnresolvedTargetStrings groups target strings',
     );
   });
 });
@@ -434,6 +523,8 @@ describe('get_vault_health', () => {
     for (const key of [
       'vault', 'totalFiles', 'orphanNotes', 'brokenLinks', 'staleNotes',
       'staleDaysThreshold', 'topOrphans', 'topBrokenLinks', 'topStaleNotes',
+      'brokenLinkOccurrenceCount', 'uniqueUnresolvedTargetStringCount',
+      'topUniqueUnresolvedTargetStrings',
     ]) {
       assert.ok(key in data, `get_vault_health: response has key "${key}"`);
     }

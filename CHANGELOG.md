@@ -2,6 +2,13 @@
 
 All notable changes to mcp-obsidian are documented here.
 
+## Unreleased
+
+### Changed
+
+- `index_status` and `get_ecosystem_stats` now report file coverage, stale or redundant indexed paths, and embedding chunk density as separate values. Legacy `indexedPercent` and `overallIndexedPercent` now alias truthful file coverage instead of embedding chunks divided by files. (#61)
+- `get_broken_links` and `get_vault_health` now distinguish physical broken-link occurrences from unique unresolved target strings and include occurrence coordinates so repeated identical links on one line remain distinguishable. (#61)
+
 ## [1.4.0] - 2026-07-06
 
 A two-pillar release: **graph orientation** (the vault's link graph) alongside the existing **semantic retrieval** (embeddings). Everything below was developed since 1.3.0.
