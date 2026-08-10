@@ -18,6 +18,12 @@
 # data/*.db
 .codex/
 
+# --- Generated Understand outputs ---
+
+.understand-anything/fingerprints.json
+.understand-anything/knowledge-graph.json
+.understand-anything/meta.json
+
 # --- Detected directories (uncomment to exclude) ---
 
 # scripts/

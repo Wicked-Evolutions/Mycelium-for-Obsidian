@@ -1,16 +1,16 @@
 {
   "version": "1.0.0",
-  "gitCommitHash": "c00582c00b8aa0a2262728b8fb82d223f7caf1c2",
-  "generatedAt": "2026-06-21T06:29:48.978Z",
+  "gitCommitHash": "96462377d0fcea53fe55449c5ef0a6fb0578fc7d",
+  "generatedAt": "2026-08-10T22:09:46.901Z",
   "files": {
     ".env.example": {
       "filePath": ".env.example",
-      "contentHash": "90487610d8adce9123177aa266e52550c5a3318f53a7126298d143b7b878926c",
+      "contentHash": "9b5dfd2485b93e77dcf0aceb13d4f8a35916282aced51b47f73bcce6f743613e",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 19,
+      "totalLines": 26,
       "hasStructuralAnalysis": true
     },
     ".github/ISSUE_TEMPLATE/bug-report.yml": {
@@ -35,22 +35,42 @@
     },
     ".github/PULL_REQUEST_TEMPLATE.md": {
       "filePath": ".github/PULL_REQUEST_TEMPLATE.md",
-      "contentHash": "4569339cb88391c768142bcd493d32838544fa390113fcaad7222d610cd2c1c2",
+      "contentHash": "43f8d8bb036c3e2cf1924935dbd5522f73aabffc81e91695c07521d5724452ad",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 19,
+      "totalLines": 34,
       "hasStructuralAnalysis": true
     },
     ".github/workflows/add-to-project.yml": {
       "filePath": ".github/workflows/add-to-project.yml",
-      "contentHash": "2cf97c0b2a10a7770dce9fe13c2291dfeeaf736ead16393d4d47b25b47ff86d4",
+      "contentHash": "c054127456812a54767a57d73c47c836cd3147d726eebadb9c1827731252e13d",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 15,
+      "totalLines": 23,
+      "hasStructuralAnalysis": true
+    },
+    ".github/workflows/ci.yml": {
+      "filePath": ".github/workflows/ci.yml",
+      "contentHash": "86a4202350859106734ae92ca49f365d95299dc99aa28611b41cb6913e2b1805",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 49,
+      "hasStructuralAnalysis": true
+    },
+    ".github/workflows/understand-dashboard.yml": {
+      "filePath": ".github/workflows/understand-dashboard.yml",
+      "contentHash": "992b23a08c140346ea2471856140a04f586e7e6c9183dbaabf23514b769f9ff0",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 100,
       "hasStructuralAnalysis": true
     },
     ".npmignore": {
@@ -63,29 +83,99 @@
       "totalLines": 13,
       "hasStructuralAnalysis": false
     },
-    "CHANGELOG.md": {
-      "filePath": "CHANGELOG.md",
-      "contentHash": "560665ae7bc26b6d83e72b65dd463f72cfbe094c3d438f3dbc7f2bb76343c76e",
+    ".nvmrc": {
+      "filePath": ".nvmrc",
+      "contentHash": "f14b4987904bcb5814e4459a057ed4d20f58a633152288a761214dcd28780b56",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 133,
+      "totalLines": 2,
+      "hasStructuralAnalysis": false
+    },
+    ".understand-anything/.understandignore": {
+      "filePath": ".understand-anything/.understandignore",
+      "contentHash": "39436af3a9ab047a4c50f7ecd5ab9cb324420bc9d2105c500d2e15e227ce5336",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 36,
+      "hasStructuralAnalysis": false
+    },
+    "AGENTS.md": {
+      "filePath": "AGENTS.md",
+      "contentHash": "971442ed4c7b6f1105eaa3d046159df41991984956d46da6c5449dacdbaea115",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 136,
+      "hasStructuralAnalysis": true
+    },
+    "CHANGELOG.md": {
+      "filePath": "CHANGELOG.md",
+      "contentHash": "e530b82d26622528e42df0268b4372cc4c8cbf26700ddb0045f2e5d1436e334f",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 205,
       "hasStructuralAnalysis": true
     },
     "CONTRIBUTING.md": {
       "filePath": "CONTRIBUTING.md",
-      "contentHash": "643486ea34e84f39f8dd9c1e0ecd62f1c5679f8329b8c837585b1f5b8e268bab",
+      "contentHash": "ba9fb2141d4f3fd655316640e0f3c9addb699cdf16d5c632709139af34a50859",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 68,
+      "totalLines": 70,
+      "hasStructuralAnalysis": true
+    },
+    "docs/development/AI_TEAM_OPERATING_MODEL.md": {
+      "filePath": "docs/development/AI_TEAM_OPERATING_MODEL.md",
+      "contentHash": "41a78ef350b177b83533c444b1827ab89cce463bcfd47dd96345831c63dd037e",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 105,
+      "hasStructuralAnalysis": true
+    },
+    "docs/development/SPRINT_TEMPLATE.md": {
+      "filePath": "docs/development/SPRINT_TEMPLATE.md",
+      "contentHash": "9faeae967da671f97360e60e184b4f1f9fcbc7f2b9f3dc7613d9e413e9e5e766",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 69,
+      "hasStructuralAnalysis": true
+    },
+    "docs/live-e2e.md": {
+      "filePath": "docs/live-e2e.md",
+      "contentHash": "d720ce2f172da144c712beb2fffd7777da0adb282b4ece388802beb2c3dc8bbf",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 145,
+      "hasStructuralAnalysis": true
+    },
+    "docs/reranker-eval.md": {
+      "filePath": "docs/reranker-eval.md",
+      "contentHash": "206b5d46c74769d29bf7fd8e614a6a51875026f4dc2adf361664ca9278835b41",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 128,
       "hasStructuralAnalysis": true
     },
     "manifest.json": {
       "filePath": "manifest.json",
-      "contentHash": "279a998c7ab2b92aa56460767df9714155ab60cd4002f0ab9053e4ea6204b57e",
+      "contentHash": "107ae32d10a35af51bc256f5f8e83b72edcea65abadddae298d03cd38276cc5e",
       "functions": [],
       "classes": [],
       "imports": [],
@@ -95,37 +185,283 @@
     },
     "package.json": {
       "filePath": "package.json",
-      "contentHash": "f2c2874f890b1a5f65a4bd2c530a9182979eda212d80563c04a19976525188f3",
+      "contentHash": "562fe5ba6975415641ccc353a33e2a325c3f96e813484094961f51340fa38e05",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 64,
+      "totalLines": 72,
       "hasStructuralAnalysis": true
     },
     "README.md": {
       "filePath": "README.md",
-      "contentHash": "803dfd238c3b44f6d6b2efb35fa1edd3cc8d4967df0a4117c7a5ff9f28d53095",
+      "contentHash": "aec54205d678b5f52aba580a7f35eca98e2c55c095e16e52c7170dd51a0958a5",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 593,
+      "totalLines": 680,
       "hasStructuralAnalysis": true
     },
     "scripts/build-mcpb.sh": {
       "filePath": "scripts/build-mcpb.sh",
-      "contentHash": "1df7e642e606cd8739b80c9eb0852a6db4897c5a496c13bb8fbf5d633aaac539",
+      "contentHash": "c0630ffbd605699dd60320ad49ad9bb414acb0c4637608c359ea848d370ea279",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 43,
+      "totalLines": 53,
+      "hasStructuralAnalysis": true
+    },
+    "scripts/codex-worker.sh": {
+      "filePath": "scripts/codex-worker.sh",
+      "contentHash": "79917c32dcbda3550d7a829dc48ecc0aa11243c4f0fa1a14ca81a078222be1cf",
+      "functions": [
+        {
+          "name": "usage",
+          "params": [],
+          "exported": false,
+          "lineCount": 16
+        }
+      ],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 218,
+      "hasStructuralAnalysis": true
+    },
+    "scripts/verify-npm-package.mjs": {
+      "filePath": "scripts/verify-npm-package.mjs",
+      "contentHash": "aac7f98c49580de1b132168368e5fcf2735ebe12cf5efb7f74938328db7a2490",
+      "functions": [
+        {
+          "name": "withTimeout",
+          "params": [
+            "promise",
+            "milliseconds",
+            "label"
+          ],
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "trackChild",
+          "params": [
+            "child"
+          ],
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "runCommand",
+          "params": [
+            "command",
+            "args",
+            "options",
+            "label"
+          ],
+          "exported": false,
+          "lineCount": 13
+        },
+        {
+          "name": "waitForChildExit",
+          "params": [
+            "child",
+            "milliseconds",
+            "label"
+          ],
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "terminateChild",
+          "params": [
+            "child"
+          ],
+          "exported": false,
+          "lineCount": 10
+        },
+        {
+          "name": "shutdownActiveWork",
+          "params": [],
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "shutdownAndCleanup",
+          "params": [
+            "cleanup"
+          ],
+          "exported": false,
+          "lineCount": 15
+        },
+        {
+          "name": "parsePackResult",
+          "params": [
+            "stdout"
+          ],
+          "exported": false,
+          "lineCount": 12
+        },
+        {
+          "name": "validatePackagePath",
+          "params": [
+            "packagePath"
+          ],
+          "exported": false,
+          "lineCount": 27
+        },
+        {
+          "name": "assertInside",
+          "params": [
+            "childPath",
+            "parentPath",
+            "label"
+          ],
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "baseSubprocessEnvironment",
+          "params": [
+            "tempRoot"
+          ],
+          "exported": false,
+          "lineCount": 14
+        },
+        {
+          "name": "npmEnvironment",
+          "params": [
+            "tempRoot",
+            "cachePath"
+          ],
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "isolatedServerEnvironment",
+          "params": [
+            "installRoot",
+            "vaultPath"
+          ],
+          "exported": false,
+          "lineCount": 12
+        },
+        {
+          "name": "stagePackageSource",
+          "params": [
+            "stageRoot"
+          ],
+          "exported": false,
+          "lineCount": 11
+        },
+        {
+          "name": "verifyNativeBinding",
+          "params": [
+            "installRoot"
+          ],
+          "exported": false,
+          "lineCount": 23
+        },
+        {
+          "name": "verifyInstalledServer",
+          "params": [],
+          "exported": false,
+          "lineCount": 88
+        },
+        {
+          "name": "verifyPackage",
+          "params": [
+            "tempRoot"
+          ],
+          "exported": false,
+          "lineCount": 102
+        },
+        {
+          "name": "main",
+          "params": [],
+          "exported": false,
+          "lineCount": 51
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "node:child_process",
+          "specifiers": [
+            "execFile"
+          ]
+        },
+        {
+          "source": "node:crypto",
+          "specifiers": [
+            "createHash"
+          ]
+        },
+        {
+          "source": "node:events",
+          "specifiers": [
+            "once"
+          ]
+        },
+        {
+          "source": "node:fs/promises",
+          "specifiers": [
+            "cp",
+            "mkdir",
+            "mkdtemp",
+            "readFile",
+            "realpath",
+            "rm",
+            "symlink",
+            "writeFile"
+          ]
+        },
+        {
+          "source": "node:os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "node:url",
+          "specifiers": [
+            "fileURLToPath",
+            "pathToFileURL"
+          ]
+        },
+        {
+          "source": "@modelcontextprotocol/sdk/client/index.js",
+          "specifiers": [
+            "Client"
+          ]
+        },
+        {
+          "source": "@modelcontextprotocol/sdk/client/stdio.js",
+          "specifiers": [
+            "StdioClientTransport"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 531,
       "hasStructuralAnalysis": true
     },
     "SECURITY.md": {
       "filePath": "SECURITY.md",
-      "contentHash": "e8efc4067399960899e9d8cc37ad863167acf3b25f64b1a8039c4189a6ff4884",
+      "contentHash": "33817018302df8fe4d670f5c522498cdf3e5a81a7453a7d34f64dbfe8028e778",
       "functions": [],
       "classes": [],
       "imports": [],
@@ -135,8 +471,33 @@
     },
     "src/cli/bridge.ts": {
       "filePath": "src/cli/bridge.ts",
-      "contentHash": "be96b4a6f1f2a99930e9a12adda992209bcef7b72e9809ae3c62807aa12bdf58",
+      "contentHash": "670b474876a60ab7a44922731ae9c5e7ec903567ec45a683109db517ce5042ac",
       "functions": [
+        {
+          "name": "isAppUnavailableText",
+          "params": [
+            "value"
+          ],
+          "returnType": "boolean",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "findRegisteredMacCli",
+          "params": [],
+          "returnType": "string | undefined",
+          "exported": false,
+          "lineCount": 15
+        },
+        {
+          "name": "obsidianCliCandidatesForPlatform",
+          "params": [
+            "platform"
+          ],
+          "returnType": "string[]",
+          "exported": true,
+          "lineCount": 9
+        },
         {
           "name": "getCliVaultName",
           "params": [
@@ -159,11 +520,12 @@
           "name": "execCli",
           "params": [
             "args",
-            "timeoutMs"
+            "timeoutMs",
+            "signal"
           ],
           "returnType": "Promise<string>",
           "exported": true,
-          "lineCount": 34
+          "lineCount": 72
         },
         {
           "name": "execCliForVault",
@@ -172,11 +534,25 @@
             "mcpVaultName",
             "command",
             "args",
-            "timeoutMs"
+            "timeoutMs",
+            "signal"
           ],
           "returnType": "Promise<string>",
           "exported": true,
-          "lineCount": 27
+          "lineCount": 28
+        },
+        {
+          "name": "execCliForRegisteredVault",
+          "params": [
+            "vaultId",
+            "command",
+            "args",
+            "timeoutMs",
+            "signal"
+          ],
+          "returnType": "Promise<string>",
+          "exported": true,
+          "lineCount": 12
         },
         {
           "name": "evalInObsidian",
@@ -184,18 +560,260 @@
             "config",
             "mcpVaultName",
             "code",
-            "timeoutMs"
+            "timeoutMs",
+            "signal"
           ],
           "returnType": "Promise<string>",
           "exported": true,
-          "lineCount": 13
+          "lineCount": 21
+        },
+        {
+          "name": "evalInRegisteredVault",
+          "params": [
+            "vaultId",
+            "code",
+            "timeoutMs",
+            "signal"
+          ],
+          "returnType": "Promise<string>",
+          "exported": true,
+          "lineCount": 19
         },
         {
           "name": "isCliAvailable",
           "params": [],
           "returnType": "Promise<boolean>",
           "exported": true,
-          "lineCount": 8
+          "lineCount": 3
+        },
+        {
+          "name": "probeObsidianCli",
+          "params": [],
+          "returnType": "Promise<ObsidianCliProbe>",
+          "exported": true,
+          "lineCount": 11
+        }
+      ],
+      "classes": [
+        {
+          "name": "ObsidianCliError",
+          "methods": [
+            "constructor"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 9
+        }
+      ],
+      "imports": [
+        {
+          "source": "child_process",
+          "specifiers": [
+            "execFile"
+          ]
+        },
+        {
+          "source": "fs",
+          "specifiers": [
+            "accessSync",
+            "constants",
+            "realpathSync"
+          ]
+        },
+        {
+          "source": "path",
+          "specifiers": [
+            "* as path"
+          ]
+        },
+        {
+          "source": "../config.js",
+          "specifiers": [
+            "Config"
+          ]
+        }
+      ],
+      "exports": [
+        "OBSIDIAN_CLI_MAX_BUFFER",
+        "ObsidianCliError",
+        "obsidianCliCandidatesForPlatform",
+        "execCli",
+        "execCliForVault",
+        "execCliForRegisteredVault",
+        "evalInObsidian",
+        "evalInRegisteredVault",
+        "isCliAvailable",
+        "probeObsidianCli"
+      ],
+      "totalLines": 295,
+      "hasStructuralAnalysis": true
+    },
+    "src/cli/vault-target.ts": {
+      "filePath": "src/cli/vault-target.ts",
+      "contentHash": "7394f055aa15b7ad41be9369ed7f207d5d5e83070155bdd7c2cd47ca0de19252",
+      "functions": [
+        {
+          "name": "comparablePath",
+          "params": [
+            "value",
+            "platform"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "canonicalPathsEqual",
+          "params": [
+            "left",
+            "right",
+            "platform"
+          ],
+          "returnType": "boolean",
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "isValidObsidianVaultId",
+          "params": [
+            "value"
+          ],
+          "returnType": "boolean",
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "obsidianRegistryPath",
+          "params": [
+            "options"
+          ],
+          "returnType": "string | undefined",
+          "exported": true,
+          "lineCount": 22
+        },
+        {
+          "name": "canonicalizeVaultPath",
+          "params": [
+            "vaultPath"
+          ],
+          "returnType": "Promise<string>",
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "inspectRegisteredVault",
+          "params": [
+            "config",
+            "vaultName",
+            "options"
+          ],
+          "returnType": "Promise<RegisteredVaultTarget>",
+          "exported": true,
+          "lineCount": 131
+        },
+        {
+          "name": "buildOpenVaultCommand",
+          "params": [
+            "vaultId",
+            "platform"
+          ],
+          "returnType": "OpenVaultCommand",
+          "exported": true,
+          "lineCount": 24
+        },
+        {
+          "name": "defaultOpenCommandRunner",
+          "params": [
+            "executable",
+            "args",
+            "options"
+          ],
+          "exported": false,
+          "lineCount": 17
+        },
+        {
+          "name": "dispatchOpenVault",
+          "params": [
+            "vaultId",
+            "options"
+          ],
+          "returnType": "Promise<void>",
+          "exported": true,
+          "lineCount": 22
+        },
+        {
+          "name": "probeExactRegisteredVault",
+          "params": [
+            "vaultId",
+            "expectedCanonicalPath",
+            "signal"
+          ],
+          "returnType": "Promise<ExactTargetProbe>",
+          "exported": true,
+          "lineCount": 37
+        },
+        {
+          "name": "isCliErrorKind",
+          "params": [
+            "error",
+            "kind"
+          ],
+          "returnType": "boolean",
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "parseEvalObject",
+          "params": [
+            "raw"
+          ],
+          "returnType": "Record<string, unknown>",
+          "exported": false,
+          "lineCount": 10
+        },
+        {
+          "name": "createAbortError",
+          "params": [],
+          "returnType": "Error",
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "isAbortError",
+          "params": [
+            "error"
+          ],
+          "returnType": "boolean",
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "throwIfAborted",
+          "params": [
+            "signal"
+          ],
+          "returnType": "void",
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "abortableYield",
+          "params": [
+            "signal"
+          ],
+          "returnType": "Promise<void>",
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "abortableDelay",
+          "params": [
+            "ms",
+            "signal"
+          ],
+          "returnType": "Promise<void>",
+          "exported": true,
+          "lineCount": 14
         }
       ],
       "classes": [],
@@ -207,31 +825,76 @@
           ]
         },
         {
+          "source": "fs/promises",
+          "specifiers": [
+            "* as fs"
+          ]
+        },
+        {
+          "source": "os",
+          "specifiers": [
+            "homedir"
+          ]
+        },
+        {
+          "source": "path",
+          "specifiers": [
+            "* as path"
+          ]
+        },
+        {
           "source": "../config.js",
           "specifiers": [
-            "Config"
+            "Config",
+            "resolveVault"
+          ]
+        },
+        {
+          "source": "./bridge.js",
+          "specifiers": [
+            "evalInRegisteredVault"
           ]
         }
       ],
       "exports": [
-        "execCli",
-        "execCliForVault",
-        "evalInObsidian",
-        "isCliAvailable"
+        "OPEN_VAULT_TIMEOUT_MS",
+        "OPEN_VAULT_POLL_MS",
+        "canonicalPathsEqual",
+        "isValidObsidianVaultId",
+        "obsidianRegistryPath",
+        "canonicalizeVaultPath",
+        "inspectRegisteredVault",
+        "buildOpenVaultCommand",
+        "dispatchOpenVault",
+        "probeExactRegisteredVault",
+        "createAbortError",
+        "isAbortError",
+        "throwIfAborted",
+        "abortableYield",
+        "abortableDelay"
       ],
-      "totalLines": 136,
+      "totalLines": 413,
       "hasStructuralAnalysis": true
     },
     "src/config.ts": {
       "filePath": "src/config.ts",
-      "contentHash": "28119c19840c2741bb465e950960b9100a8e2c660bebd5a62ff6a86aafc4d2b2",
+      "contentHash": "8b9c1b11c6fc60f424408e427e7ae99b4c2df9ce789be11af379cbda62f83afd",
       "functions": [
+        {
+          "name": "envFlag",
+          "params": [
+            "value"
+          ],
+          "returnType": "boolean",
+          "exported": false,
+          "lineCount": 4
+        },
         {
           "name": "loadConfig",
           "params": [],
           "returnType": "Config",
           "exported": true,
-          "lineCount": 57
+          "lineCount": 65
         },
         {
           "name": "getPrimaryVault",
@@ -280,7 +943,18 @@
           ],
           "returnType": "Promise<void>",
           "exported": true,
-          "lineCount": 14
+          "lineCount": 13
+        },
+        {
+          "name": "verifyFileHandleInVault",
+          "params": [
+            "handle",
+            "openedPath",
+            "vaultPath"
+          ],
+          "returnType": "Promise<string>",
+          "exported": true,
+          "lineCount": 25
         }
       ],
       "classes": [],
@@ -295,6 +969,19 @@
           "source": "fs",
           "specifiers": [
             "* as fs"
+          ]
+        },
+        {
+          "source": "fs/promises",
+          "specifiers": [
+            "realpath",
+            "stat"
+          ]
+        },
+        {
+          "source": "fs/promises",
+          "specifiers": [
+            "FileHandle"
           ]
         },
         {
@@ -317,14 +1004,199 @@
         "getVaultByName",
         "resolveVault",
         "resolvePathInVault",
-        "verifyPathAfterOpen"
+        "verifyPathAfterOpen",
+        "verifyFileHandleInVault"
       ],
-      "totalLines": 199,
+      "totalLines": 252,
+      "hasStructuralAnalysis": true
+    },
+    "src/embeddings/index-stats.ts": {
+      "filePath": "src/embeddings/index-stats.ts",
+      "contentHash": "f2d3385ac6ce43bfe014001773197e87f3ad1ecd09e71f110da47c962ebdfbbf",
+      "functions": [
+        {
+          "name": "calculateIndexCoverage",
+          "params": [
+            "vaultPath",
+            "currentMarkdownPaths",
+            "indexedPathStats",
+            "options"
+          ],
+          "returnType": "IndexCoverageStats",
+          "exported": true,
+          "lineCount": 55
+        },
+        {
+          "name": "findCurrentMarkdownPathByIdentity",
+          "params": [
+            "vaultPath",
+            "currentMarkdownPaths",
+            "resolvedFilePath"
+          ],
+          "returnType": "string | null",
+          "exported": true,
+          "lineCount": 15
+        },
+        {
+          "name": "coveragePercent",
+          "params": [
+            "numerator",
+            "denominator"
+          ],
+          "returnType": "number",
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "ratio",
+          "params": [
+            "numerator",
+            "denominator"
+          ],
+          "returnType": "number",
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "classifyIndexedPath",
+          "params": [
+            "vaultPath",
+            "currentFileIndex",
+            "stat"
+          ],
+          "returnType": "ClassifiedPathStat",
+          "exported": false,
+          "lineCount": 39
+        },
+        {
+          "name": "buildCurrentMarkdownFileIndex",
+          "params": [
+            "vaultPath",
+            "currentMarkdownPaths"
+          ],
+          "returnType": "CurrentMarkdownFileIndex",
+          "exported": false,
+          "lineCount": 28
+        },
+        {
+          "name": "chooseCurrentMarkdownFile",
+          "params": [
+            "displayPath",
+            "currentFiles"
+          ],
+          "returnType": "CurrentMarkdownFile",
+          "exported": false,
+          "lineCount": 15
+        },
+        {
+          "name": "chooseCurrentRepresentative",
+          "params": [
+            "canonicalPath",
+            "candidates"
+          ],
+          "returnType": "ClassifiedPathStat",
+          "exported": false,
+          "lineCount": 15
+        },
+        {
+          "name": "staleSamples",
+          "params": [
+            "stats",
+            "limit"
+          ],
+          "returnType": "string[]",
+          "exported": false,
+          "lineCount": 12
+        },
+        {
+          "name": "compareCodePoint",
+          "params": [
+            "a",
+            "b"
+          ],
+          "returnType": "number",
+          "exported": false,
+          "lineCount": 12
+        },
+        {
+          "name": "round2",
+          "params": [
+            "value"
+          ],
+          "returnType": "number",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "normalizeKey",
+          "params": [
+            "filePath"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "getFileIdentity",
+          "params": [
+            "filePath"
+          ],
+          "returnType": "string | null",
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "isSafeVaultRelativePath",
+          "params": [
+            "filePath"
+          ],
+          "returnType": "boolean",
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "isHostPathLike",
+          "params": [
+            "filePath"
+          ],
+          "returnType": "boolean",
+          "exported": false,
+          "lineCount": 5
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "path",
+          "specifiers": [
+            "* as path"
+          ]
+        },
+        {
+          "source": "fs",
+          "specifiers": [
+            "* as fs"
+          ]
+        },
+        {
+          "source": "../config.js",
+          "specifiers": [
+            "resolvePathInVault"
+          ]
+        }
+      ],
+      "exports": [
+        "calculateIndexCoverage",
+        "findCurrentMarkdownPathByIdentity",
+        "coveragePercent",
+        "ratio"
+      ],
+      "totalLines": 290,
       "hasStructuralAnalysis": true
     },
     "src/embeddings/ollama.ts": {
       "filePath": "src/embeddings/ollama.ts",
-      "contentHash": "1206d8e338622f8c43fa2a5fa3b8e3cafe64f3d1b457bd01624c9d26317c2c50",
+      "contentHash": "6764baa82ae27117194745c2b3e731f9d24933f5c2839012713d79f6004a9347",
       "functions": [
         {
           "name": "generateEmbedding",
@@ -335,6 +1207,16 @@
           "returnType": "Promise<EmbeddingResult>",
           "exported": true,
           "lineCount": 27
+        },
+        {
+          "name": "generateCompletion",
+          "params": [
+            "prompt",
+            "config"
+          ],
+          "returnType": "Promise<string>",
+          "exported": true,
+          "lineCount": 20
         },
         {
           "name": "generateEmbeddings",
@@ -371,16 +1253,173 @@
       "imports": [],
       "exports": [
         "generateEmbedding",
+        "generateCompletion",
         "generateEmbeddings",
         "checkOllamaAvailability",
         "cosineSimilarity"
       ],
-      "totalLines": 124,
+      "totalLines": 158,
+      "hasStructuralAnalysis": true
+    },
+    "src/embeddings/reranker-llm.ts": {
+      "filePath": "src/embeddings/reranker-llm.ts",
+      "contentHash": "58bc1a1c2f05ae76fc10baa1ce7d79b0c364d180be3a3beef1718d8dd456f164",
+      "functions": [
+        {
+          "name": "buildRerankPrompt",
+          "params": [
+            "query",
+            "windowed"
+          ],
+          "returnType": "string",
+          "exported": true,
+          "lineCount": 29
+        },
+        {
+          "name": "parseScoreArray",
+          "params": [
+            "raw"
+          ],
+          "returnType": "unknown[] | null",
+          "exported": false,
+          "lineCount": 13
+        },
+        {
+          "name": "createLlmReranker",
+          "params": [
+            "options"
+          ],
+          "returnType": "Reranker",
+          "exported": true,
+          "lineCount": 53
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "./reranker.js",
+          "specifiers": [
+            "Reranker",
+            "RerankCandidate",
+            "RerankScore"
+          ]
+        },
+        {
+          "source": "./ollama.js",
+          "specifiers": [
+            "generateCompletion",
+            "GenerateFn"
+          ]
+        },
+        {
+          "source": "../tools/safety.js",
+          "specifiers": [
+            "UNTRUSTED_BEGIN",
+            "UNTRUSTED_END"
+          ]
+        }
+      ],
+      "exports": [
+        "RERANK_TOP_K",
+        "buildRerankPrompt",
+        "createLlmReranker",
+        "llmReranker"
+      ],
+      "totalLines": 175,
+      "hasStructuralAnalysis": true
+    },
+    "src/embeddings/reranker.ts": {
+      "filePath": "src/embeddings/reranker.ts",
+      "contentHash": "ab3a04928ad17a70d9a8202d39e9acf9d69105fa26737cb5bdc158cb5f5ef6c6",
+      "functions": [
+        {
+          "name": "registerReranker",
+          "params": [
+            "backend"
+          ],
+          "returnType": "void",
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "getReranker",
+          "params": [
+            "name"
+          ],
+          "returnType": "Reranker",
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "getActiveRerankerName",
+          "params": [],
+          "returnType": "string",
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "applyRerank",
+          "params": [
+            "query",
+            "results",
+            "getId",
+            "getText",
+            "getFusionScore",
+            "backend"
+          ],
+          "returnType": "Promise<ApplyRerankResult<T>>",
+          "exported": true,
+          "lineCount": 95
+        }
+      ],
+      "classes": [],
+      "imports": [],
+      "exports": [
+        "noneReranker",
+        "registerReranker",
+        "getReranker",
+        "getActiveRerankerName",
+        "applyRerank"
+      ],
+      "totalLines": 217,
+      "hasStructuralAnalysis": true
+    },
+    "src/embeddings/rrf.ts": {
+      "filePath": "src/embeddings/rrf.ts",
+      "contentHash": "69688a7e8b04a5601e7c5739d523fa70e0e2363c9103633a40483ffebe0613a6",
+      "functions": [
+        {
+          "name": "rankIndex",
+          "params": [
+            "ranked"
+          ],
+          "returnType": "Map<string, number>",
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "reciprocalRankFusion",
+          "params": [
+            "signals",
+            "k"
+          ],
+          "returnType": "FusedResult[]",
+          "exported": true,
+          "lineCount": 34
+        }
+      ],
+      "classes": [],
+      "imports": [],
+      "exports": [
+        "RRF_K",
+        "reciprocalRankFusion"
+      ],
+      "totalLines": 102,
       "hasStructuralAnalysis": true
     },
     "src/embeddings/storage.ts": {
       "filePath": "src/embeddings/storage.ts",
-      "contentHash": "fdbf76017124272eed4fc52459f0f56080a7c9002fe1ea8fe82552ca16355829",
+      "contentHash": "cfba4caaa59298ea3a0b1daa3d1741fd844cfd4ed529ba84d16abf3392af414b",
       "functions": [
         {
           "name": "getSharedStorage",
@@ -406,15 +1445,17 @@
             "clear",
             "getAll",
             "search",
+            "getContent",
             "keywordSearch",
             "getStats",
+            "getPathStats",
             "close"
           ],
           "properties": [
             "db"
           ],
           "exported": true,
-          "lineCount": 352
+          "lineCount": 386
         }
       ],
       "imports": [
@@ -441,13 +1482,19 @@
           "specifiers": [
             "cosineSimilarity"
           ]
+        },
+        {
+          "source": "./index-stats.js",
+          "specifiers": [
+            "EmbeddingPathStat"
+          ]
         }
       ],
       "exports": [
         "getSharedStorage",
         "EmbeddingStorage"
       ],
-      "totalLines": 396,
+      "totalLines": 431,
       "hasStructuralAnalysis": true
     },
     "src/embeddings/watcher.ts": {
@@ -549,9 +1596,1146 @@
       "totalLines": 246,
       "hasStructuralAnalysis": true
     },
+    "src/eval/metrics.ts": {
+      "filePath": "src/eval/metrics.ts",
+      "contentHash": "a057810773a7ec237e2f4d1ca4feb4f643fce8073059c83f12d27a599defd087",
+      "functions": [
+        {
+          "name": "toSet",
+          "params": [
+            "relevant"
+          ],
+          "returnType": "Set<string>",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "topK",
+          "params": [
+            "ranked",
+            "k"
+          ],
+          "returnType": "T[]",
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "recallAtK",
+          "params": [
+            "ranked",
+            "relevant",
+            "k"
+          ],
+          "returnType": "number",
+          "exported": true,
+          "lineCount": 12
+        },
+        {
+          "name": "precisionAtK",
+          "params": [
+            "ranked",
+            "relevant",
+            "k"
+          ],
+          "returnType": "number",
+          "exported": true,
+          "lineCount": 12
+        },
+        {
+          "name": "reciprocalRank",
+          "params": [
+            "ranked",
+            "relevant"
+          ],
+          "returnType": "number",
+          "exported": true,
+          "lineCount": 8
+        },
+        {
+          "name": "dcgAtK",
+          "params": [
+            "ranked",
+            "relevant",
+            "k"
+          ],
+          "returnType": "number",
+          "exported": true,
+          "lineCount": 11
+        },
+        {
+          "name": "idealDcgAtK",
+          "params": [
+            "relevant",
+            "k"
+          ],
+          "returnType": "number",
+          "exported": true,
+          "lineCount": 9
+        },
+        {
+          "name": "ndcgAtK",
+          "params": [
+            "ranked",
+            "relevant",
+            "k"
+          ],
+          "returnType": "number",
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "meanReciprocalRank",
+          "params": [
+            "queries"
+          ],
+          "returnType": "number",
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "evaluate",
+          "params": [
+            "queries",
+            "k"
+          ],
+          "returnType": "EvalSummary",
+          "exported": true,
+          "lineCount": 24
+        }
+      ],
+      "classes": [],
+      "imports": [],
+      "exports": [
+        "recallAtK",
+        "precisionAtK",
+        "reciprocalRank",
+        "dcgAtK",
+        "idealDcgAtK",
+        "ndcgAtK",
+        "meanReciprocalRank",
+        "evaluate"
+      ],
+      "totalLines": 174,
+      "hasStructuralAnalysis": true
+    },
+    "src/graph/build.ts": {
+      "filePath": "src/graph/build.ts",
+      "contentHash": "da1fda901985f0e85383993594dc8ac003d0602632f6e6d202f69509e4526507",
+      "functions": [
+        {
+          "name": "buildVaultGraph",
+          "params": [
+            "vaultPath",
+            "provider",
+            "config",
+            "vaultName",
+            "selectionState",
+            "reusableFilesystemGraph",
+            "options"
+          ],
+          "returnType": "Promise<BaseGraph>",
+          "exported": true,
+          "lineCount": 65
+        },
+        {
+          "name": "defaultProviderState",
+          "params": [
+            "provider"
+          ],
+          "returnType": "GraphProviderState",
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "providerResultFromGraph",
+          "params": [
+            "graph",
+            "signal"
+          ],
+          "returnType": "Promise<ProviderResult>",
+          "exported": false,
+          "lineCount": 24
+        },
+        {
+          "name": "sanitizeFallbackReason",
+          "params": [
+            "err"
+          ],
+          "returnType": "string",
+          "exported": true,
+          "lineCount": 15
+        },
+        {
+          "name": "normalize",
+          "params": [
+            "result",
+            "provider",
+            "providerState",
+            "signal"
+          ],
+          "returnType": "Promise<BaseGraph>",
+          "exported": true,
+          "lineCount": 65
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "../config.js",
+          "specifiers": [
+            "Config"
+          ]
+        },
+        {
+          "source": "./types.js",
+          "specifiers": [
+            "GraphProvider",
+            "BaseGraph",
+            "GraphEdge",
+            "GraphProviderState",
+            "ProviderResult"
+          ]
+        },
+        {
+          "source": "./providers.js",
+          "specifiers": [
+            "FilesystemProvider"
+          ]
+        },
+        {
+          "source": "../cli/vault-target.js",
+          "specifiers": [
+            "abortableYield",
+            "isAbortError",
+            "throwIfAborted"
+          ]
+        }
+      ],
+      "exports": [
+        "buildVaultGraph",
+        "sanitizeFallbackReason",
+        "normalize"
+      ],
+      "totalLines": 229,
+      "hasStructuralAnalysis": true
+    },
+    "src/graph/cross-vault.ts": {
+      "filePath": "src/graph/cross-vault.ts",
+      "contentHash": "bb26ed07d9b3aa0be54e687449af45576a113e14d4219242088a6f64c89e5a92",
+      "functions": [
+        {
+          "name": "compareText",
+          "params": [
+            "a",
+            "b"
+          ],
+          "returnType": "number",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "compareTuple",
+          "params": [
+            "a",
+            "b"
+          ],
+          "returnType": "number",
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "observationExclusion",
+          "params": [
+            "observation"
+          ],
+          "returnType": "string | undefined",
+          "exported": false,
+          "lineCount": 18
+        },
+        {
+          "name": "normalizeVaultRelativePath",
+          "params": [
+            "relativePath",
+            "separator"
+          ],
+          "returnType": "string",
+          "exported": true,
+          "lineCount": 3
+        }
+      ],
+      "classes": [
+        {
+          "name": "DeclaredCrossVaultGraphBuilder",
+          "methods": [
+            "constructor",
+            "observe",
+            "build"
+          ],
+          "properties": [
+            "aggregates",
+            "excludedByStatus",
+            "totalObserved",
+            "totalEligible"
+          ],
+          "exported": true,
+          "lineCount": 113
+        }
+      ],
+      "imports": [
+        {
+          "source": "../parsers/obsidian-uri.js",
+          "specifiers": [
+            "serializeObsidianUri"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "./types.js",
+          "specifiers": [
+            "DeclaredCrossVaultEdge",
+            "DeclaredCrossVaultGraph",
+            "VaultNodeRef"
+          ]
+        }
+      ],
+      "exports": [
+        "DECLARED_GRAPH_MAX_EDGES",
+        "DECLARED_GRAPH_MAX_SUBPATHS",
+        "normalizeVaultRelativePath",
+        "DeclaredCrossVaultGraphBuilder"
+      ],
+      "totalLines": 191,
+      "hasStructuralAnalysis": true
+    },
+    "src/graph/digest.ts": {
+      "filePath": "src/graph/digest.ts",
+      "contentHash": "8361d0d895dc1ac082c6799bba525d3116aa7daf5e3ea676279de9f1e44a0e79",
+      "functions": [
+        {
+          "name": "updateFrame",
+          "params": [
+            "hash",
+            "value"
+          ],
+          "returnType": "void",
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "computeGraphDigest",
+          "params": [
+            "vaultPath",
+            "signal"
+          ],
+          "returnType": "Promise<string>",
+          "exported": true,
+          "lineCount": 48
+        },
+        {
+          "name": "hashExclude",
+          "params": [
+            "value"
+          ],
+          "returnType": "string",
+          "exported": true,
+          "lineCount": 5
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "fs/promises",
+          "specifiers": [
+            "* as fs"
+          ]
+        },
+        {
+          "source": "path",
+          "specifiers": [
+            "* as path"
+          ]
+        },
+        {
+          "source": "crypto",
+          "specifiers": [
+            "createHash"
+          ]
+        },
+        {
+          "source": "../cli/vault-target.js",
+          "specifiers": [
+            "abortableYield",
+            "throwIfAborted"
+          ]
+        }
+      ],
+      "exports": [
+        "computeGraphDigest",
+        "hashExclude"
+      ],
+      "totalLines": 88,
+      "hasStructuralAnalysis": true
+    },
+    "src/graph/exclude.ts": {
+      "filePath": "src/graph/exclude.ts",
+      "contentHash": "833563813fab5d1a43f63a5dc356fc25072113ad2fdb026b41e2b2ced4d2ed8b",
+      "functions": [
+        {
+          "name": "resolveExclude",
+          "params": [
+            "input"
+          ],
+          "returnType": "ResolvedExclude",
+          "exported": true,
+          "lineCount": 24
+        },
+        {
+          "name": "computeExcludedSet",
+          "params": [
+            "vaultPath",
+            "nodes",
+            "resolved",
+            "signal"
+          ],
+          "returnType": "Promise<Set<string>>",
+          "exported": true,
+          "lineCount": 31
+        },
+        {
+          "name": "readFrontmatter",
+          "params": [
+            "vaultPath",
+            "rel"
+          ],
+          "returnType": "Promise<Record<string, unknown>>",
+          "exported": true,
+          "lineCount": 13
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "fs/promises",
+          "specifiers": [
+            "* as fs"
+          ]
+        },
+        {
+          "source": "path",
+          "specifiers": [
+            "* as path"
+          ]
+        },
+        {
+          "source": "../tools/query.js",
+          "specifiers": [
+            "FilterCondition",
+            "matchesCondition"
+          ]
+        },
+        {
+          "source": "../parsers/markdown.js",
+          "specifiers": [
+            "parseMarkdownFile"
+          ]
+        },
+        {
+          "source": "../cli/vault-target.js",
+          "specifiers": [
+            "isAbortError",
+            "throwIfAborted"
+          ]
+        }
+      ],
+      "exports": [
+        "DEFAULT_NODE_TYPES",
+        "DEFAULT_EXCLUDE",
+        "resolveExclude",
+        "computeExcludedSet",
+        "readFrontmatter"
+      ],
+      "totalLines": 135,
+      "hasStructuralAnalysis": true
+    },
+    "src/graph/index.ts": {
+      "filePath": "src/graph/index.ts",
+      "contentHash": "d077d63492fa3ce9f3c4c1dc2ff39b59710c988c3ea6cce997a312dc0763e784",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [
+        "buildVaultGraph",
+        "normalize",
+        "FilesystemProvider",
+        "ObsidianProvider",
+        "selectProvider",
+        "selectProviderWithState",
+        "GraphProviderSelection",
+        "resolveExclude",
+        "computeExcludedSet",
+        "DEFAULT_EXCLUDE",
+        "DEFAULT_NODE_TYPES",
+        "pageRank",
+        "PAGERANK_DEFAULTS",
+        "assignLevels",
+        "levelHistogram",
+        "SMALL_VAULT_THRESHOLD",
+        "getGraphSignals",
+        "getFilesystemGraphSignals",
+        "getGraphSignalsFromBase",
+        "getBaseGraph",
+        "clearGraphCaches",
+        "invalidateGraphCache",
+        "replacePreparedExactGraph",
+        "getPreparedExactGraph",
+        "invalidatePreparedExactGraph",
+        "clearPreparedExactGraphs",
+        "withPreparedGraphLock",
+        "computeGraphDigest",
+        "hashExclude",
+        "DeclaredCrossVaultGraphBuilder",
+        "DECLARED_GRAPH_MAX_EDGES",
+        "DECLARED_GRAPH_MAX_SUBPATHS",
+        "normalizeVaultRelativePath",
+        "CrossVaultGraphObservation"
+      ],
+      "totalLines": 48,
+      "hasStructuralAnalysis": true
+    },
+    "src/graph/json-parse-worker.ts": {
+      "filePath": "src/graph/json-parse-worker.ts",
+      "contentHash": "fc2bd7d9c01c846d89bc064dc3682832205df7f5750a9d7ab05c2a7cb5720109",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": "worker_threads",
+          "specifiers": [
+            "parentPort",
+            "workerData"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 12,
+      "hasStructuralAnalysis": true
+    },
+    "src/graph/json-parse.ts": {
+      "filePath": "src/graph/json-parse.ts",
+      "contentHash": "6e2665d802e01afdd7fe1256ff96e05d188f35635df42ad79709efa924d8c1a7",
+      "functions": [
+        {
+          "name": "parseJsonCancellable",
+          "params": [
+            "raw",
+            "signal"
+          ],
+          "returnType": "Promise<T>",
+          "exported": true,
+          "lineCount": 57
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "worker_threads",
+          "specifiers": [
+            "Worker"
+          ]
+        },
+        {
+          "source": "../cli/vault-target.js",
+          "specifiers": [
+            "createAbortError",
+            "throwIfAborted"
+          ]
+        }
+      ],
+      "exports": [
+        "parseJsonCancellable"
+      ],
+      "totalLines": 69,
+      "hasStructuralAnalysis": true
+    },
+    "src/graph/levels.ts": {
+      "filePath": "src/graph/levels.ts",
+      "contentHash": "06a7aa5a2f1eec1e76dd5dec735f5eb9ba1253b318caa1dc4713f9261d117172",
+      "functions": [
+        {
+          "name": "percentile",
+          "params": [
+            "sortedAsc",
+            "p"
+          ],
+          "returnType": "number",
+          "exported": false,
+          "lineCount": 10
+        },
+        {
+          "name": "assignLevels",
+          "params": [
+            "pagerank",
+            "inDegree",
+            "signal"
+          ],
+          "returnType": "Promise<LevelResult>",
+          "exported": true,
+          "lineCount": 72
+        },
+        {
+          "name": "levelHistogram",
+          "params": [
+            "levels",
+            "excludedCount"
+          ],
+          "returnType": "Array<{ level: number | 'excluded'; count: number }>",
+          "exported": true,
+          "lineCount": 17
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "../cli/vault-target.js",
+          "specifiers": [
+            "abortableYield",
+            "throwIfAborted"
+          ]
+        }
+      ],
+      "exports": [
+        "SMALL_VAULT_THRESHOLD",
+        "assignLevels",
+        "levelHistogram"
+      ],
+      "totalLines": 152,
+      "hasStructuralAnalysis": true
+    },
+    "src/graph/pagerank.ts": {
+      "filePath": "src/graph/pagerank.ts",
+      "contentHash": "311ed5cc8a235f1b4703112d6c32229c8b9f154502c45c7c9187c75a4d2e5b91",
+      "functions": [
+        {
+          "name": "distributeRank",
+          "params": [
+            "outLinks",
+            "outDeg",
+            "rank",
+            "next",
+            "damping",
+            "signal"
+          ],
+          "returnType": "Promise<void>",
+          "exported": true,
+          "lineCount": 20
+        },
+        {
+          "name": "pageRank",
+          "params": [
+            "nodes",
+            "edges",
+            "options"
+          ],
+          "returnType": "Promise<Map<string, number>>",
+          "exported": true,
+          "lineCount": 71
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "../cli/vault-target.js",
+          "specifiers": [
+            "abortableYield",
+            "throwIfAborted"
+          ]
+        }
+      ],
+      "exports": [
+        "PAGERANK_DEFAULTS",
+        "distributeRank",
+        "pageRank"
+      ],
+      "totalLines": 125,
+      "hasStructuralAnalysis": true
+    },
+    "src/graph/prepared.ts": {
+      "filePath": "src/graph/prepared.ts",
+      "contentHash": "4c5c4a0d6d9f9b1592c45bb4266c6f521b0e5b3c8d31114a60e09dc1717bf4b2",
+      "functions": [
+        {
+          "name": "cloneBaseGraph",
+          "params": [
+            "graph"
+          ],
+          "returnType": "BaseGraph",
+          "exported": false,
+          "lineCount": 10
+        },
+        {
+          "name": "cloneSnapshot",
+          "params": [
+            "snapshot"
+          ],
+          "returnType": "PreparedExactGraphSnapshot",
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "replacePreparedExactGraph",
+          "params": [
+            "snapshot"
+          ],
+          "returnType": "void",
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "getPreparedExactGraph",
+          "params": [
+            "canonicalPath"
+          ],
+          "returnType": "PreparedExactGraphSnapshot | undefined",
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "invalidatePreparedExactGraph",
+          "params": [
+            "canonicalPath"
+          ],
+          "returnType": "void",
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "clearPreparedExactGraphs",
+          "params": [],
+          "returnType": "void",
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "withPreparedGraphLock",
+          "params": [
+            "canonicalPath",
+            "signal",
+            "operation"
+          ],
+          "returnType": "Promise<T>",
+          "exported": true,
+          "lineCount": 26
+        },
+        {
+          "name": "waitForTurn",
+          "params": [
+            "promise",
+            "signal"
+          ],
+          "returnType": "Promise<void>",
+          "exported": false,
+          "lineCount": 19
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "./types.js",
+          "specifiers": [
+            "BaseGraph"
+          ]
+        },
+        {
+          "source": "../cli/vault-target.js",
+          "specifiers": [
+            "createAbortError",
+            "throwIfAborted"
+          ]
+        }
+      ],
+      "exports": [
+        "replacePreparedExactGraph",
+        "getPreparedExactGraph",
+        "invalidatePreparedExactGraph",
+        "clearPreparedExactGraphs",
+        "withPreparedGraphLock"
+      ],
+      "totalLines": 104,
+      "hasStructuralAnalysis": true
+    },
+    "src/graph/providers.ts": {
+      "filePath": "src/graph/providers.ts",
+      "contentHash": "bdf0e6bd259412f9fc8737095cf9b9aba9a5582df3356563e3b0a8bdb96161bf",
+      "functions": [
+        {
+          "name": "collectMarkdownPaths",
+          "params": [
+            "vaultPath",
+            "signal"
+          ],
+          "returnType": "Promise<string[]>",
+          "exported": false,
+          "lineCount": 30
+        },
+        {
+          "name": "parseEvalJson",
+          "params": [
+            "raw",
+            "signal"
+          ],
+          "returnType": "Promise<{\n  nodes?: string[];\n  links?: Record<string, Record<string, number>>;\n  unresolvedRaw?: Record<string, number>;\n  basePath?: string;\n}>",
+          "exported": true,
+          "lineCount": 28
+        },
+        {
+          "name": "findObjectBounds",
+          "params": [
+            "value",
+            "signal"
+          ],
+          "returnType": "Promise<{ start: number; end: number }>",
+          "exported": false,
+          "lineCount": 13
+        },
+        {
+          "name": "selectProvider",
+          "params": [
+            "config",
+            "vaultName"
+          ],
+          "returnType": "Promise<GraphProvider>",
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "selection",
+          "params": [
+            "provider",
+            "state"
+          ],
+          "returnType": "GraphProviderSelection",
+          "exported": false,
+          "lineCount": 11
+        },
+        {
+          "name": "selectProviderWithState",
+          "params": [
+            "config",
+            "vaultName"
+          ],
+          "returnType": "Promise<GraphProviderSelection>",
+          "exported": true,
+          "lineCount": 39
+        }
+      ],
+      "classes": [
+        {
+          "name": "FilesystemProvider",
+          "methods": [
+            "build"
+          ],
+          "properties": [
+            "name"
+          ],
+          "exported": true,
+          "lineCount": 87
+        },
+        {
+          "name": "ObsidianProvider",
+          "methods": [
+            "constructor",
+            "build"
+          ],
+          "properties": [
+            "name"
+          ],
+          "exported": true,
+          "lineCount": 125
+        }
+      ],
+      "imports": [
+        {
+          "source": "fs/promises",
+          "specifiers": [
+            "* as fs"
+          ]
+        },
+        {
+          "source": "path",
+          "specifiers": [
+            "* as path"
+          ]
+        },
+        {
+          "source": "../config.js",
+          "specifiers": [
+            "Config"
+          ]
+        },
+        {
+          "source": "../parsers/wikilink.js",
+          "specifiers": [
+            "extractWikilinksCooperative",
+            "buildMultiFileIndex",
+            "resolveWikilink",
+            "normalizeUnresolvedKey"
+          ]
+        },
+        {
+          "source": "./json-parse.js",
+          "specifiers": [
+            "parseJsonCancellable"
+          ]
+        },
+        {
+          "source": "../cli/bridge.js",
+          "specifiers": [
+            "evalInObsidian",
+            "evalInRegisteredVault",
+            "probeObsidianCli"
+          ]
+        },
+        {
+          "source": "../cli/vault-target.js",
+          "specifiers": [
+            "abortableYield",
+            "canonicalPathsEqual",
+            "isAbortError",
+            "throwIfAborted"
+          ]
+        },
+        {
+          "source": "./types.js",
+          "specifiers": [
+            "GraphBuildContext",
+            "GraphProvider",
+            "GraphProviderState",
+            "ProviderResult"
+          ]
+        }
+      ],
+      "exports": [
+        "FilesystemProvider",
+        "ObsidianProvider",
+        "parseEvalJson",
+        "selectProvider",
+        "selectProviderWithState"
+      ],
+      "totalLines": 425,
+      "hasStructuralAnalysis": true
+    },
+    "src/graph/signals.ts": {
+      "filePath": "src/graph/signals.ts",
+      "contentHash": "a7fcba05c77faec6ff5303dc868907bd9aa58f62ebaf9b3f6ddf0bb4a9dc2ea5",
+      "functions": [
+        {
+          "name": "clearGraphCaches",
+          "params": [],
+          "returnType": "void",
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "invalidateGraphCache",
+          "params": [
+            "vaultPath"
+          ],
+          "returnType": "void",
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "getBaseGraph",
+          "params": [
+            "config",
+            "vaultName",
+            "vaultPath",
+            "context"
+          ],
+          "returnType": "Promise<BaseGraph>",
+          "exported": true,
+          "lineCount": 61
+        },
+        {
+          "name": "beginGraphRequest",
+          "params": [
+            "vaultPath"
+          ],
+          "returnType": "number",
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "withBaseMetadata",
+          "params": [
+            "signals",
+            "baseGraph"
+          ],
+          "returnType": "GraphSignals",
+          "exported": false,
+          "lineCount": 11
+        },
+        {
+          "name": "getGraphSignals",
+          "params": [
+            "config",
+            "vaultName",
+            "exclude",
+            "signal"
+          ],
+          "returnType": "Promise<GraphSignals>",
+          "exported": true,
+          "lineCount": 20
+        },
+        {
+          "name": "getFilesystemGraphSignals",
+          "params": [
+            "config",
+            "vaultName",
+            "exclude",
+            "signal"
+          ],
+          "returnType": "Promise<GraphSignals>",
+          "exported": true,
+          "lineCount": 28
+        },
+        {
+          "name": "getGraphSignalsFromBase",
+          "params": [
+            "vaultName",
+            "vaultPath",
+            "graph",
+            "exclude",
+            "signal"
+          ],
+          "returnType": "Promise<GraphSignals>",
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "rankBaseGraph",
+          "params": [
+            "vaultName",
+            "vaultPath",
+            "graph",
+            "exclude",
+            "sequence",
+            "signal"
+          ],
+          "returnType": "Promise<GraphSignals>",
+          "exported": false,
+          "lineCount": 134
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "../config.js",
+          "specifiers": [
+            "Config",
+            "resolveVault"
+          ]
+        },
+        {
+          "source": "./types.js",
+          "specifiers": [
+            "BaseGraph",
+            "GraphSignals",
+            "NodeSignals"
+          ]
+        },
+        {
+          "source": "./build.js",
+          "specifiers": [
+            "buildVaultGraph"
+          ]
+        },
+        {
+          "source": "./providers.js",
+          "specifiers": [
+            "FilesystemProvider",
+            "GraphProviderSelection",
+            "selectProviderWithState"
+          ]
+        },
+        {
+          "source": "./digest.js",
+          "specifiers": [
+            "computeGraphDigest",
+            "hashExclude"
+          ]
+        },
+        {
+          "source": "./exclude.js",
+          "specifiers": [
+            "resolveExclude",
+            "computeExcludedSet",
+            "ExcludeInput"
+          ]
+        },
+        {
+          "source": "./pagerank.js",
+          "specifiers": [
+            "pageRank"
+          ]
+        },
+        {
+          "source": "./levels.js",
+          "specifiers": [
+            "assignLevels"
+          ]
+        },
+        {
+          "source": "./prepared.js",
+          "specifiers": [
+            "clearPreparedExactGraphs",
+            "invalidatePreparedExactGraph"
+          ]
+        },
+        {
+          "source": "../cli/vault-target.js",
+          "specifiers": [
+            "abortableYield",
+            "throwIfAborted"
+          ]
+        }
+      ],
+      "exports": [
+        "clearGraphCaches",
+        "invalidateGraphCache",
+        "getBaseGraph",
+        "getGraphSignals",
+        "getFilesystemGraphSignals",
+        "getGraphSignalsFromBase"
+      ],
+      "totalLines": 364,
+      "hasStructuralAnalysis": true
+    },
+    "src/graph/types.ts": {
+      "filePath": "src/graph/types.ts",
+      "contentHash": "f67e9f77fa54be46d135be0579fb5c14386a79629e4b4010dc006cc35de9324e",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": "../tools/query.js",
+          "specifiers": [
+            "FilterCondition"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 232,
+      "hasStructuralAnalysis": true
+    },
     "src/http-server.ts": {
       "filePath": "src/http-server.ts",
-      "contentHash": "926784c473af22cfbcb43927c326f7037adca4e5ef196f2cd9cbd7d0c1672cf0",
+      "contentHash": "1aea01fd18c301cd2aad3805754f81cd47e4c79b2a14cade98641d47d4c33e2a",
       "functions": [
         {
           "name": "createHttpServer",
@@ -559,7 +2743,7 @@
             "options"
           ],
           "exported": true,
-          "lineCount": 161
+          "lineCount": 171
         }
       ],
       "classes": [],
@@ -597,12 +2781,12 @@
       "exports": [
         "createHttpServer"
       ],
-      "totalLines": 186,
+      "totalLines": 197,
       "hasStructuralAnalysis": true
     },
     "src/index.ts": {
       "filePath": "src/index.ts",
-      "contentHash": "cde5ec310eaaed07d9e25c3ff3d91ecd6b3b3ce2493be20dd3d1770f14c5b370",
+      "contentHash": "13af341e6ef053c7f14de6c82d040db6eb7870dd2437783ddaf28298de58b8ec",
       "functions": [
         {
           "name": "shutdown",
@@ -617,7 +2801,7 @@
           "name": "main",
           "params": [],
           "exported": false,
-          "lineCount": 23
+          "lineCount": 25
         }
       ],
       "classes": [],
@@ -642,7 +2826,9 @@
           "source": "@modelcontextprotocol/sdk/types.js",
           "specifiers": [
             "ListToolsRequestSchema",
-            "CallToolRequestSchema"
+            "CallToolRequestSchema",
+            "ListPromptsRequestSchema",
+            "GetPromptRequestSchema"
           ]
         },
         {
@@ -660,6 +2846,13 @@
           ]
         },
         {
+          "source": "./prompts/index.js",
+          "specifiers": [
+            "allPrompts",
+            "getPromptMessages"
+          ]
+        },
+        {
           "source": "./embeddings/watcher.js",
           "specifiers": [
             "createVaultWatcher",
@@ -671,24 +2864,33 @@
           "specifiers": [
             "createHttpServer"
           ]
+        },
+        {
+          "source": "./version.js",
+          "specifiers": [
+            "SERVER_VERSION"
+          ]
         }
       ],
-      "exports": [],
-      "totalLines": 158,
+      "exports": [
+        "STDIO_MAX_BUFFER_SIZE"
+      ],
+      "totalLines": 181,
       "hasStructuralAnalysis": true
     },
     "src/parsers/markdown.ts": {
       "filePath": "src/parsers/markdown.ts",
-      "contentHash": "3ecd88cfb92b0243cc32c2890f8adf8891896976a38b6d57c0874222651b0cf3",
+      "contentHash": "ea3d062b6809e2f908e01917773369eb4708480285e1840710d2b5dee0a0b27f",
       "functions": [
         {
-          "name": "checkFileSize",
+          "name": "readVerifiedTextFile",
           "params": [
-            "filePath"
+            "filePath",
+            "vaultPath"
           ],
-          "returnType": "Promise<void>",
+          "returnType": "Promise<string>",
           "exported": false,
-          "lineCount": 8
+          "lineCount": 16
         },
         {
           "name": "parseMarkdownFile",
@@ -698,7 +2900,7 @@
           ],
           "returnType": "Promise<ParsedFile>",
           "exported": true,
-          "lineCount": 23
+          "lineCount": 20
         },
         {
           "name": "extractTitle",
@@ -781,7 +2983,7 @@
           ],
           "returnType": "Promise<{ success: boolean; error?: string }>",
           "exported": true,
-          "lineCount": 30
+          "lineCount": 28
         },
         {
           "name": "prependToSection",
@@ -793,7 +2995,7 @@
           ],
           "returnType": "Promise<{ success: boolean; error?: string }>",
           "exported": true,
-          "lineCount": 31
+          "lineCount": 29
         },
         {
           "name": "replaceSection",
@@ -805,7 +3007,7 @@
           ],
           "returnType": "Promise<{ success: boolean; error?: string }>",
           "exported": true,
-          "lineCount": 30
+          "lineCount": 28
         },
         {
           "name": "slugify",
@@ -856,7 +3058,7 @@
           "source": "../config.js",
           "specifiers": [
             "resolvePathInVault",
-            "verifyPathAfterOpen"
+            "verifyFileHandleInVault"
           ]
         }
       ],
@@ -872,13 +3074,127 @@
         "replaceSection",
         "extractSections"
       ],
-      "totalLines": 459,
+      "totalLines": 458,
+      "hasStructuralAnalysis": true
+    },
+    "src/parsers/obsidian-uri.ts": {
+      "filePath": "src/parsers/obsidian-uri.ts",
+      "contentHash": "123c7fa7bb6c81606956e2cea8bb40fa3de69eda46ec995bac31f00eeb3241c4",
+      "functions": [
+        {
+          "name": "addDiagnostic",
+          "params": [
+            "diagnostics",
+            "code",
+            "severity",
+            "message"
+          ],
+          "returnType": "void",
+          "exported": false,
+          "lineCount": 10
+        },
+        {
+          "name": "decodeQueryValue",
+          "params": [
+            "raw",
+            "diagnostics",
+            "name"
+          ],
+          "returnType": "string | undefined",
+          "exported": false,
+          "lineCount": 36
+        },
+        {
+          "name": "notePathDiagnostic",
+          "params": [
+            "file"
+          ],
+          "returnType": "ObsidianUriDiagnostic | undefined",
+          "exported": false,
+          "lineCount": 16
+        },
+        {
+          "name": "isMarkdownNotePath",
+          "params": [
+            "file"
+          ],
+          "returnType": "boolean",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "encodeUriComponentStrict",
+          "params": [
+            "value"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "serializeObsidianUri",
+          "params": [
+            "input"
+          ],
+          "returnType": "string",
+          "exported": true,
+          "lineCount": 18
+        },
+        {
+          "name": "parseObsidianUri",
+          "params": [
+            "raw"
+          ],
+          "returnType": "ParsedObsidianUri",
+          "exported": true,
+          "lineCount": 167
+        },
+        {
+          "name": "markdownCodeMask",
+          "params": [
+            "markdown"
+          ],
+          "returnType": "Uint8Array",
+          "exported": false,
+          "lineCount": 59
+        },
+        {
+          "name": "extractObsidianUris",
+          "params": [
+            "markdown"
+          ],
+          "returnType": "ObsidianUriOccurrence[]",
+          "exported": true,
+          "lineCount": 22
+        }
+      ],
+      "classes": [],
+      "imports": [],
+      "exports": [
+        "serializeObsidianUri",
+        "parseObsidianUri",
+        "extractObsidianUris"
+      ],
+      "totalLines": 388,
       "hasStructuralAnalysis": true
     },
     "src/parsers/wikilink.ts": {
       "filePath": "src/parsers/wikilink.ts",
-      "contentHash": "c8319e7f686611cd298ec326b859eeb91b9597c0ebd1111e41a0c893fe70b53d",
+      "contentHash": "11aedf38ee4a4ea78572e873104d49a0cfb049d281616c049c619a3e7b7a2d9c",
       "functions": [
+        {
+          "name": "makeWikilink",
+          "params": [
+            "content",
+            "start",
+            "end",
+            "targetText",
+            "aliasText"
+          ],
+          "returnType": "WikiLink",
+          "exported": false,
+          "lineCount": 26
+        },
         {
           "name": "extractWikilinks",
           "params": [
@@ -886,7 +3202,26 @@
           ],
           "returnType": "WikiLink[]",
           "exported": true,
-          "lineCount": 22
+          "lineCount": 19
+        },
+        {
+          "name": "extractWikilinksCooperative",
+          "params": [
+            "content",
+            "signal"
+          ],
+          "returnType": "Promise<WikiLink[]>",
+          "exported": true,
+          "lineCount": 73
+        },
+        {
+          "name": "normalizeUnresolvedKey",
+          "params": [
+            "rawTarget"
+          ],
+          "returnType": "string | null",
+          "exported": true,
+          "lineCount": 14
         },
         {
           "name": "parseCrossVaultLink",
@@ -933,11 +3268,12 @@
         {
           "name": "buildMultiFileIndex",
           "params": [
-            "vaultPath"
+            "vaultPath",
+            "signal"
           ],
           "returnType": "Promise<Map<string, string[]>>",
           "exported": true,
-          "lineCount": 32
+          "lineCount": 42
         },
         {
           "name": "resolveAllWikilinks",
@@ -997,10 +3333,20 @@
           "specifiers": [
             "resolvePathInVault"
           ]
+        },
+        {
+          "source": "../cli/vault-target.js",
+          "specifiers": [
+            "abortableYield",
+            "isAbortError",
+            "throwIfAborted"
+          ]
         }
       ],
       "exports": [
         "extractWikilinks",
+        "extractWikilinksCooperative",
+        "normalizeUnresolvedKey",
         "parseCrossVaultLink",
         "resolveWikilink",
         "buildFileIndex",
@@ -1009,7 +3355,39 @@
         "getWikilinkLineNumber",
         "getWikilinkContext"
       ],
-      "totalLines": 289,
+      "totalLines": 448,
+      "hasStructuralAnalysis": true
+    },
+    "src/prompts/index.ts": {
+      "filePath": "src/prompts/index.ts",
+      "contentHash": "43718015f023928e30107bb3162f5e0f3191d889383da6405063d7d8b66faa08",
+      "functions": [
+        {
+          "name": "getPromptMessages",
+          "params": [
+            "name",
+            "args"
+          ],
+          "returnType": "GetPromptResult",
+          "exported": true,
+          "lineCount": 119
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "@modelcontextprotocol/sdk/types.js",
+          "specifiers": [
+            "Prompt",
+            "GetPromptResult"
+          ]
+        }
+      ],
+      "exports": [
+        "allPrompts",
+        "getPromptMessages"
+      ],
+      "totalLines": 194,
       "hasStructuralAnalysis": true
     },
     "src/resolver-hints.ts": {
@@ -1072,7 +3450,7 @@
     },
     "src/tools/analytics.ts": {
       "filePath": "src/tools/analytics.ts",
-      "contentHash": "cfb9291a4f8d344583cd755dc064f1a9025cb2105eafea0639ff892f680c98b8",
+      "contentHash": "4561f56a1f4ce45ca2ad0eb00447eb2198e2863bca8170871092ba5d92dd6654",
       "functions": [
         {
           "name": "collectFiles",
@@ -1090,9 +3468,47 @@
           "params": [
             "vaultPath"
           ],
-          "returnType": "Promise<{ backlinkCounts: Map<string, number>; brokenLinks: Array<{ source: string; target: string; lineNumber: number }> }>",
+          "returnType": "Promise<{ backlinkCounts: Map<string, number>; brokenLinks: BrokenLinkOccurrence[] }>",
           "exported": false,
-          "lineCount": 58
+          "lineCount": 60
+        },
+        {
+          "name": "getWikilinkOccurrenceDetails",
+          "params": [
+            "content",
+            "rawLinksInParseOrder"
+          ],
+          "returnType": "Array<{ lineNumber: number; columnStart: number; occurrenceIndexOnLine: number; sourceText: string }>",
+          "exported": false,
+          "lineCount": 29
+        },
+        {
+          "name": "getLineStarts",
+          "params": [
+            "content"
+          ],
+          "returnType": "number[]",
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "lineNumberForOffset",
+          "params": [
+            "lineStarts",
+            "offset"
+          ],
+          "returnType": "number",
+          "exported": false,
+          "lineCount": 15
+        },
+        {
+          "name": "uniqueUnresolvedTargetStrings",
+          "params": [
+            "brokenLinks"
+          ],
+          "returnType": "UniqueUnresolvedTargetString[]",
+          "exported": false,
+          "lineCount": 23
         },
         {
           "name": "matchesExclude",
@@ -1110,7 +3526,7 @@
             "config"
           ],
           "exported": true,
-          "lineCount": 225
+          "lineCount": 233
         }
       ],
       "classes": [],
@@ -1158,7 +3574,6 @@
           "specifiers": [
             "extractWikilinks",
             "resolveWikilink",
-            "buildFileIndex",
             "buildMultiFileIndex"
           ]
         },
@@ -1168,25 +3583,32 @@
             "vaultParam",
             "limitParam"
           ]
+        },
+        {
+          "source": "./safety.js",
+          "specifiers": [
+            "withAnnotations",
+            "ToolAnnotations"
+          ]
         }
       ],
       "exports": [
         "analyticsTools",
         "createAnalyticsHandlers"
       ],
-      "totalLines": 420,
+      "totalLines": 535,
       "hasStructuralAnalysis": true
     },
     "src/tools/categories.ts": {
       "filePath": "src/tools/categories.ts",
-      "contentHash": "3678e5cad4724f4fc3f58173ea48575b32590ddb195a0a53998c29e2cd46cbd5",
+      "contentHash": "80b8b9aa1c76d954b31a4f7583ff35a500173629c08d414bd4913c1f3ef213b0",
       "functions": [
         {
           "name": "buildModuleIndex",
           "params": [],
           "returnType": "Map<string, string>",
           "exported": false,
-          "lineCount": 27
+          "lineCount": 28
         },
         {
           "name": "getToolCategory",
@@ -1267,6 +3689,18 @@
           ]
         },
         {
+          "source": "./graph.js",
+          "specifiers": [
+            "graphTools"
+          ]
+        },
+        {
+          "source": "./vault.js",
+          "specifiers": [
+            "vaultTools"
+          ]
+        },
+        {
           "source": "./fs-promoted.js",
           "specifiers": [
             "fsPromotedTools"
@@ -1284,14 +3718,15 @@
         "getToolCategory",
         "categorize",
         "categorySummary",
-        "CLI_TIER_LABEL"
+        "CLI_TIER_LABEL",
+        "APP_CONTACT_TOOL_NAMES"
       ],
-      "totalLines": 118,
+      "totalLines": 125,
       "hasStructuralAnalysis": true
     },
     "src/tools/cli-tools.ts": {
       "filePath": "src/tools/cli-tools.ts",
-      "contentHash": "e0633a7e2512f61d039a4cb36c86f899ad5b35d53f125c0ff083601eadead138",
+      "contentHash": "9cce350866bb370907137caa82c45c45b0e50219bcba3beca9d37ab6c8d5f214",
       "functions": [
         {
           "name": "withCliCheck",
@@ -1346,18 +3781,25 @@
           "specifiers": [
             "vaultParam"
           ]
+        },
+        {
+          "source": "./safety.js",
+          "specifiers": [
+            "withAnnotations",
+            "ToolAnnotations"
+          ]
         }
       ],
       "exports": [
         "cliTools",
         "createCliHandlers"
       ],
-      "totalLines": 617,
+      "totalLines": 665,
       "hasStructuralAnalysis": true
     },
     "src/tools/crossvault.ts": {
       "filePath": "src/tools/crossvault.ts",
-      "contentHash": "744245135ecdb6fcba51961017f8457df93627e95398a2a810edb10cbaf43dbd",
+      "contentHash": "ebff5fdaeb7d761f8c6a2b39f476cff406e3926666658347ec50ba13983b3b2d",
       "functions": [
         {
           "name": "getStorage",
@@ -1373,7 +3815,36 @@
             "config"
           ],
           "exported": true,
-          "lineCount": 308
+          "lineCount": 373
+        },
+        {
+          "name": "parserStatus",
+          "params": [
+            "uri"
+          ],
+          "returnType": "NativeUriStatus | undefined",
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "markdownFiles",
+          "params": [
+            "vaultPath",
+            "current",
+            "files"
+          ],
+          "returnType": "Promise<string[]>",
+          "exported": false,
+          "lineCount": 16
+        },
+        {
+          "name": "inventoryNativeUris",
+          "params": [
+            "config",
+            "sourceVaults"
+          ],
+          "exported": false,
+          "lineCount": 210
         },
         {
           "name": "searchVault",
@@ -1413,12 +3884,13 @@
           "lineCount": 46
         },
         {
-          "name": "countMarkdownFiles",
+          "name": "collectMarkdownFilePaths",
           "params": [
             "dirPath",
-            "vaultPath"
+            "vaultPath",
+            "files"
           ],
-          "returnType": "Promise<number>",
+          "returnType": "Promise<string[]>",
           "exported": false,
           "lineCount": 21
         },
@@ -1471,7 +3943,10 @@
         {
           "source": "../config.js",
           "specifiers": [
-            "Config"
+            "Config",
+            "resolvePathInVault",
+            "verifyPathAfterOpen",
+            "verifyFileHandleInVault"
           ]
         },
         {
@@ -1496,6 +3971,15 @@
           ]
         },
         {
+          "source": "../parsers/obsidian-uri.js",
+          "specifiers": [
+            "extractObsidianUris",
+            "serializeObsidianUri",
+            "ObsidianUriOccurrence",
+            "ObsidianUriDiagnostic"
+          ]
+        },
+        {
           "source": "../embeddings/ollama.js",
           "specifiers": [
             "generateEmbedding",
@@ -1509,27 +3993,56 @@
           "specifiers": [
             "getSharedStorage"
           ]
+        },
+        {
+          "source": "../embeddings/index-stats.js",
+          "specifiers": [
+            "calculateIndexCoverage",
+            "coveragePercent",
+            "ratio"
+          ]
+        },
+        {
+          "source": "./safety.js",
+          "specifiers": [
+            "withAnnotations",
+            "ToolAnnotations"
+          ]
+        },
+        {
+          "source": "./graph-annotate.js",
+          "specifiers": [
+            "annotateCrossVault"
+          ]
+        },
+        {
+          "source": "../graph/cross-vault.js",
+          "specifiers": [
+            "DeclaredCrossVaultGraphBuilder",
+            "normalizeVaultRelativePath"
+          ]
         }
       ],
       "exports": [
         "crossVaultTools",
         "createCrossVaultHandlers"
       ],
-      "totalLines": 657,
+      "totalLines": 991,
       "hasStructuralAnalysis": true
     },
     "src/tools/discover-tools.ts": {
       "filePath": "src/tools/discover-tools.ts",
-      "contentHash": "09a806eeca32ba102e62556c49e61e2d4c3053e9712658a7f19a475924df0d1d",
+      "contentHash": "d7902a93472343c02b3def264cd450b2bab9c00f1cc1c1ff71d7c05309b93504",
       "functions": [
         {
           "name": "deriveTier",
           "params": [
+            "toolName",
             "category"
           ],
-          "returnType": "'cli' | 'filesystem'",
+          "returnType": "'cli' | 'filesystem' | 'app-contact'",
           "exported": false,
-          "lineCount": 3
+          "lineCount": 7
         },
         {
           "name": "createDiscoverToolsHandlers",
@@ -1558,6 +4071,7 @@
         {
           "source": "./categories.js",
           "specifiers": [
+            "APP_CONTACT_TOOL_NAMES",
             "categorySummary",
             "getToolCategory",
             "CLI_TIER_LABEL"
@@ -1568,26 +4082,43 @@
           "specifiers": [
             "limitParam"
           ]
+        },
+        {
+          "source": "./safety.js",
+          "specifiers": [
+            "withAnnotations",
+            "ToolAnnotations"
+          ]
         }
       ],
       "exports": [
         "discoverToolsTools",
         "createDiscoverToolsHandlers"
       ],
-      "totalLines": 102,
+      "totalLines": 119,
       "hasStructuralAnalysis": true
     },
     "src/tools/files.ts": {
       "filePath": "src/tools/files.ts",
-      "contentHash": "85e43f67f93e54c85d165aa42add82d0a92ae347c47d5de7eef0b3ea6cd2b9b8",
+      "contentHash": "af7d063ee3eca36673404effc44f4bf16fb38469a35203e96405ae4be20818b0",
       "functions": [
+        {
+          "name": "fileSizeInBytes",
+          "params": [
+            "vaultPath",
+            "relPath"
+          ],
+          "returnType": "Promise<number>",
+          "exported": false,
+          "lineCount": 9
+        },
         {
           "name": "createFileHandlers",
           "params": [
             "config"
           ],
           "exported": true,
-          "lineCount": 347
+          "lineCount": 367
         },
         {
           "name": "collectNoteBasenames",
@@ -1725,18 +4256,25 @@
             "closestMatches",
             "noteNotFoundHint"
           ]
+        },
+        {
+          "source": "./safety.js",
+          "specifiers": [
+            "withAnnotations",
+            "ToolAnnotations"
+          ]
         }
       ],
       "exports": [
         "fileTools",
         "createFileHandlers"
       ],
-      "totalLines": 756,
+      "totalLines": 811,
       "hasStructuralAnalysis": true
     },
     "src/tools/fs-promoted.ts": {
       "filePath": "src/tools/fs-promoted.ts",
-      "contentHash": "301a8a1f9c79f2b98e31a91d6e4259e2695b516573c823d8a0e8942aa465eb29",
+      "contentHash": "e6bfd9afbf9c9fe689eb0ccf352d10de95c9c7f969ef68ea6d54a0d6743ed4ab",
       "functions": [
         {
           "name": "ok",
@@ -1825,7 +4363,7 @@
           ],
           "returnType": "Promise<string>",
           "exported": false,
-          "lineCount": 6
+          "lineCount": 11
         },
         {
           "name": "writeVaultFile",
@@ -1870,7 +4408,7 @@
             "Config",
             "resolveVault",
             "resolvePathInVault",
-            "verifyPathAfterOpen"
+            "verifyFileHandleInVault"
           ]
         },
         {
@@ -1922,18 +4460,25 @@
             "noteNotFoundHint",
             "formatVaultError"
           ]
+        },
+        {
+          "source": "./safety.js",
+          "specifiers": [
+            "withAnnotations",
+            "ToolAnnotations"
+          ]
         }
       ],
       "exports": [
         "fsPromotedTools",
         "createFsPromotedHandlers"
       ],
-      "totalLines": 1636,
+      "totalLines": 1703,
       "hasStructuralAnalysis": true
     },
     "src/tools/get-started.ts": {
       "filePath": "src/tools/get-started.ts",
-      "contentHash": "8f6a2e13dfc28e01f032b71ab5c54941282aa8a0a60c60ddb586a38078b0eefe",
+      "contentHash": "50510285806dce0eebd62999a14bf17c71eb71a6b1e67e9bfb50ff469b18bcba",
       "functions": [
         {
           "name": "createGetStartedHandlers",
@@ -1969,8 +4514,16 @@
         {
           "source": "./categories.js",
           "specifiers": [
+            "APP_CONTACT_TOOL_NAMES",
             "categorySummary",
             "CLI_TIER_LABEL"
+          ]
+        },
+        {
+          "source": "./safety.js",
+          "specifiers": [
+            "withAnnotations",
+            "ToolAnnotations"
           ]
         }
       ],
@@ -1979,12 +4532,322 @@
         "STATIC_GUIDANCE",
         "createGetStartedHandlers"
       ],
-      "totalLines": 91,
+      "totalLines": 105,
+      "hasStructuralAnalysis": true
+    },
+    "src/tools/graph-annotate.ts": {
+      "filePath": "src/tools/graph-annotate.ts",
+      "contentHash": "8af82e09f38f5ad042d272ee1144502a1137c61242fca00048e65e95ac3cf154",
+      "functions": [
+        {
+          "name": "buildNfcIndex",
+          "params": [
+            "signalsMap"
+          ],
+          "returnType": "Map<string, NodeSignals>",
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "annotateWithGraph",
+          "params": [
+            "results",
+            "signalsMap"
+          ],
+          "returnType": "Array<T & { graph: GraphBlock }>",
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "attachGraphSignals",
+          "params": [
+            "opts"
+          ],
+          "returnType": "Promise<GraphAttachResult<T>>",
+          "exported": true,
+          "lineCount": 40
+        },
+        {
+          "name": "annotateCrossVault",
+          "params": [
+            "opts"
+          ],
+          "returnType": "Promise<CrossVaultGraphResult<T>>",
+          "exported": true,
+          "lineCount": 67
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "../config.js",
+          "specifiers": [
+            "Config"
+          ]
+        },
+        {
+          "source": "../graph/types.js",
+          "specifiers": [
+            "GraphProviderState",
+            "GraphSignals",
+            "NodeSignals"
+          ]
+        },
+        {
+          "source": "../graph/signals.js",
+          "specifiers": [
+            "defaultGetGraphSignals"
+          ]
+        },
+        {
+          "source": "./query.js",
+          "specifiers": [
+            "FilterCondition"
+          ]
+        }
+      ],
+      "exports": [
+        "annotateWithGraph",
+        "attachGraphSignals",
+        "annotateCrossVault"
+      ],
+      "totalLines": 285,
+      "hasStructuralAnalysis": true
+    },
+    "src/tools/graph.ts": {
+      "filePath": "src/tools/graph.ts",
+      "contentHash": "68818ca6af772583ed4bf2c3a23ec6c8e9363de37219a13e87f7ef4563781a42",
+      "functions": [
+        {
+          "name": "createGraphHandlers",
+          "params": [
+            "config",
+            "dependencies"
+          ],
+          "exported": true,
+          "lineCount": 171
+        },
+        {
+          "name": "renderGraphResult",
+          "params": [
+            "result",
+            "args",
+            "decision",
+            "snapshotCapturedAt",
+            "signal"
+          ],
+          "returnType": "Promise<ToolResponse>",
+          "exported": false,
+          "lineCount": 136
+        },
+        {
+          "name": "renderLevelHistogram",
+          "params": [
+            "levels",
+            "excludedCount",
+            "signal"
+          ],
+          "returnType": "Promise<Array<{ level: number | 'excluded'; count: number }>>",
+          "exported": false,
+          "lineCount": 19
+        },
+        {
+          "name": "makeDecision",
+          "params": [
+            "requestedMode",
+            "targetReadiness",
+            "probeInvoked",
+            "openInvoked",
+            "analysisInvoked"
+          ],
+          "returnType": "GraphDecisionState",
+          "exported": false,
+          "lineCount": 15
+        },
+        {
+          "name": "jsonResponse",
+          "params": [
+            "payload",
+            "isError"
+          ],
+          "returnType": "ToolResponse",
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "missingVaultResponse",
+          "params": [
+            "config"
+          ],
+          "returnType": "ToolResponse",
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "readinessWithoutSnapshot",
+          "params": [
+            "target"
+          ],
+          "returnType": "GraphTargetReadiness",
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "noSnapshotResponse",
+          "params": [
+            "vault",
+            "target",
+            "decision",
+            "preparationBlocked"
+          ],
+          "returnType": "ToolResponse",
+          "exported": false,
+          "lineCount": 36
+        },
+        {
+          "name": "preparationBlockedReason",
+          "params": [
+            "config"
+          ],
+          "returnType": "string | undefined",
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "decisionRequiredResponse",
+          "params": [
+            "vault",
+            "decision",
+            "message",
+            "includeOpenAction"
+          ],
+          "returnType": "ToolResponse",
+          "exported": false,
+          "lineCount": 28
+        },
+        {
+          "name": "exactUnavailableResponse",
+          "params": [
+            "vault",
+            "decision",
+            "message",
+            "preparationBlocked"
+          ],
+          "returnType": "ToolResponse",
+          "exported": false,
+          "lineCount": 29
+        },
+        {
+          "name": "snapshotIdentityMatches",
+          "params": [
+            "snapshot",
+            "target",
+            "canonicalPath"
+          ],
+          "returnType": "boolean",
+          "exported": false,
+          "lineCount": 12
+        },
+        {
+          "name": "readinessForInvalidSnapshot",
+          "params": [
+            "target"
+          ],
+          "returnType": "GraphTargetReadiness",
+          "exported": false,
+          "lineCount": 7
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "@modelcontextprotocol/sdk/types.js",
+          "specifiers": [
+            "Tool"
+          ]
+        },
+        {
+          "source": "../config.js",
+          "specifiers": [
+            "Config",
+            "resolveVault"
+          ]
+        },
+        {
+          "source": "../types/index.js",
+          "specifiers": [
+            "GraphDecisionState",
+            "GraphProviderMode",
+            "GraphTargetReadiness",
+            "ToolRequestContext",
+            "ToolResponse"
+          ]
+        },
+        {
+          "source": "../resolver-hints.js",
+          "specifiers": [
+            "formatVaultError",
+            "VAULT_NOT_FOUND_HINT"
+          ]
+        },
+        {
+          "source": "./schema-helpers.js",
+          "specifiers": [
+            "limitParam"
+          ]
+        },
+        {
+          "source": "../graph/signals.js",
+          "specifiers": [
+            "getFilesystemGraphSignals",
+            "getGraphSignalsFromBase",
+            "invalidateGraphCache"
+          ]
+        },
+        {
+          "source": "../graph/types.js",
+          "specifiers": [
+            "GraphSignals",
+            "NodeSignals"
+          ]
+        },
+        {
+          "source": "../cli/vault-target.js",
+          "specifiers": [
+            "canonicalizeVaultPath",
+            "abortableYield",
+            "inspectRegisteredVault",
+            "isAbortError",
+            "RegisteredVaultTarget",
+            "throwIfAborted"
+          ]
+        },
+        {
+          "source": "../graph/digest.js",
+          "specifiers": [
+            "computeGraphDigest"
+          ]
+        },
+        {
+          "source": "../graph/prepared.js",
+          "specifiers": [
+            "getPreparedExactGraph",
+            "PreparedExactGraphSnapshot",
+            "withPreparedGraphLock"
+          ]
+        }
+      ],
+      "exports": [
+        "graphTools",
+        "CLOSED_VAULT_DECISION_MESSAGE",
+        "createGraphHandlers"
+      ],
+      "totalLines": 627,
       "hasStructuralAnalysis": true
     },
     "src/tools/index.ts": {
       "filePath": "src/tools/index.ts",
-      "contentHash": "87f3547d68820f81ffcb6af4337def48050cc860cd9c591d094c382c2dca52f1",
+      "contentHash": "e008562d4538c1f4749ddf1c795b04e06284c21a1b077f864d3765e1356b68c5",
       "functions": [
         {
           "name": "withVaultGuard",
@@ -1994,7 +4857,7 @@
           ],
           "returnType": "AnyHandler",
           "exported": false,
-          "lineCount": 12
+          "lineCount": 15
         },
         {
           "name": "guardAll",
@@ -2009,11 +4872,24 @@
         {
           "name": "createAllHandlers",
           "params": [
-            "config"
+            "config",
+            "dependencies"
           ],
           "returnType": "Record<string, AnyHandler>",
           "exported": true,
-          "lineCount": 31
+          "lineCount": 53
+        },
+        {
+          "name": "applyPreparedSnapshotInvalidation",
+          "params": [
+            "config",
+            "tools",
+            "handlers",
+            "canonicalize"
+          ],
+          "returnType": "Record<string, AnyHandler>",
+          "exported": true,
+          "lineCount": 64
         },
         {
           "name": "getToolByName",
@@ -2043,6 +4919,7 @@
         {
           "source": "../types/index.js",
           "specifiers": [
+            "ToolRequestContext",
             "ToolResponse"
           ]
         },
@@ -2056,6 +4933,33 @@
           "source": "../resolver-hints.js",
           "specifiers": [
             "formatVaultError"
+          ]
+        },
+        {
+          "source": "./safety.js",
+          "specifiers": [
+            "applyReadOnlyGuard",
+            "applyUntrustedWrapper",
+            "DERIVED_INDEX_EXEMPT",
+            "isMutating"
+          ]
+        },
+        {
+          "source": "../graph/signals.js",
+          "specifiers": [
+            "invalidateGraphCache"
+          ]
+        },
+        {
+          "source": "../cli/vault-target.js",
+          "specifiers": [
+            "canonicalizeVaultPath"
+          ]
+        },
+        {
+          "source": "../graph/prepared.js",
+          "specifiers": [
+            "withPreparedGraphLock"
           ]
         },
         {
@@ -2108,6 +5012,20 @@
           ]
         },
         {
+          "source": "./graph.js",
+          "specifiers": [
+            "graphTools",
+            "createGraphHandlers"
+          ]
+        },
+        {
+          "source": "./vault.js",
+          "specifiers": [
+            "vaultTools",
+            "createVaultHandlers"
+          ]
+        },
+        {
           "source": "./fs-promoted.js",
           "specifiers": [
             "fsPromotedTools",
@@ -2139,14 +5057,15 @@
       "exports": [
         "allTools",
         "createAllHandlers",
+        "applyPreparedSnapshotInvalidation",
         "getToolByName"
       ],
-      "totalLines": 122,
+      "totalLines": 229,
       "hasStructuralAnalysis": true
     },
     "src/tools/query.ts": {
       "filePath": "src/tools/query.ts",
-      "contentHash": "e35b2682e3bf969235fa94bdd5db551256d483747f5dfd2f0afb4fb582f037b2",
+      "contentHash": "76eb15a282637f3fd9a51a46bf695469928769bc0035f96f1d3acba5ae9d94ce",
       "functions": [
         {
           "name": "matchesCondition",
@@ -2155,7 +5074,7 @@
             "condition"
           ],
           "returnType": "boolean",
-          "exported": false,
+          "exported": true,
           "lineCount": 65
         },
         {
@@ -2235,27 +5154,163 @@
             "vaultParam",
             "limitParam"
           ]
+        },
+        {
+          "source": "./safety.js",
+          "specifiers": [
+            "withAnnotations",
+            "ToolAnnotations"
+          ]
         }
       ],
       "exports": [
         "queryTools",
+        "matchesCondition",
         "createQueryHandlers"
       ],
-      "totalLines": 271,
+      "totalLines": 282,
+      "hasStructuralAnalysis": true
+    },
+    "src/tools/safety.ts": {
+      "filePath": "src/tools/safety.ts",
+      "contentHash": "746aa4ed67c4d65333b0a1fae55cd633a82314102ded867b84744bbba7b71187",
+      "functions": [
+        {
+          "name": "isMutating",
+          "params": [
+            "tool"
+          ],
+          "returnType": "boolean",
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "withAnnotations",
+          "params": [
+            "tools",
+            "map"
+          ],
+          "returnType": "Tool[]",
+          "exported": true,
+          "lineCount": 15
+        },
+        {
+          "name": "readOnlyRefusal",
+          "params": [
+            "toolName"
+          ],
+          "returnType": "ToolResponse",
+          "exported": false,
+          "lineCount": 26
+        },
+        {
+          "name": "withReadOnlyGuard",
+          "params": [
+            "readOnly",
+            "tool",
+            "handler"
+          ],
+          "returnType": "AnyHandler",
+          "exported": true,
+          "lineCount": 8
+        },
+        {
+          "name": "applyReadOnlyGuard",
+          "params": [
+            "readOnly",
+            "tools",
+            "handlers"
+          ],
+          "returnType": "Record<string, AnyHandler>",
+          "exported": true,
+          "lineCount": 14
+        },
+        {
+          "name": "wrapUntrusted",
+          "params": [
+            "response"
+          ],
+          "returnType": "ToolResponse",
+          "exported": true,
+          "lineCount": 20
+        },
+        {
+          "name": "withUntrustedWrapper",
+          "params": [
+            "wrap",
+            "tool",
+            "handler"
+          ],
+          "returnType": "AnyHandler",
+          "exported": true,
+          "lineCount": 11
+        },
+        {
+          "name": "applyUntrustedWrapper",
+          "params": [
+            "wrap",
+            "tools",
+            "handlers"
+          ],
+          "returnType": "Record<string, AnyHandler>",
+          "exported": true,
+          "lineCount": 14
+        },
+        {
+          "name": "byteLength",
+          "params": [
+            "text"
+          ],
+          "returnType": "number",
+          "exported": true,
+          "lineCount": 3
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "@modelcontextprotocol/sdk/types.js",
+          "specifiers": [
+            "Tool"
+          ]
+        },
+        {
+          "source": "../types/index.js",
+          "specifiers": [
+            "ToolRequestContext",
+            "ToolResponse"
+          ]
+        }
+      ],
+      "exports": [
+        "DERIVED_INDEX_EXEMPT",
+        "isMutating",
+        "withAnnotations",
+        "withReadOnlyGuard",
+        "applyReadOnlyGuard",
+        "UNTRUSTED_BEGIN",
+        "UNTRUSTED_END",
+        "wrapUntrusted",
+        "withUntrustedWrapper",
+        "applyUntrustedWrapper",
+        "byteLength"
+      ],
+      "totalLines": 241,
       "hasStructuralAnalysis": true
     },
     "src/tools/schema-helpers.ts": {
       "filePath": "src/tools/schema-helpers.ts",
-      "contentHash": "7386cdea63cf7c545f0f638975908d73b07b7993863e993352f9028c3ec37451",
+      "contentHash": "f4c6b47f3d1951d6e57886ecff2c91defaadc543b5a8c896bc22f15b36c4c45e",
       "functions": [
         {
           "name": "vaultParamWithEnum",
           "params": [
-            "names"
+            "names",
+            "required"
           ],
           "returnType": "{\n  type: 'string';\n  description: string;\n  enum: string[];\n}",
           "exported": true,
-          "lineCount": 12
+          "lineCount": 14
         },
         {
           "name": "injectVaultEnum",
@@ -2265,7 +5320,7 @@
           ],
           "returnType": "void",
           "exported": true,
-          "lineCount": 13
+          "lineCount": 18
         },
         {
           "name": "limitParam",
@@ -2286,24 +5341,40 @@
         "injectVaultEnum",
         "limitParam"
       ],
-      "totalLines": 90,
+      "totalLines": 97,
       "hasStructuralAnalysis": true
     },
     "src/tools/sections.ts": {
       "filePath": "src/tools/sections.ts",
-      "contentHash": "0fac94cc84631e5abeed60677ee91d478e9d7d462aab3df6e948393e9bac3127",
+      "contentHash": "b3a48091516420ea5e8372cf2b4c9b4873272d8f116a70aaaecdca2aca50764d",
       "functions": [
+        {
+          "name": "fileSizeInBytes",
+          "params": [
+            "vaultPath",
+            "relPath"
+          ],
+          "returnType": "Promise<number>",
+          "exported": false,
+          "lineCount": 9
+        },
         {
           "name": "createSectionHandlers",
           "params": [
             "config"
           ],
           "exported": true,
-          "lineCount": 129
+          "lineCount": 144
         }
       ],
       "classes": [],
       "imports": [
+        {
+          "source": "fs/promises",
+          "specifiers": [
+            "* as fs"
+          ]
+        },
         {
           "source": "@modelcontextprotocol/sdk/types.js",
           "specifiers": [
@@ -2314,7 +5385,8 @@
           "source": "../config.js",
           "specifiers": [
             "Config",
-            "resolveVault"
+            "resolveVault",
+            "resolvePathInVault"
           ]
         },
         {
@@ -2336,18 +5408,25 @@
           "specifiers": [
             "vaultParam"
           ]
+        },
+        {
+          "source": "./safety.js",
+          "specifiers": [
+            "withAnnotations",
+            "ToolAnnotations"
+          ]
         }
       ],
       "exports": [
         "sectionTools",
         "createSectionHandlers"
       ],
-      "totalLines": 226,
+      "totalLines": 270,
       "hasStructuralAnalysis": true
     },
     "src/tools/semantic.ts": {
       "filePath": "src/tools/semantic.ts",
-      "contentHash": "90f0340f1104d1034552e18196538067d1f20039ec7c91656eb135f5d4289029",
+      "contentHash": "98b6fc7c05cf4985d146f173b922731189f4be0e109d9c7220be04bda84ddab2",
       "functions": [
         {
           "name": "getStorage",
@@ -2382,7 +5461,7 @@
             "config"
           ],
           "exported": true,
-          "lineCount": 559
+          "lineCount": 761
         },
         {
           "name": "collectMarkdownFiles",
@@ -2459,9 +5538,52 @@
           ]
         },
         {
+          "source": "../embeddings/index-stats.js",
+          "specifiers": [
+            "calculateIndexCoverage",
+            "findCurrentMarkdownPathByIdentity"
+          ]
+        },
+        {
+          "source": "../embeddings/rrf.js",
+          "specifiers": [
+            "reciprocalRankFusion",
+            "RRF_K"
+          ]
+        },
+        {
           "source": "./schema-helpers.js",
           "specifiers": [
             "vaultParam"
+          ]
+        },
+        {
+          "source": "./safety.js",
+          "specifiers": [
+            "withAnnotations",
+            "ToolAnnotations"
+          ]
+        },
+        {
+          "source": "./graph-annotate.js",
+          "specifiers": [
+            "attachGraphSignals"
+          ]
+        },
+        {
+          "source": "../embeddings/reranker.js",
+          "specifiers": [
+            "Reranker",
+            "getReranker",
+            "getActiveRerankerName",
+            "applyRerank",
+            "registerReranker"
+          ]
+        },
+        {
+          "source": "../embeddings/reranker-llm.js",
+          "specifiers": [
+            "llmReranker"
           ]
         }
       ],
@@ -2469,12 +5591,163 @@
         "semanticTools",
         "createSemanticHandlers"
       ],
-      "totalLines": 764,
+      "totalLines": 1008,
+      "hasStructuralAnalysis": true
+    },
+    "src/tools/vault.ts": {
+      "filePath": "src/tools/vault.ts",
+      "contentHash": "9c1333f58d3f5ed86080033556c59e88f343bfc5443361e017a76009542fbaac",
+      "functions": [
+        {
+          "name": "jsonResponse",
+          "params": [
+            "payload",
+            "isError"
+          ],
+          "returnType": "ToolResponse",
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "decisionState",
+          "params": [
+            "targetReadiness",
+            "probeInvoked",
+            "openInvoked"
+          ],
+          "returnType": "GraphDecisionState",
+          "exported": false,
+          "lineCount": 13
+        },
+        {
+          "name": "readinessFromTarget",
+          "params": [
+            "target"
+          ],
+          "returnType": "GraphTargetReadiness",
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "createVaultHandlers",
+          "params": [
+            "config",
+            "dependencies"
+          ],
+          "exported": true,
+          "lineCount": 298
+        },
+        {
+          "name": "targetDiagnostic",
+          "params": [
+            "target"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 12
+        },
+        {
+          "name": "preparationDiagnostic",
+          "params": [
+            "readiness"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 12
+        },
+        {
+          "name": "isAuthoritativeExactGraph",
+          "params": [
+            "graph"
+          ],
+          "returnType": "boolean",
+          "exported": false,
+          "lineCount": 11
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "@modelcontextprotocol/sdk/types.js",
+          "specifiers": [
+            "Tool"
+          ]
+        },
+        {
+          "source": "../config.js",
+          "specifiers": [
+            "Config",
+            "resolveVault"
+          ]
+        },
+        {
+          "source": "../types/index.js",
+          "specifiers": [
+            "GraphDecisionState",
+            "GraphTargetReadiness",
+            "ToolRequestContext",
+            "ToolResponse"
+          ]
+        },
+        {
+          "source": "../cli/vault-target.js",
+          "specifiers": [
+            "abortableDelay",
+            "canonicalizeVaultPath",
+            "dispatchOpenVault",
+            "inspectRegisteredVault",
+            "isAbortError",
+            "OPEN_VAULT_POLL_MS",
+            "OPEN_VAULT_TIMEOUT_MS",
+            "probeExactRegisteredVault",
+            "RegisteredVaultTarget",
+            "throwIfAborted"
+          ]
+        },
+        {
+          "source": "../graph/digest.js",
+          "specifiers": [
+            "computeGraphDigest"
+          ]
+        },
+        {
+          "source": "../graph/build.js",
+          "specifiers": [
+            "buildVaultGraph"
+          ]
+        },
+        {
+          "source": "../graph/providers.js",
+          "specifiers": [
+            "ObsidianProvider"
+          ]
+        },
+        {
+          "source": "../graph/types.js",
+          "specifiers": [
+            "BaseGraph",
+            "GraphProviderState"
+          ]
+        },
+        {
+          "source": "../graph/prepared.js",
+          "specifiers": [
+            "invalidatePreparedExactGraph",
+            "replacePreparedExactGraph",
+            "withPreparedGraphLock"
+          ]
+        }
+      ],
+      "exports": [
+        "vaultTools",
+        "createVaultHandlers"
+      ],
+      "totalLines": 441,
       "hasStructuralAnalysis": true
     },
     "src/tools/wikilinks.ts": {
       "filePath": "src/tools/wikilinks.ts",
-      "contentHash": "4e0859c3abd378f3ca4735ce5e53af89603129aafa1d0d9cb32e669ed8160e6e",
+      "contentHash": "1a9d5a78395e6c7b2046604f052d7aef2be48b726816f4df6a61e6d3beb675de",
       "functions": [
         {
           "name": "getFileIndex",
@@ -2572,28 +5845,47 @@
             "closestMatches",
             "noteNotFoundHint"
           ]
+        },
+        {
+          "source": "./safety.js",
+          "specifiers": [
+            "withAnnotations",
+            "ToolAnnotations"
+          ]
         }
       ],
       "exports": [
         "wikilinkTools",
         "createWikilinkHandlers"
       ],
-      "totalLines": 399,
+      "totalLines": 415,
       "hasStructuralAnalysis": true
     },
     "src/types/index.ts": {
       "filePath": "src/types/index.ts",
-      "contentHash": "7f725aff9381fbdb34bd625bfdbcf0a5ee73023630fbba708b22ccfe8119839a",
+      "contentHash": "3ca1ab884a2ccdec21037c50bd4ee9cdaec5b6c9f7816023fcbc78a8c7f867a9",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 92,
+      "totalLines": 140,
+      "hasStructuralAnalysis": true
+    },
+    "src/version.ts": {
+      "filePath": "src/version.ts",
+      "contentHash": "27dcd2e93064b1e481166b12c5ec9827571551b72afca782827f326622125b69",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [
+        "SERVER_VERSION"
+      ],
+      "totalLines": 2,
       "hasStructuralAnalysis": true
     },
     "test/analytics.test.mjs": {
       "filePath": "test/analytics.test.mjs",
-      "contentHash": "409c80d1b8b939016017749dbec8451320454ab9c7d5be9971e65b54da7e1e54",
+      "contentHash": "ae7a267e1d823807c0a77d9b2fe665ebb4627b9c2ab7ef4a1d86cf67e3395795",
       "functions": [
         {
           "name": "assertNonError",
@@ -2663,12 +5955,44 @@
         }
       ],
       "exports": [],
-      "totalLines": 599,
+      "totalLines": 690,
+      "hasStructuralAnalysis": true
+    },
+    "test/bridge-maxbuffer.test.mjs": {
+      "filePath": "test/bridge-maxbuffer.test.mjs",
+      "contentHash": "404e1c6b0e24cf7b50bab3e050312cfb70f5532518510fbec26196d031067560",
+      "functions": [
+        {
+          "name": "resetExecResult",
+          "params": [],
+          "exported": false,
+          "lineCount": 7
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test",
+            "describe",
+            "mock"
+          ]
+        },
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 152,
       "hasStructuralAnalysis": true
     },
     "test/cli-tools.test.mjs": {
       "filePath": "test/cli-tools.test.mjs",
-      "contentHash": "88e2c32016821c33155f1572992c5b41fbb37bb356978cd1568bb46927b6394f",
+      "contentHash": "ec9f8dd741d4245db6cd9e333ebef846d4cce04312e4207bf19edd21b5370bcc",
       "functions": [
         {
           "name": "resetMockState",
@@ -2723,12 +6047,81 @@
         }
       ],
       "exports": [],
-      "totalLines": 1007,
+      "totalLines": 1012,
+      "hasStructuralAnalysis": true
+    },
+    "test/codex-worker.test.mjs": {
+      "filePath": "test/codex-worker.test.mjs",
+      "contentHash": "af012fd1da697fbfeaaa8b28a40b63a43010a9fcd114fe585bee61f3648a321f",
+      "functions": [
+        {
+          "name": "fixture",
+          "params": [
+            "agentToml"
+          ],
+          "exported": false,
+          "lineCount": 28
+        },
+        {
+          "name": "run",
+          "params": [
+            "args",
+            "context"
+          ],
+          "exported": false,
+          "lineCount": 11
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "node:fs/promises",
+          "specifiers": [
+            "chmod",
+            "mkdtemp",
+            "mkdir",
+            "readFile",
+            "writeFile"
+          ]
+        },
+        {
+          "source": "node:os",
+          "specifiers": [
+            "tmpdir"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "node:child_process",
+          "specifiers": [
+            "spawnSync"
+          ]
+        },
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 186,
       "hasStructuralAnalysis": true
     },
     "test/config.test.mjs": {
       "filePath": "test/config.test.mjs",
-      "contentHash": "14772f444db8f812e55372043d2a0c298bcc3c5d3bfe59f11ea53f0b8fb5aeaf",
+      "contentHash": "2d6fbbca771a9ad663b4bbcad9fdd340b454a74b21315ce0361f0730193fab21",
       "functions": [
         {
           "name": "withEnv",
@@ -2757,6 +6150,12 @@
           ]
         },
         {
+          "source": "node:fs/promises",
+          "specifiers": [
+            "fs"
+          ]
+        },
+        {
           "source": "node:path",
           "specifiers": [
             "path"
@@ -2767,7 +6166,8 @@
           "specifiers": [
             "loadConfig",
             "resolveVault",
-            "resolvePathInVault"
+            "resolvePathInVault",
+            "verifyFileHandleInVault"
           ]
         },
         {
@@ -2779,12 +6179,65 @@
         }
       ],
       "exports": [],
-      "totalLines": 453,
+      "totalLines": 505,
+      "hasStructuralAnalysis": true
+    },
+    "test/cross-vault-graph.test.mjs": {
+      "filePath": "test/cross-vault-graph.test.mjs",
+      "contentHash": "e04a4fad9aa4abc373bfbd8a17b4c5a4ecb556336923855077fa0622f9932cc5",
+      "functions": [
+        {
+          "name": "observation",
+          "params": [],
+          "exported": false,
+          "lineCount": 11
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test"
+          ]
+        },
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "../dist/graph/cross-vault.js",
+          "specifiers": [
+            "DeclaredCrossVaultGraphBuilder",
+            "DECLARED_GRAPH_MAX_EDGES",
+            "DECLARED_GRAPH_MAX_SUBPATHS",
+            "normalizeVaultRelativePath"
+          ]
+        },
+        {
+          "source": "../dist/graph/index.js",
+          "specifiers": [
+            "FilesystemProvider",
+            "buildVaultGraph"
+          ]
+        },
+        {
+          "source": "./helpers.mjs",
+          "specifiers": [
+            "createTempVault",
+            "cleanup"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 196,
       "hasStructuralAnalysis": true
     },
     "test/crossvault.test.mjs": {
       "filePath": "test/crossvault.test.mjs",
-      "contentHash": "fdb016f81e0cf8b1a33af525f509af0ebd9711724acce586d0184bf52fad1654",
+      "contentHash": "20bd980b3ec446c1121fa529cc7eb7e988ce430b3283386b94988d646ae1eec2",
       "functions": [
         {
           "name": "payload",
@@ -2813,6 +6266,12 @@
           ]
         },
         {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
           "source": "./helpers.mjs",
           "specifiers": [
             "createTempVault",
@@ -2832,19 +6291,31 @@
           ]
         },
         {
+          "source": "../dist/tools/semantic.js",
+          "specifiers": [
+            "createSemanticHandlers"
+          ]
+        },
+        {
           "source": "../dist/embeddings/ollama.js",
           "specifiers": [
             "checkOllamaAvailability"
           ]
+        },
+        {
+          "source": "../dist/embeddings/storage.js",
+          "specifiers": [
+            "EmbeddingStorage"
+          ]
         }
       ],
       "exports": [],
-      "totalLines": 734,
+      "totalLines": 1071,
       "hasStructuralAnalysis": true
     },
     "test/discover-tools.test.mjs": {
       "filePath": "test/discover-tools.test.mjs",
-      "contentHash": "667f8e8cc6a2b66eae7c0eea19476290cba1ab15c6f5e7bdbe00bab45f0cc59d",
+      "contentHash": "9b232f73e32cb98cde74127ad518f6aafcf16e83fc1cb64412a1149bbf9e825f",
       "functions": [
         {
           "name": "callDiscover",
@@ -2890,7 +6361,292 @@
         }
       ],
       "exports": [],
-      "totalLines": 247,
+      "totalLines": 255,
+      "hasStructuralAnalysis": true
+    },
+    "test/eval-baseline.test.mjs": {
+      "filePath": "test/eval-baseline.test.mjs",
+      "contentHash": "533cee74c0671f5857f15aa0f1ff70a373d979936b894b506ab8b6d06eaa2153",
+      "functions": [
+        {
+          "name": "parseJson",
+          "params": [
+            "res"
+          ],
+          "exported": false,
+          "lineCount": 3
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test",
+            "describe",
+            "before",
+            "after"
+          ]
+        },
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "./helpers.mjs",
+          "specifiers": [
+            "createTempVault",
+            "cleanup"
+          ]
+        },
+        {
+          "source": "../dist/config.js",
+          "specifiers": [
+            "loadConfig"
+          ]
+        },
+        {
+          "source": "../dist/tools/semantic.js",
+          "specifiers": [
+            "createSemanticHandlers"
+          ]
+        },
+        {
+          "source": "../dist/embeddings/ollama.js",
+          "specifiers": [
+            "checkOllamaAvailability"
+          ]
+        },
+        {
+          "source": "../dist/eval/metrics.js",
+          "specifiers": [
+            "recallAtK",
+            "ndcgAtK",
+            "reciprocalRank"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 172,
+      "hasStructuralAnalysis": true
+    },
+    "test/eval-metrics.test.mjs": {
+      "filePath": "test/eval-metrics.test.mjs",
+      "contentHash": "cdfb39f1ce1ad7a09fee5c3c9830d7801094dd199240b2408b4266126402bad3",
+      "functions": [
+        {
+          "name": "approx",
+          "params": [
+            "a",
+            "b"
+          ],
+          "exported": false,
+          "lineCount": 2
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test",
+            "describe"
+          ]
+        },
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "../dist/eval/metrics.js",
+          "specifiers": [
+            "recallAtK",
+            "precisionAtK",
+            "reciprocalRank",
+            "dcgAtK",
+            "idealDcgAtK",
+            "ndcgAtK",
+            "meanReciprocalRank",
+            "evaluate"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 136,
+      "hasStructuralAnalysis": true
+    },
+    "test/exact-graph-consent.test.mjs": {
+      "filePath": "test/exact-graph-consent.test.mjs",
+      "contentHash": "9652bb346f28295a77ce7860f48cdd4d05712dd8825c941404fbdbae0daed8f6",
+      "functions": [
+        {
+          "name": "fixture",
+          "params": [],
+          "exported": false,
+          "lineCount": 15
+        },
+        {
+          "name": "exactGraph",
+          "params": [],
+          "exported": false,
+          "lineCount": 19
+        },
+        {
+          "name": "target",
+          "params": [
+            "root"
+          ],
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "parse",
+          "params": [
+            "response"
+          ],
+          "exported": false,
+          "lineCount": 3
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:test",
+          "specifiers": [
+            "afterEach",
+            "describe",
+            "test"
+          ]
+        },
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "node:fs",
+          "specifiers": [
+            "existsSync",
+            "mkdirSync",
+            "mkdtempSync",
+            "readFileSync",
+            "rmSync",
+            "writeFileSync"
+          ]
+        },
+        {
+          "source": "node:os",
+          "specifiers": [
+            "tmpdir"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "join"
+          ]
+        },
+        {
+          "source": "../dist/tools/graph.js",
+          "specifiers": [
+            "CLOSED_VAULT_DECISION_MESSAGE",
+            "createGraphHandlers"
+          ]
+        },
+        {
+          "source": "../dist/tools/vault.js",
+          "specifiers": [
+            "createVaultHandlers"
+          ]
+        },
+        {
+          "source": "../dist/tools/index.js",
+          "specifiers": [
+            "applyPreparedSnapshotInvalidation",
+            "createAllHandlers"
+          ]
+        },
+        {
+          "source": "../dist/graph/prepared.js",
+          "specifiers": [
+            "clearPreparedExactGraphs",
+            "getPreparedExactGraph",
+            "replacePreparedExactGraph",
+            "withPreparedGraphLock"
+          ]
+        },
+        {
+          "source": "../dist/graph/signals.js",
+          "specifiers": [
+            "getGraphSignalsFromBase"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 801,
+      "hasStructuralAnalysis": true
+    },
+    "test/fallback-reason-surfaces.test.mjs": {
+      "filePath": "test/fallback-reason-surfaces.test.mjs",
+      "contentHash": "4cf599f7999895ac8f8207afc334d58c6d3238d41cd39aac319bb3b269b2a949",
+      "functions": [
+        {
+          "name": "buildVault",
+          "params": [],
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "parse",
+          "params": [
+            "res"
+          ],
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "fakeSignals",
+          "params": [
+            "provider",
+            "providerFallbackReason"
+          ],
+          "exported": false,
+          "lineCount": 29
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test",
+            "describe",
+            "mock",
+            "before",
+            "after"
+          ]
+        },
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "./helpers.mjs",
+          "specifiers": [
+            "createTempVault",
+            "cleanup"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 228,
       "hasStructuralAnalysis": true
     },
     "test/files.test.mjs": {
@@ -2982,6 +6738,18 @@
       ],
       "exports": [],
       "totalLines": 1006,
+      "hasStructuralAnalysis": true
+    },
+    "test/fixtures/eval-gold.mjs": {
+      "filePath": "test/fixtures/eval-gold.mjs",
+      "contentHash": "f3d1b8b5902fcdf0edbebd907384bc09e4b901229f17201cc648eb67bde5ad55",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [
+        "GOLD_QUERIES"
+      ],
+      "totalLines": 42,
       "hasStructuralAnalysis": true
     },
     "test/fs-promoted-a.test.mjs": {
@@ -3163,7 +6931,7 @@
     },
     "test/get-started.test.mjs": {
       "filePath": "test/get-started.test.mjs",
-      "contentHash": "923092bf29870900ac08ffbdc46d22764a6fdb5b319c9561d0614c5747414aa3",
+      "contentHash": "34266a7b0a54ed345b6820d8a03a53d87fa8afff8e46484890131e8830567512",
       "functions": [],
       "classes": [],
       "imports": [
@@ -3202,7 +6970,312 @@
         }
       ],
       "exports": [],
-      "totalLines": 163,
+      "totalLines": 171,
+      "hasStructuralAnalysis": true
+    },
+    "test/graph-annotate.test.mjs": {
+      "filePath": "test/graph-annotate.test.mjs",
+      "contentHash": "d98f064970e63f905d708f377a7eea7066952a3c429cf8f11ada641c68a10538",
+      "functions": [
+        {
+          "name": "normalSig",
+          "params": [],
+          "exported": false,
+          "lineCount": 12
+        },
+        {
+          "name": "excludedSig",
+          "params": [],
+          "exported": false,
+          "lineCount": 13
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test",
+            "describe"
+          ]
+        },
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 481,
+      "hasStructuralAnalysis": true
+    },
+    "test/graph-digest.test.mjs": {
+      "filePath": "test/graph-digest.test.mjs",
+      "contentHash": "30f37792ea95b3d04d5115c995bff9755fd91b46649ec595baf951f5b15909e5",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "node:fs",
+          "specifiers": [
+            "chmodSync",
+            "mkdirSync",
+            "mkdtempSync",
+            "rmSync",
+            "statSync",
+            "utimesSync",
+            "writeFileSync"
+          ]
+        },
+        {
+          "source": "node:os",
+          "specifiers": [
+            "tmpdir"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "join"
+          ]
+        },
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test"
+          ]
+        },
+        {
+          "source": "../dist/graph/digest.js",
+          "specifiers": [
+            "computeGraphDigest"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 83,
+      "hasStructuralAnalysis": true
+    },
+    "test/graph-fallback-reason.test.mjs": {
+      "filePath": "test/graph-fallback-reason.test.mjs",
+      "contentHash": "f143fbddfc01861d963c5f751f27e04b385e9c32058e007bc234028a4e18cce1",
+      "functions": [
+        {
+          "name": "buildVault",
+          "params": [],
+          "exported": false,
+          "lineCount": 7
+        }
+      ],
+      "classes": [
+        {
+          "name": "ThrowingObsidianProvider",
+          "methods": [
+            "constructor",
+            "build"
+          ],
+          "properties": [],
+          "exported": false,
+          "lineCount": 15
+        }
+      ],
+      "imports": [
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test",
+            "describe",
+            "before",
+            "after"
+          ]
+        },
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "./helpers.mjs",
+          "specifiers": [
+            "createTempVault",
+            "cleanup"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 121,
+      "hasStructuralAnalysis": true
+    },
+    "test/graph-link-counts.test.mjs": {
+      "filePath": "test/graph-link-counts.test.mjs",
+      "contentHash": "e0ae84ee004977d1a9027fc10e3fe1e621a2dc37f461de922fa97fd22cbb0f2c",
+      "functions": [
+        {
+          "name": "buildVault",
+          "params": [],
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "expectedResolvedLinks",
+          "params": [],
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "expectedUnresolvedRaw",
+          "params": [],
+          "exported": false,
+          "lineCount": 3
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test",
+            "describe",
+            "mock",
+            "before",
+            "after"
+          ]
+        },
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "./helpers.mjs",
+          "specifiers": [
+            "createTempVault",
+            "cleanup"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 261,
+      "hasStructuralAnalysis": true
+    },
+    "test/graph-provider-contract.test.mjs": {
+      "filePath": "test/graph-provider-contract.test.mjs",
+      "contentHash": "0a097cf3b455f32bd001889242352c936979df8d3f7302debebe08ce2e4bff2b",
+      "functions": [
+        {
+          "name": "buildVault",
+          "params": [],
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "expectedResolvedLinks",
+          "params": [],
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "edgeShape",
+          "params": [
+            "graph"
+          ],
+          "exported": false,
+          "lineCount": 7
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test",
+            "describe",
+            "mock",
+            "before",
+            "after"
+          ]
+        },
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "./helpers.mjs",
+          "specifiers": [
+            "createTempVault",
+            "cleanup"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 170,
+      "hasStructuralAnalysis": true
+    },
+    "test/graph.test.mjs": {
+      "filePath": "test/graph.test.mjs",
+      "contentHash": "7e88308f107df26444f859890f44a5726c092b5d6d0ab0674f5b3cb1e6cf93f3",
+      "functions": [
+        {
+          "name": "buildVault",
+          "params": [],
+          "exported": false,
+          "lineCount": 21
+        },
+        {
+          "name": "makeHandlers",
+          "params": [
+            "vaultPath"
+          ],
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "parse",
+          "params": [
+            "res"
+          ],
+          "exported": false,
+          "lineCount": 4
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test",
+            "describe",
+            "before",
+            "after"
+          ]
+        },
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "./helpers.mjs",
+          "specifiers": [
+            "createTempVault",
+            "cleanup"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 519,
       "hasStructuralAnalysis": true
     },
     "test/handler-smoke.test.mjs": {
@@ -3307,9 +7380,237 @@
       "totalLines": 27,
       "hasStructuralAnalysis": true
     },
+    "test/live-contract.test.mjs": {
+      "filePath": "test/live-contract.test.mjs",
+      "contentHash": "a34e66818fd351600e3ea5e813ec3f8f28896ed4f32641975376cd8fb5c40e98",
+      "functions": [
+        {
+          "name": "validEnv",
+          "params": [],
+          "exported": false,
+          "lineCount": 8
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "node:child_process",
+          "specifiers": [
+            "spawnSync"
+          ]
+        },
+        {
+          "source": "node:fs",
+          "specifiers": [
+            "readFileSync"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test"
+          ]
+        },
+        {
+          "source": "./live/support.mjs",
+          "specifiers": [
+            "envFlag",
+            "validateRequiredLiveEnvironment",
+            "withTemporaryEnv"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 146,
+      "hasStructuralAnalysis": true
+    },
+    "test/live/graph.live.mjs": {
+      "filePath": "test/live/graph.live.mjs",
+      "contentHash": "f383fb0d4e1d505a20a28a2b2545cbde05418883cc76b9b8e7aaa1bacc9d9e6e",
+      "functions": [
+        {
+          "name": "makeRuntime",
+          "params": [],
+          "exported": false,
+          "lineCount": 11
+        },
+        {
+          "name": "parse",
+          "params": [
+            "res"
+          ],
+          "exported": false,
+          "lineCount": 4
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test",
+            "describe",
+            "before"
+          ]
+        },
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "./support.mjs",
+          "specifiers": [
+            "optionalVaultSkipReason",
+            "withTemporaryEnv"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 126,
+      "hasStructuralAnalysis": true
+    },
+    "test/live/preflight.mjs": {
+      "filePath": "test/live/preflight.mjs",
+      "contentHash": "fcd976e3d1a84a028a6a2d4f1a55f78507bb6b997ca7dea45db93987c817f9f7",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": "./support.mjs",
+          "specifiers": [
+            "validateRequiredLiveEnvironment"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 10,
+      "hasStructuralAnalysis": true
+    },
+    "test/live/semantic.live.mjs": {
+      "filePath": "test/live/semantic.live.mjs",
+      "contentHash": "1dd91940e8d47c7cbf17689ec04f1583660798a7af40abad96355ce7a7e8bea5",
+      "functions": [
+        {
+          "name": "makeHandlers",
+          "params": [],
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "parse",
+          "params": [
+            "res"
+          ],
+          "exported": false,
+          "lineCount": 4
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test",
+            "describe",
+            "before"
+          ]
+        },
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "./support.mjs",
+          "specifiers": [
+            "envFlag",
+            "optionalVaultSkipReason",
+            "withTemporaryEnv"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 76,
+      "hasStructuralAnalysis": true
+    },
+    "test/live/support.mjs": {
+      "filePath": "test/live/support.mjs",
+      "contentHash": "b48cbb152f42f6f9c83a093edd044bf7f1e12496121b3a5e31c4de9b59f3c287",
+      "functions": [
+        {
+          "name": "envFlag",
+          "params": [
+            "value"
+          ],
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "notRun",
+          "params": [
+            "reason"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "validateSelectedVaultEnvironment",
+          "params": [],
+          "exported": true,
+          "lineCount": 31
+        },
+        {
+          "name": "validateRequiredLiveEnvironment",
+          "params": [],
+          "exported": true,
+          "lineCount": 11
+        },
+        {
+          "name": "optionalVaultSkipReason",
+          "params": [],
+          "exported": true,
+          "lineCount": 8
+        },
+        {
+          "name": "withTemporaryEnv",
+          "params": [
+            "changes",
+            "operation"
+          ],
+          "exported": true,
+          "lineCount": 20
+        }
+      ],
+      "classes": [],
+      "imports": [],
+      "exports": [
+        "envFlag",
+        "validateSelectedVaultEnvironment",
+        "validateRequiredLiveEnvironment",
+        "optionalVaultSkipReason",
+        "withTemporaryEnv"
+      ],
+      "totalLines": 88,
+      "hasStructuralAnalysis": true
+    },
     "test/markdown.test.mjs": {
       "filePath": "test/markdown.test.mjs",
-      "contentHash": "0268fab40baf90c6dcf6579d23f9c62de2c2b18b6dd680748b9b4c5ce636a9ae",
+      "contentHash": "1448ca4ad4a14f23c3ef267adbf07a08dd137dcafd7e5f72d85f390d513a6712",
       "functions": [],
       "classes": [],
       "imports": [
@@ -3355,6 +7656,348 @@
       ],
       "exports": [],
       "totalLines": 215,
+      "hasStructuralAnalysis": true
+    },
+    "test/obsidian-uri.test.mjs": {
+      "filePath": "test/obsidian-uri.test.mjs",
+      "contentHash": "ecc1c2672a436fc373b3b13bb8dfd4a5f3be89b09151e759ae602a7a26e2a3b1",
+      "functions": [
+        {
+          "name": "codes",
+          "params": [
+            "parsed"
+          ],
+          "exported": false,
+          "lineCount": 3
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test"
+          ]
+        },
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "../dist/parsers/obsidian-uri.js",
+          "specifiers": [
+            "extractObsidianUris",
+            "parseObsidianUri",
+            "serializeObsidianUri"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 134,
+      "hasStructuralAnalysis": true
+    },
+    "test/prompt-surface.test.mjs": {
+      "filePath": "test/prompt-surface.test.mjs",
+      "contentHash": "5f863147fdbb45ed785bb060a7a4c7f0d62b4e85b41a9b477969d09817a6d7dc",
+      "functions": [
+        {
+          "name": "textOf",
+          "params": [
+            "result"
+          ],
+          "exported": false,
+          "lineCount": 9
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test"
+          ]
+        },
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 291,
+      "hasStructuralAnalysis": true
+    },
+    "test/provider-state-matrix.test.mjs": {
+      "filePath": "test/provider-state-matrix.test.mjs",
+      "contentHash": "ed65badf475d9a4e48cf12b9f19bd10584614fd81308a7b1682b9da90cd17e4b",
+      "functions": [
+        {
+          "name": "vaultFiles",
+          "params": [],
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "configFor",
+          "params": [
+            "dir"
+          ],
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "parse",
+          "params": [
+            "res"
+          ],
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "expectedState",
+          "params": [
+            "overrides"
+          ],
+          "exported": false,
+          "lineCount": 9
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:test",
+          "specifiers": [
+            "after",
+            "before",
+            "beforeEach",
+            "describe",
+            "mock",
+            "test"
+          ]
+        },
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "./helpers.mjs",
+          "specifiers": [
+            "cleanup",
+            "createTempVault"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 307,
+      "hasStructuralAnalysis": true
+    },
+    "test/release-metadata.test.mjs": {
+      "filePath": "test/release-metadata.test.mjs",
+      "contentHash": "165034f2a7c9524d8e9a75ee7dbfcee75903a077fbadf08bd65b87e2186ac1f2",
+      "functions": [
+        {
+          "name": "readJson",
+          "params": [
+            "file"
+          ],
+          "exported": false,
+          "lineCount": 3
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "node:fs/promises",
+          "specifiers": [
+            "readFile"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test"
+          ]
+        },
+        {
+          "source": "../dist/version.js",
+          "specifiers": [
+            "SERVER_VERSION"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 101,
+      "hasStructuralAnalysis": true
+    },
+    "test/reranker-hyde.test.mjs": {
+      "filePath": "test/reranker-hyde.test.mjs",
+      "contentHash": "1d3e6289ca0f3066baf23923671ac833757948798265197f39def3103459246c",
+      "functions": [
+        {
+          "name": "parseJson",
+          "params": [
+            "res"
+          ],
+          "exported": false,
+          "lineCount": 5
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test",
+            "describe",
+            "before",
+            "after"
+          ]
+        },
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "./helpers.mjs",
+          "specifiers": [
+            "createTempVault",
+            "cleanup"
+          ]
+        },
+        {
+          "source": "../dist/config.js",
+          "specifiers": [
+            "loadConfig"
+          ]
+        },
+        {
+          "source": "../dist/tools/semantic.js",
+          "specifiers": [
+            "createSemanticHandlers"
+          ]
+        },
+        {
+          "source": "../dist/embeddings/ollama.js",
+          "specifiers": [
+            "checkOllamaAvailability"
+          ]
+        },
+        {
+          "source": "../dist/embeddings/storage.js",
+          "specifiers": [
+            "EmbeddingStorage"
+          ]
+        },
+        {
+          "source": "../dist/embeddings/reranker.js",
+          "specifiers": [
+            "applyRerank",
+            "noneReranker",
+            "getReranker",
+            "registerReranker",
+            "getActiveRerankerName"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 443,
+      "hasStructuralAnalysis": true
+    },
+    "test/reranker-llm.test.mjs": {
+      "filePath": "test/reranker-llm.test.mjs",
+      "contentHash": "1eb271c35b8ce2edd6c8ae1b96342fc91ec11058193a72dd0cdd54b4f68db62d",
+      "functions": [
+        {
+          "name": "getId",
+          "params": [
+            "r"
+          ],
+          "exported": false,
+          "lineCount": 1
+        },
+        {
+          "name": "getText",
+          "params": [
+            "r"
+          ],
+          "exported": false,
+          "lineCount": 1
+        },
+        {
+          "name": "getFusion",
+          "params": [
+            "r"
+          ],
+          "exported": false,
+          "lineCount": 1
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test",
+            "describe"
+          ]
+        },
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "../dist/embeddings/reranker.js",
+          "specifiers": [
+            "applyRerank",
+            "getReranker",
+            "getActiveRerankerName"
+          ]
+        },
+        {
+          "source": "../dist/embeddings/reranker-llm.js",
+          "specifiers": [
+            "createLlmReranker",
+            "buildRerankPrompt",
+            "RERANK_TOP_K"
+          ]
+        },
+        {
+          "source": "../dist/tools/safety.js",
+          "specifiers": [
+            "UNTRUSTED_BEGIN",
+            "UNTRUSTED_END"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 303,
       "hasStructuralAnalysis": true
     },
     "test/resolver-hints.test.mjs": {
@@ -3416,9 +8059,50 @@
       "totalLines": 339,
       "hasStructuralAnalysis": true
     },
-    "test/schema-helpers.test.mjs": {
-      "filePath": "test/schema-helpers.test.mjs",
-      "contentHash": "a97270438fc0def57785f3a1511d64be6730d3c133f21c7ba94df48aa986f438",
+    "test/rrf.test.mjs": {
+      "filePath": "test/rrf.test.mjs",
+      "contentHash": "1056e7b7fb648b511e2c91abea5b8c7a42b69b105ace8be2b4111f8cc0db5bdf",
+      "functions": [
+        {
+          "name": "approx",
+          "params": [
+            "a",
+            "b"
+          ],
+          "exported": false,
+          "lineCount": 2
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test",
+            "describe"
+          ]
+        },
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "../dist/embeddings/rrf.js",
+          "specifiers": [
+            "reciprocalRankFusion",
+            "RRF_K"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 105,
+      "hasStructuralAnalysis": true
+    },
+    "test/safety-annotations.test.mjs": {
+      "filePath": "test/safety-annotations.test.mjs",
+      "contentHash": "f5a403f219e050b6d93e79fc776f5f020cb396136a3976bc4366be2beb84b31d",
       "functions": [],
       "classes": [],
       "imports": [
@@ -3436,7 +8120,196 @@
         }
       ],
       "exports": [],
-      "totalLines": 193,
+      "totalLines": 88,
+      "hasStructuralAnalysis": true
+    },
+    "test/safety-bytedelta.test.mjs": {
+      "filePath": "test/safety-bytedelta.test.mjs",
+      "contentHash": "ce36fd46eaf78930b50af44fad10c4468a345c4d87555c52b1a9097f70eb0d65",
+      "functions": [
+        {
+          "name": "makeConfig",
+          "params": [
+            "vaultDir"
+          ],
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "parse",
+          "params": [
+            "res"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "diskSize",
+          "params": [
+            "dir",
+            "rel"
+          ],
+          "exported": false,
+          "lineCount": 3
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test"
+          ]
+        },
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "node:fs",
+          "specifiers": [
+            "fs"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "./helpers.mjs",
+          "specifiers": [
+            "createTempVault",
+            "cleanup"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 123,
+      "hasStructuralAnalysis": true
+    },
+    "test/safety-readonly.test.mjs": {
+      "filePath": "test/safety-readonly.test.mjs",
+      "contentHash": "658cfa96a0ca8690a86974cf210f86b8daa032a3818ef71891f710e06275f7a8",
+      "functions": [
+        {
+          "name": "buildHandlers",
+          "params": [
+            "vaultDir"
+          ],
+          "exported": false,
+          "lineCount": 10
+        },
+        {
+          "name": "parse",
+          "params": [
+            "res"
+          ],
+          "exported": false,
+          "lineCount": 3
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test"
+          ]
+        },
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "node:fs",
+          "specifiers": [
+            "fs"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "./helpers.mjs",
+          "specifiers": [
+            "createTempVault",
+            "cleanup"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 118,
+      "hasStructuralAnalysis": true
+    },
+    "test/safety-untrusted.test.mjs": {
+      "filePath": "test/safety-untrusted.test.mjs",
+      "contentHash": "62166aa85d233350fb796619fae083b9b1597f165ac896393ab72a09769ac683",
+      "functions": [
+        {
+          "name": "buildHandlers",
+          "params": [
+            "vaultDir"
+          ],
+          "exported": false,
+          "lineCount": 8
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test"
+          ]
+        },
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "./helpers.mjs",
+          "specifiers": [
+            "createTempVault",
+            "cleanup"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 95,
+      "hasStructuralAnalysis": true
+    },
+    "test/schema-helpers.test.mjs": {
+      "filePath": "test/schema-helpers.test.mjs",
+      "contentHash": "3924604ae47c3448add9b6bd8ccfd94b4f9c8b8bcd48a632d467a30e36d878ed",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test"
+          ]
+        },
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 211,
       "hasStructuralAnalysis": true
     },
     "test/sections-query.test.mjs": {
@@ -3540,7 +8413,7 @@
     },
     "test/semantic.test.mjs": {
       "filePath": "test/semantic.test.mjs",
-      "contentHash": "f3fa56f4fde8542a5b5d09a33c1ef483918e8b0f1bf658a9735c1212d9d183c5",
+      "contentHash": "a9422977df2b49aacce14facf11a94481665da9a614f498740433fd31e54f188",
       "functions": [
         {
           "name": "parseJson",
@@ -3566,6 +8439,12 @@
           "source": "node:assert/strict",
           "specifiers": [
             "assert"
+          ]
+        },
+        {
+          "source": "node:fs",
+          "specifiers": [
+            "fs"
           ]
         },
         {
@@ -3604,15 +8483,23 @@
           "specifiers": [
             "EmbeddingStorage"
           ]
+        },
+        {
+          "source": "../dist/embeddings/index-stats.js",
+          "specifiers": [
+            "calculateIndexCoverage",
+            "coveragePercent",
+            "findCurrentMarkdownPathByIdentity"
+          ]
         }
       ],
       "exports": [],
-      "totalLines": 465,
+      "totalLines": 806,
       "hasStructuralAnalysis": true
     },
     "test/tool-surface.test.mjs": {
       "filePath": "test/tool-surface.test.mjs",
-      "contentHash": "ef274ec1b886296e0d26efec84beaa41e6695825ae828fcc24936b5f6c1051eb",
+      "contentHash": "1f948c5476b3dfde095a4f31bfd005ea30afc18fc80c5f49c58c9620d5801c8e",
       "functions": [
         {
           "name": "makeConfig",
@@ -3664,7 +8551,200 @@
         }
       ],
       "exports": [],
-      "totalLines": 1697,
+      "totalLines": 1759,
+      "hasStructuralAnalysis": true
+    },
+    "test/transport-smoke.test.mjs": {
+      "filePath": "test/transport-smoke.test.mjs",
+      "contentHash": "8c64a2da0e8296ca0b54f55be6b460d7a73ad9c08fe94aea189915efa6f88178",
+      "functions": [
+        {
+          "name": "isolatedServerEnvironment",
+          "params": [
+            "overrides"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "withTimeout",
+          "params": [
+            "promise",
+            "milliseconds",
+            "label"
+          ],
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "closeServer",
+          "params": [
+            "server"
+          ],
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "loadConfigFromVault",
+          "params": [
+            "vaultDir"
+          ],
+          "exported": false,
+          "lineCount": 14
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "node:events",
+          "specifiers": [
+            "once"
+          ]
+        },
+        {
+          "source": "node:fs/promises",
+          "specifiers": [
+            "stat"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "node:test",
+          "specifiers": [
+            "afterEach",
+            "test"
+          ]
+        },
+        {
+          "source": "@modelcontextprotocol/sdk/client/index.js",
+          "specifiers": [
+            "Client"
+          ]
+        },
+        {
+          "source": "@modelcontextprotocol/sdk/client/stdio.js",
+          "specifiers": [
+            "StdioClientTransport"
+          ]
+        },
+        {
+          "source": "./helpers.mjs",
+          "specifiers": [
+            "createTempVault",
+            "cleanup"
+          ]
+        },
+        {
+          "source": "../dist/config.js",
+          "specifiers": [
+            "loadConfig"
+          ]
+        },
+        {
+          "source": "../dist/http-server.js",
+          "specifiers": [
+            "createHttpServer"
+          ]
+        },
+        {
+          "source": "../dist/tools/index.js",
+          "specifiers": [
+            "createAllHandlers"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 351,
+      "hasStructuralAnalysis": true
+    },
+    "test/vault-target.test.mjs": {
+      "filePath": "test/vault-target.test.mjs",
+      "contentHash": "df1dbad12db3037a894c44c80de28db621b092def7fa20c16b62d69237879d43",
+      "functions": [
+        {
+          "name": "fixture",
+          "params": [],
+          "exported": false,
+          "lineCount": 16
+        },
+        {
+          "name": "writeRegistry",
+          "params": [
+            "registry",
+            "vaults"
+          ],
+          "exported": false,
+          "lineCount": 3
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:test",
+          "specifiers": [
+            "afterEach",
+            "describe",
+            "test"
+          ]
+        },
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "node:fs",
+          "specifiers": [
+            "mkdirSync",
+            "mkdtempSync",
+            "rmSync",
+            "symlinkSync",
+            "writeFileSync"
+          ]
+        },
+        {
+          "source": "node:os",
+          "specifiers": [
+            "tmpdir"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "join"
+          ]
+        },
+        {
+          "source": "../dist/cli/vault-target.js",
+          "specifiers": [
+            "buildOpenVaultCommand",
+            "dispatchOpenVault",
+            "inspectRegisteredVault",
+            "isValidObsidianVaultId"
+          ]
+        },
+        {
+          "source": "../dist/graph/prepared.js",
+          "specifiers": [
+            "clearPreparedExactGraphs",
+            "withPreparedGraphLock"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 277,
       "hasStructuralAnalysis": true
     },
     "test/wikilink.test.mjs": {
@@ -3748,12 +8828,12 @@
     },
     "tsconfig.json": {
       "filePath": "tsconfig.json",
-      "contentHash": "f426ea14c21b0c5a644d58f3560bb8e34d599278140353a51cb952c8fe85c115",
+      "contentHash": "069384a95dc6d39cc76fba9693219ff4d3f2c88f19cf91f33c25c48167f3c2aa",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 19,
+      "totalLines": 20,
       "hasStructuralAnalysis": true
     }
   }
