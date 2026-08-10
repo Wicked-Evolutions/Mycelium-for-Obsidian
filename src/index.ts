@@ -29,6 +29,8 @@ import { allPrompts, getPromptMessages } from './prompts/index.js';
 import { createVaultWatcher, VaultWatcher } from './embeddings/watcher.js';
 import { createHttpServer } from './http-server.js';
 
+export const STDIO_MAX_BUFFER_SIZE = 128 * 1024 * 1024;
+
 // Load configuration
 let config: Config;
 
@@ -152,7 +154,9 @@ async function main() {
     createHttpServer({ port: httpPort, config });
   } else {
     // Standard MCP stdio mode - for Claude Desktop
-    const transport = new StdioServerTransport();
+    const transport = new StdioServerTransport(process.stdin, process.stdout, {
+      maxBufferSize: STDIO_MAX_BUFFER_SIZE
+    });
     await server.connect(transport);
     console.error('[mcp-obsidian] Server started (stdio mode)');
 
