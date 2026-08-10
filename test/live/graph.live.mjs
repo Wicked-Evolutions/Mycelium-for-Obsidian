@@ -12,22 +12,23 @@
  */
 import { test, describe, before } from 'node:test';
 import assert from 'node:assert/strict';
+import { optionalVaultSkipReason, withTemporaryEnv } from './support.mjs';
 
 const LINKED = process.env.LIVE_TEST_VAULT;
 const CONCEPT = process.env.LIVE_CONCEPT_VAULT;
 
-const skip = !LINKED
-  ? 'set LIVE_TEST_VAULT (+ OBSIDIAN_VAULTS, Obsidian open on it, CLI enabled) to run — see docs/live-e2e.md'
-  : false;
+const skip = optionalVaultSkipReason();
 
 const { loadConfig } = await import('../../dist/config.js');
 const { createAllHandlers } = await import('../../dist/tools/index.js');
 
-function makeHandlers() {
+async function makeHandlers() {
   // Live path: we WANT the exact Obsidian provider, so do NOT disable eval_obsidian.
   // OBSIDIAN_VAULTS (the real vault map) must be exported by the runbook.
-  delete process.env.OBSIDIAN_DISABLED_TOOLS;
-  return createAllHandlers(loadConfig());
+  return withTemporaryEnv(
+    { OBSIDIAN_DISABLED_TOOLS: undefined },
+    () => createAllHandlers(loadConfig()),
+  );
 }
 
 function parse(res) {
@@ -37,7 +38,7 @@ function parse(res) {
 
 describe('live: graph orientation via the real Obsidian provider', { skip }, () => {
   let handlers;
-  before(() => { handlers = makeHandlers(); });
+  before(async () => { handlers = await makeHandlers(); });
 
   test('analyze_link_hierarchy on a linked vault → provider "obsidian" with resolved edges', async () => {
     const out = parse(await handlers.analyze_link_hierarchy({ vault: LINKED, compact: true, limit: 5 }));
