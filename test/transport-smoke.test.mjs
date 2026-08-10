@@ -62,6 +62,10 @@ test('stdio transport initializes, exposes surfaces, accepts a large request, an
 
   try {
     await client.connect(transport);
+    const serverVersion = client.getServerVersion();
+    assert.equal(serverVersion?.name, 'mcp-obsidian');
+    assert.equal(serverVersion?.version, '1.5.0');
+
     const child = transport._process;
     assert.ok(child, 'stdio client exposes its spawned process during the test');
 
