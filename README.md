@@ -4,14 +4,18 @@ Multi-vault Obsidian MCP server — full AI operations toolset for file manageme
 
 Two-tier architecture: 75 tools work without Obsidian running + 28 CLI tools access Obsidian's runtime API when the app is running with [CLI enabled](https://obsidian.md/help/cli) (Obsidian 1.12+ with installer 1.12.7+).
 
-New in 1.4.0: **graph orientation** — `analyze_link_hierarchy` ranks your vault's link graph into hub→leaf structural levels (Obsidian-authoritative when the app is running); **graph-aware search** — every `semantic_search` hit carries its structural role; **slash commands** — five human-triggered MCP prompts (`/orient`, `/search`, `/excluded`, `/vault-health`, `/get-started`); an opt-in **reranker + HyDE**; a **read-only / untrusted-content safety surface**; and honest **concept-link reporting** for vaults that link concepts before creating notes. See [CHANGELOG](CHANGELOG.md).
+In 1.5.0: **validated cross-vault declarations** from native Obsidian links; **truthful index coverage and broken-link occurrence metrics**; **exact-versus-approximate graph provider provenance and recovery**; refreshed production dependencies and transport validation; and a strict real Obsidian/Ollama release-evidence lane. See [CHANGELOG](CHANGELOG.md).
+
+**Runtime:** npm and source installs require Node.js 20 or newer.
 
 ## Install
 
 ### Claude Desktop — one click
 
-Download [mcp-obsidian.mcpb](https://github.com/Wicked-Evolutions/Mycelium-for-Obsidian/releases/latest/download/mcp-obsidian.mcpb), double-click, enter your vault paths. Done.
+Download the [v1.4.0 mcp-obsidian.mcpb](https://github.com/Wicked-Evolutions/Mycelium-for-Obsidian/releases/download/v1.4.0/mcp-obsidian.mcpb), double-click, enter your vault paths. Done.
 
+> The MCPB channel remains on v1.4.0 and does not include the 1.5.0 npm/server changes. MCPB work is deferred to a separate release track.
+>
 > The one-click bundle is built and tested on **macOS (Apple Silicon)** only — it ships a prebuilt native module for that platform. On Intel Mac, Windows, or Linux, install via **npm** below instead; it compiles the native module for your platform at install time. (A cross-platform bundle is tracked for a later release.)
 
 ### npm

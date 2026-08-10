@@ -2,13 +2,34 @@
 
 All notable changes to mcp-obsidian are documented here.
 
-## Unreleased
+## [1.5.0] - Unreleased
+
+An npm/server reliability and cross-vault integrity release. The MCPB channel remains on v1.4.0 and is not part of this candidate.
+
+### Added
+
+- `get_cross_vault_links` now inventories validated native `obsidian://open` note links and composes eligible declarations into a bounded, typed, read-only cross-vault graph overlay. Same-vault graph ranking and retrieval ordering remain unchanged.
 
 ### Changed
 
 - Graph-bearing responses now expose explicit exact-versus-approximate `providerState` provenance. Graph caches recheck provider eligibility and recover from filesystem fallback to the exact Obsidian provider without requiring a vault edit or server restart. macOS CLI probing now targets the dedicated `obsidian-cli` binary safely; CLI-tier compatibility requires Obsidian 1.12+ with installer 1.12.7+. (#62, #35)
 - `index_status` and `get_ecosystem_stats` now report file coverage, stale or redundant indexed paths, and embedding chunk density as separate values. Legacy `indexedPercent` and `overallIndexedPercent` now alias truthful file coverage instead of embedding chunks divided by files. (#61)
 - `get_broken_links` and `get_vault_health` now distinguish physical broken-link occurrences from unique unresolved target strings and include occurrence coordinates so repeated identical links on one line remain distinguishable. (#61)
+- npm and source installs now require Node.js `>=20.0.0`. The founder approved `1.5.0` as the minor-release compatibility policy for this runtime-floor change. (#64)
+- The Model Context Protocol SDK baseline is updated to `^1.30.0`, with an explicit 128 MiB stdio request limit to preserve large-note workflows while keeping input bounded.
+
+### Fixed
+
+- The shared Markdown reader, the filesystem-promoted `readVaultFile` helper, and `get_cross_vault_links` source/destination reads now verify opened file handles against their intended in-vault paths, strengthening those paths against symlink-swap and TOCTOU races.
+
+### Security
+
+- Refreshed the supported production dependency closure. The final production audit for the candidate lockfile reports zero findings; detailed triage remains private.
+
+### Infrastructure
+
+- `npm run test:live` is now a strict release-evidence command: missing configuration reports `NOT RUN`, and the required exact Obsidian and real Ollama lanes must execute successfully. `npm run test:live:optional` remains diagnostic only. (#63)
+- Added real MCP stdio and authenticated local REST API smoke tests, including large-request handling and clean disconnect behavior.
 
 ## [1.4.0] - 2026-07-06
 

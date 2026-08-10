@@ -28,6 +28,7 @@ import { allTools, createAllHandlers } from './tools/index.js';
 import { allPrompts, getPromptMessages } from './prompts/index.js';
 import { createVaultWatcher, VaultWatcher } from './embeddings/watcher.js';
 import { createHttpServer } from './http-server.js';
+import { SERVER_VERSION } from './version.js';
 
 export const STDIO_MAX_BUFFER_SIZE = 128 * 1024 * 1024;
 
@@ -49,7 +50,7 @@ try {
 const server = new Server(
   {
     name: 'mcp-obsidian',
-    version: '1.4.0'
+    version: SERVER_VERSION
   },
   {
     capabilities: {
