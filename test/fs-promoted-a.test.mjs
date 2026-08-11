@@ -1002,19 +1002,16 @@ describe('not-found hints (file-param tools)', () => {
     assertNoAbsPath(res, 'list_aliases typo');
   });
 
-  test('"did you mean" prose appears in the note hint when closest_matches is non-empty', async () => {
+  test('vault-derived closest matches stay isolated from prose and marked untrusted', async () => {
     const res = await handlers.list_aliases({ vault: 'TestVault', file: 'Alpla' });
     assertErr(res, 'list_aliases did-you-mean');
     const data = JSON.parse(text(res));
     assert.ok(data.closest_matches.length > 0, 'precondition: closest_matches non-empty');
-    assert.ok(
-      data.hint.includes('Did you mean:'),
-      `expected "Did you mean:" in hint, got "${data.hint}"`,
-    );
-    assert.ok(
-      data.hint.includes('Alpha'),
-      `expected nearest match "Alpha" named in hint, got "${data.hint}"`,
-    );
+    assert.ok(!data.hint.includes('Alpha'), 'vault-derived name is not copied into prose');
+    assert.deepEqual(data.suggestionTrust, {
+      state: 'untrusted_identifiers',
+      fields: ['closest_matches'],
+    });
   });
 
   test('explicit path that does not exist also returns structured hint (no abs path)', async () => {
@@ -1119,7 +1116,11 @@ describe('not-found hints (file-param tools)', () => {
       data.closest_matches.includes('Alpha'),
       `expected "Alpha" in closest_matches, got: ${JSON.stringify(data.closest_matches)}`,
     );
-    assert.ok(data.hint.includes('Did you mean:'), `expected "Did you mean:" in hint, got "${data.hint}"`);
+    assert.ok(!data.hint.includes('Alpha'), 'vault-derived name is not copied into prose');
+    assert.deepEqual(data.suggestionTrust, {
+      state: 'untrusted_identifiers',
+      fields: ['closest_matches'],
+    });
     // The structured error must NOT carry an absolute filesystem path.
     assert.ok(!data.error.includes('/Users/'), `error must not contain "/Users/", got "${data.error}"`);
     assert.ok(!data.error.includes(vaultDir), `error must not contain vault root, got "${data.error}"`);

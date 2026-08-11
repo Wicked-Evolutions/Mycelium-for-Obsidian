@@ -4,8 +4,32 @@
  * Provides hint constants and fuzzy-match helpers so that vault/note resolution
  * failures surface actionable suggestions instead of bare "not found" messages.
  *
- * Zero intra-project imports — safe to import from config.ts without creating cycles.
+ * Recovery formatting depends only on the leaf-level outcome/type modules, so
+ * config.ts can import these helpers without creating a runtime cycle.
  */
+
+import { recoveryResponse } from './tool-outcomes.js';
+import { ToolResponse } from './types/index.js';
+
+const MAX_SCORING_CODEPOINTS = 128;
+const MAX_SCORING_TOKENS = 16;
+
+function isWithinScoringBounds(value: string): boolean {
+  let end = 0;
+  let codePoints = 0;
+  while (end < value.length && codePoints < MAX_SCORING_CODEPOINTS) {
+    const codePoint = value.codePointAt(end);
+    end += codePoint !== undefined && codePoint > 0xffff ? 2 : 1;
+    codePoints += 1;
+  }
+  if (end < value.length) return false;
+  const tokens = value.slice(0, end)
+    .normalize('NFC')
+    .trim()
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter(Boolean);
+  return tokens.length <= MAX_SCORING_TOKENS;
+}
 
 // ─── Hint constants ────────────────────────────────────────────────────────────
 
@@ -27,17 +51,10 @@ export const NOTE_NOT_FOUND_HINT =
 /**
  * Build the note not-found hint string.
  *
- * When `suggestions` is non-empty, lead with a "Did you mean: X, Y?" clause
- * (parity with the vault not-found hint, which already says "Did you mean: X?")
- * followed by the generic guidance. When empty, return the generic guidance alone.
- *
- * This does NOT change closest_matches computation — callers still build the
- * suggestion list with closestMatches(); this only formats the prose.
+ * Suggested names stay in the structured `closest_matches` field. They are
+ * untrusted vault-derived identifiers and must not be interpolated into prose.
  */
-export function noteNotFoundHint(suggestions: string[]): string {
-  if (suggestions.length > 0) {
-    return `Did you mean: ${suggestions.join(', ')}? ${NOTE_NOT_FOUND_HINT}`;
-  }
+export function noteNotFoundHint(_suggestions: string[]): string {
   return NOTE_NOT_FOUND_HINT;
 }
 
@@ -50,29 +67,46 @@ export function noteNotFoundHint(suggestions: string[]): string {
  *
  * Mirrors the shape of the ENOENT note-not-found branch in the read_file handler.
  */
-export function formatVaultError(error: unknown): {
-  content: Array<{ type: 'text'; text: string }>;
-  isError: true;
-} {
-  const err = error as Error & { closest_matches?: string[]; hint?: string };
+export function formatVaultError(error: unknown): ToolResponse {
+  const err = error as Error & {
+    closest_matches?: string[];
+    hint?: string;
+    requested?: string;
+    recovery_code?: 'vault_not_found' | 'note_not_found';
+  };
   if (err instanceof Error && Array.isArray(err.closest_matches) && err.hint) {
-    return {
-      content: [{
-        type: 'text',
-        text: JSON.stringify({
-          error: err.message,
-          closest_matches: err.closest_matches,
-          hint: err.hint
-        }, null, 2)
-      }],
-      isError: true
-    };
+    const code = err.recovery_code ?? (
+      err.hint === VAULT_NOT_FOUND_HINT ? 'vault_not_found' : 'note_not_found'
+    );
+    const message = code === 'vault_not_found'
+      ? 'The requested configured vault was not found.'
+      : 'The requested note was not found.';
+    return recoveryResponse({
+      status: 'needs_action',
+      code,
+      message,
+      retryable: false,
+      sideEffects: { state: 'none' },
+      ...(err.requested ? { requested: err.requested } : {}),
+      closest_matches: err.closest_matches,
+      hint: err.hint,
+      ...(err.closest_matches.length > 0 ? {
+        suggestionTrust: {
+          state: 'untrusted_identifiers',
+          fields: ['closest_matches'] as ['closest_matches']
+        }
+      } : {}),
+      legacy: { error: code },
+    });
   }
   // Generic fallback for non-vault errors
-  return {
-    content: [{ type: 'text', text: String(error) }],
-    isError: true
-  };
+  return recoveryResponse({
+    status: 'failed',
+    code: 'resolution_failed',
+    message: 'The requested identifier could not be resolved.',
+    retryable: true,
+    sideEffects: { state: 'none' }
+  });
 }
 
 // ─── Fuzzy match helpers ───────────────────────────────────────────────────────
@@ -122,9 +156,11 @@ export function closestMatches(
   limit = 3,
   maxDistance = 3
 ): string[] {
+  if (!isWithinScoringBounds(query)) return [];
   const q = query.toLowerCase();
 
   const scored = names
+    .filter(isWithinScoringBounds)
     .map(name => {
       const n = name.toLowerCase();
       const dist = editDistance(q, n);

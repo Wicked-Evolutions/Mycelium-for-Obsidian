@@ -19,6 +19,7 @@ import {
 import { vaultParam } from './schema-helpers.js';
 import { closestMatches, noteNotFoundHint } from '../resolver-hints.js';
 import { withAnnotations, ToolAnnotations } from './safety.js';
+import { recoveryResponse } from '../tool-outcomes.js';
 
 // Per-vault file index cache
 const fileIndexCaches = new Map<string, Map<string, string>>();
@@ -162,19 +163,27 @@ export function createWikilinkHandlers(config: Config) {
           // fileIndex values are absolute paths; derive proper-cased basenames from them
           const noteNames = Array.from(fileIndex.values()).map(p => path.basename(p, '.md'));
           const suggestions = closestMatches(args.link, noteNames);
-          return {
-            content: [{
-              type: 'text',
-              text: JSON.stringify({
-                link: args.link,
-                resolved: null,
-                exists: false,
-                closest_matches: suggestions,
-                hint: noteNotFoundHint(suggestions)
-              }, null, 2)
-            }],
-            isError: false
-          };
+          return recoveryResponse({
+            status: 'needs_action',
+            code: 'note_not_found',
+            message: 'The requested wikilink target was not found.',
+            requested: args.link,
+            closest_matches: suggestions,
+            hint: noteNotFoundHint(suggestions),
+            retryable: false,
+            sideEffects: { state: 'none' },
+            ...(suggestions.length > 0 ? {
+              suggestionTrust: {
+                state: 'untrusted_identifiers',
+                fields: ['closest_matches']
+              }
+            } : {}),
+            legacy: {
+              link: args.link,
+              resolved: null,
+              exists: false
+            }
+          }, false);
         }
       } catch (error) {
         return {
@@ -280,19 +289,27 @@ export function createWikilinkHandlers(config: Config) {
           // fileIndex values are absolute paths; derive proper-cased basenames from them
           const noteNames = Array.from(fileIndex.values()).map(p => path.basename(p, '.md'));
           const suggestions = closestMatches(args.link, noteNames);
-          return {
-            content: [{
-              type: 'text',
-              text: JSON.stringify({
-                link: args.link,
-                found: false,
-                error: 'Link target not found',
-                closest_matches: suggestions,
-                hint: noteNotFoundHint(suggestions)
-              }, null, 2)
-            }],
-            isError: false
-          };
+          return recoveryResponse({
+            status: 'needs_action',
+            code: 'note_not_found',
+            message: 'The requested wikilink target was not found.',
+            requested: args.link,
+            closest_matches: suggestions,
+            hint: noteNotFoundHint(suggestions),
+            retryable: false,
+            sideEffects: { state: 'none' },
+            ...(suggestions.length > 0 ? {
+              suggestionTrust: {
+                state: 'untrusted_identifiers',
+                fields: ['closest_matches']
+              }
+            } : {}),
+            legacy: {
+              link: args.link,
+              found: false,
+              error: 'Link target not found'
+            }
+          }, false);
         }
 
         const parsed = await parseMarkdownFile(resolved, vault.path);

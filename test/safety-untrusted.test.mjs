@@ -14,6 +14,7 @@ const { loadConfig } = await import('../dist/config.js');
 const toolsMod = await import('../dist/tools/index.js');
 const { createAllHandlers } = toolsMod;
 const { wrapUntrusted, UNTRUSTED_BEGIN, UNTRUSTED_END } = await import('../dist/tools/safety.js');
+const { recoveryResponse } = await import('../dist/tool-outcomes.js');
 
 const VAULT_NAME = 'TestVault';
 
@@ -41,6 +42,20 @@ test('wrapUntrusted leaves error responses untouched', () => {
   const original = { content: [{ type: 'text', text: 'boom' }], isError: true };
   const out = wrapUntrusted(original);
   assert.equal(out.content[0].text, 'boom');
+  assert.ok(!out.content[0].text.includes(UNTRUSTED_BEGIN));
+});
+
+test('wrapUntrusted leaves content-free recovery control metadata untouched', () => {
+  const recovery = recoveryResponse({
+    status: 'needs_action',
+    code: 'index_required',
+    message: 'Indexing is required.',
+    retryable: false,
+    sideEffects: { state: 'none' },
+  }, false);
+  const out = wrapUntrusted(recovery);
+  assert.equal(out.content[0].text, recovery.content[0].text);
+  assert.deepEqual(JSON.parse(out.content[0].text), out.structuredContent);
   assert.ok(!out.content[0].text.includes(UNTRUSTED_BEGIN));
 });
 

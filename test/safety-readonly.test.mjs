@@ -46,6 +46,10 @@ test('read-only mode refuses a vault-content mutator (create_file) without writi
     assert.equal(body.error, 'read_only_mode');
     assert.equal(body.tool, 'create_file');
     assert.equal(body.readOnly, true);
+    assert.equal(body.status, 'refused');
+    assert.equal(body.code, 'read_only_mode');
+    assert.deepEqual(body.sideEffects, { state: 'none' });
+    assert.deepEqual(body, res.structuredContent);
     assert.match(body.hint, /OBSIDIAN_READ_ONLY/, 'hint must explain how to lift the restriction');
     assert.ok(!fs.existsSync(path.join(dir, 'New.md')), 'no file may be created');
   } finally {

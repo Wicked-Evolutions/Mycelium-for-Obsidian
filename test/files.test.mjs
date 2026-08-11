@@ -328,6 +328,11 @@ describe('create_file', () => {
       res.content[0].text.includes('already exists') || res.content[0].text.includes('Existing'),
       'error mentions file existence',
     );
+    const payload = parse(res);
+    assert.equal(payload.status, 'conflict');
+    assert.equal(payload.code, 'destination_exists');
+    assert.deepEqual(payload.sideEffects, { state: 'none' });
+    assert.deepEqual(payload, res.structuredContent);
   });
 });
 

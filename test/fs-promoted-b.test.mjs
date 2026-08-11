@@ -176,6 +176,11 @@ describe('search_replace_in_file', () => {
       const res = await h.search_replace_in_file({ vault, path: 'doc.md', search: 'notpresent', replace: 'x' });
       assertErr(res, 'search_replace not found');
       assert.ok(text(res).toLowerCase().includes('not found'), `search_replace: "not found" in error: "${text(res)}"`);
+      const payload = JSON.parse(text(res));
+      assert.equal(payload.status, 'no_change');
+      assert.equal(payload.code, 'search_text_not_found');
+      assert.deepEqual(payload.sideEffects, { state: 'none' });
+      assert.deepEqual(payload, res.structuredContent);
       // File must be byte-for-byte unchanged (this is the v1.0.1 fix)
       const after = fs.readFileSync(path.join(dir, 'doc.md'), 'utf-8');
       assert.equal(after, original, 'search_replace: file unchanged when search not found (no wipe)');

@@ -29,6 +29,7 @@ import {
   registerReranker
 } from '../embeddings/reranker.js';
 import { llmReranker } from '../embeddings/reranker-llm.js';
+import { recoveryResponse } from '../tool-outcomes.js';
 
 // Register the built-in LLM-as-reranker backend (#27, PR-C). Registration is
 // INERT on the default path: the backend is only retrieved when the operator
@@ -223,6 +224,63 @@ export function createSemanticHandlers(config: Config) {
     host: config.ollama.host,
     model: config.ollama.model
   };
+  const ollamaUnavailable = (state: {
+    available: boolean;
+    hasModel: boolean;
+  }): ToolResponse => recoveryResponse({
+    status: 'unavailable',
+    code: state.available ? 'model_unavailable' : 'ollama_unavailable',
+    message: state.available
+      ? 'The configured embedding model is not available in Ollama.'
+      : 'The Ollama embedding service is not available.',
+    hint: state.available
+      ? `Install the configured ${ollamaConfig.model} model in Ollama, then retry.`
+      : 'Start Ollama and verify the configured host, then retry.',
+    retryable: true,
+    sideEffects: { state: 'none' }
+  });
+  const fileIndexRequired = async (
+    vaultPath: string,
+    args: { vault?: string; path: string },
+    emptyEmbedding = false
+  ): Promise<ToolResponse> => {
+    let canIndex = !config.disabledTools.has('index_file');
+    if (canIndex) {
+      try {
+        const absolutePath = resolvePathInVault(vaultPath, args.path);
+        canIndex = (await fs.stat(absolutePath)).isFile();
+      } catch {
+        canIndex = false;
+      }
+    }
+    return recoveryResponse({
+      status: 'needs_action',
+      code: emptyEmbedding ? 'empty_embedding' : 'file_index_required',
+      message: emptyEmbedding
+        ? 'The indexed file has no usable embedding.'
+        : 'The requested file is not present in the semantic index.',
+      requested: args.path,
+      hint: emptyEmbedding
+        ? 'Re-index the file after confirming it contains meaningful text.'
+        : 'Run index_file for this file, then retry get_similar.',
+      actions: canIndex ? [{
+        label: 'Index this file',
+        tool: 'index_file',
+        arguments: {
+          path: args.path,
+          ...(args.vault ? { vault: args.vault } : {})
+        }
+      }] : undefined,
+      retryable: false,
+      sideEffects: { state: 'none' },
+      legacy: {
+        error: emptyEmbedding
+          ? 'File has empty embedding (likely empty/minimal content). Try re-indexing.'
+          : 'File not indexed. Run index_file first.',
+        path: args.path
+      }
+    }, false);
+  };
 
   return {
     semantic_search: async (args: {
@@ -244,26 +302,31 @@ export function createSemanticHandlers(config: Config) {
         // Check Ollama availability
         const ollama = await checkOllamaAvailability(ollamaConfig);
         if (!ollama.available || !ollama.hasModel) {
-          return {
-            content: [{ type: 'text', text: `Ollama not ready: ${ollama.error}` }],
-            isError: true
-          };
+          return ollamaUnavailable(ollama);
         }
 
         const store = getStorage(vault.path);
         const stats = store.getStats();
 
         if (stats.totalEmbeddings === 0) {
-          return {
-            content: [{
-              type: 'text',
-              text: JSON.stringify({
-                error: 'No indexed content. Run index_vault first.',
-                indexed: 0
-              }, null, 2)
-            }],
-            isError: false
-          };
+          const canIndex = !config.disabledTools.has('index_vault');
+          return recoveryResponse({
+            status: 'needs_action',
+            code: 'index_required',
+            message: 'This vault has no indexed content for semantic search.',
+            hint: 'Run index_vault for this vault, then retry semantic_search.',
+            actions: canIndex && typeof args.vault === 'string' ? [{
+              label: 'Index this vault',
+              tool: 'index_vault',
+              arguments: { vault: args.vault }
+            }] : undefined,
+            retryable: false,
+            sideEffects: { state: 'none' },
+            legacy: {
+              error: 'No indexed content. Run index_vault first.',
+              indexed: 0
+            }
+          }, false);
         }
 
         const limit = args.limit || 10;
@@ -593,10 +656,7 @@ export function createSemanticHandlers(config: Config) {
         // Check Ollama availability
         const ollama = await checkOllamaAvailability(ollamaConfig);
         if (!ollama.available || !ollama.hasModel) {
-          return {
-            content: [{ type: 'text', text: `Ollama not ready: ${ollama.error}` }],
-            isError: true
-          };
+          return ollamaUnavailable(ollama);
         }
 
         const store = getStorage(vault.path);
@@ -755,10 +815,7 @@ export function createSemanticHandlers(config: Config) {
         // Check Ollama availability
         const ollama = await checkOllamaAvailability(ollamaConfig);
         if (!ollama.available || !ollama.hasModel) {
-          return {
-            content: [{ type: 'text', text: `Ollama not ready: ${ollama.error}` }],
-            isError: true
-          };
+          return ollamaUnavailable(ollama);
         }
 
         const store = getStorage(vault.path);
@@ -856,30 +913,12 @@ export function createSemanticHandlers(config: Config) {
         const stored = store.get(args.path);
 
         if (!stored) {
-          return {
-            content: [{
-              type: 'text',
-              text: JSON.stringify({
-                error: 'File not indexed. Run index_file first.',
-                path: args.path
-              }, null, 2)
-            }],
-            isError: false
-          };
+          return fileIndexRequired(vault.path, args);
         }
 
         // Handle empty embeddings
         if (!stored.embedding || stored.embedding.length === 0) {
-          return {
-            content: [{
-              type: 'text',
-              text: JSON.stringify({
-                error: 'File has empty embedding (likely empty/minimal content). Try re-indexing.',
-                path: args.path
-              }, null, 2)
-            }],
-            isError: false
-          };
+          return fileIndexRequired(vault.path, args, true);
         }
 
         // Search for similar (excluding self)

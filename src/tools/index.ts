@@ -4,6 +4,7 @@
  */
 
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
+import { isDeepStrictEqual } from 'node:util';
 import { Config, resolveVault } from '../config.js';
 import { ToolRequestContext, ToolResponse } from '../types/index.js';
 import { injectVaultEnum } from './schema-helpers.js';
@@ -17,6 +18,12 @@ import {
 import { invalidateGraphCache } from '../graph/signals.js';
 import { canonicalizeVaultPath } from '../cli/vault-target.js';
 import { withPreparedGraphLock } from '../graph/prepared.js';
+import {
+  isRecoveryOutcome,
+  normalizeToolResponse,
+  RecoveryContext,
+  unexpectedToolFailure
+} from '../tool-outcomes.js';
 
 // Import tool definitions and handler creators
 import { fileTools, createFileHandlers } from './files.js';
@@ -140,6 +147,9 @@ export function createAllHandlers(
   );
   // Opt-in untrusted-content markers on reader output (default OFF).
   wrappedHandlers = applyUntrustedWrapper(config.wrapUntrusted, enabledTools, wrappedHandlers);
+  // Normalize every non-domain error at the outermost handler boundary so the
+  // same recovery contract reaches stdio and HTTP callers.
+  wrappedHandlers = applyRecoveryOutcomeContract(config, enabledTools, wrappedHandlers);
 
   // Inject the operator's actual vault names as an enum into every vault param.
   // This replaces the stale "Platform/Helena" example text with the real values
@@ -154,7 +164,68 @@ export function createAllHandlers(
   return wrappedHandlers;
 }
 
-/** Serialize mutators and evict exact snapshots after every attempted mutation. */
+/** Tools that may be suggested or used by recovery actions in this instance. */
+export function applicableRecoveryTools(config: Config, tools: Tool[] = allTools): Tool[] {
+  return tools.filter(tool => !config.readOnly || !isMutating(tool));
+}
+
+/** Apply bounded recovery normalization without changing routine successes. */
+export function applyRecoveryOutcomeContract(
+  config: Config,
+  tools: Tool[],
+  handlers: Record<string, AnyHandler>
+): Record<string, AnyHandler> {
+  const byName = new Map(tools.map(tool => [tool.name, tool]));
+  const context: RecoveryContext = {
+    enabledTools: tools,
+    applicableTools: applicableRecoveryTools(config, tools),
+  };
+  const out: Record<string, AnyHandler> = {};
+  for (const [name, handler] of Object.entries(handlers)) {
+    const tool = byName.get(name);
+    if (!tool) {
+      out[name] = handler;
+      continue;
+    }
+    out[name] = async (args: unknown, requestContext?: ToolRequestContext) => {
+      try {
+        const response = await handler(args, requestContext);
+        return normalizeToolResponse(tool, response, context);
+      } catch (error) {
+        return unexpectedToolFailure(tool, error);
+      }
+    };
+  }
+  return out;
+}
+
+function isProvenNoChange(response: ToolResponse): boolean {
+  const payload = response.structuredContent;
+  const text = response.content[0]?.text;
+  if (
+    !payload ||
+    !text ||
+    Buffer.byteLength(text, 'utf8') > 32 * 1024 ||
+    !isRecoveryOutcome(payload) ||
+    payload.status !== 'no_change' ||
+    typeof payload.code !== 'string' ||
+    payload.code.length === 0 ||
+    typeof payload.message !== 'string' ||
+    payload.message.length === 0 ||
+    (payload.sideEffects as Record<string, unknown>).state !== 'none'
+  ) return false;
+  try {
+    const parsed = JSON.parse(text) as unknown;
+    return !!parsed &&
+      typeof parsed === 'object' &&
+      !Array.isArray(parsed) &&
+      isDeepStrictEqual(parsed, payload);
+  } catch {
+    return false;
+  }
+}
+
+/** Serialize mutators and evict exact snapshots unless the handler proves no change. */
 export function applyPreparedSnapshotInvalidation(
   config: Config,
   tools: Tool[],
@@ -209,10 +280,15 @@ export function applyPreparedSnapshotInvalidation(
 
       return withPreparedGraphLock(canonicalPath, context?.signal, async () => {
         try {
-          return await handler(args, context);
-        } finally {
+          const response = await handler(args, context);
+          if (isProvenNoChange(response)) return response;
           invalidateGraphCache(vault.path);
           if (canonicalPath !== vault.path) invalidateGraphCache(canonicalPath);
+          return response;
+        } catch (error) {
+          invalidateGraphCache(vault.path);
+          if (canonicalPath !== vault.path) invalidateGraphCache(canonicalPath);
+          throw error;
         }
       });
     };
@@ -225,4 +301,9 @@ export function applyPreparedSnapshotInvalidation(
  */
 export function getToolByName(name: string): Tool | undefined {
   return allTools.find(t => t.name === name);
+}
+
+/** Whether a name belongs to the product surface, including disabled tools. */
+export function isKnownToolName(name: string): boolean {
+  return rawTools.some(tool => tool.name === name);
 }

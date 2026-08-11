@@ -396,15 +396,20 @@ describe('analyze_link_hierarchy — required vault + empty-vault guard', () => 
     graphMod.clearGraphCaches();
   });
 
-  test('missing vault → STRUCTURED error (configured vaults + hint), not a raw string', async () => {
+  test('missing vault → STRUCTURED recovery with bounded configured choices', async () => {
     const res = await h.analyze_link_hierarchy({});
     assert.equal(res.isError, true, 'missing vault is an error');
     const body = JSON.parse(res.content[0].text);
-    assert.ok(typeof body.error === 'string' && body.error.length > 0, 'has an error message');
+    assert.equal(body.code, 'vault_required');
+    assert.ok(typeof body.message === 'string' && body.message.length > 0, 'has a message');
     assert.ok(Array.isArray(body.closest_matches), 'has closest_matches array');
     assert.ok(typeof body.hint === 'string' && body.hint.length > 0, 'has a hint');
-    // Lists the configured vault(s) so the AI can retry with a valid one.
-    assert.ok(body.error.includes('Vault'), 'error names the configured vault');
+    assert.ok(body.closest_matches.includes('Vault'), 'suggests a configured vault');
+    assert.equal(body.sideEffects.state, 'none');
+    assert.deepEqual(body.suggestionTrust, {
+      state: 'untrusted_identifiers',
+      fields: ['closest_matches'],
+    });
     assert.ok(body.hint.includes('get_started'), 'hint points at get_started');
   });
 
@@ -412,8 +417,11 @@ describe('analyze_link_hierarchy — required vault + empty-vault guard', () => 
     const res = await h.analyze_link_hierarchy({ vault: 'Vaultt' });
     assert.equal(res.isError, true);
     const body = JSON.parse(res.content[0].text);
-    assert.ok(body.error.includes('Unknown vault'), 'reports the unknown vault');
+    assert.equal(body.code, 'vault_not_found');
+    assert.equal(body.requested, 'Vaultt');
     assert.ok(body.closest_matches.includes('Vault'), 'suggests the near-match vault');
+    assert.ok(!body.message.includes('Vaultt') && !body.message.includes('Vault'));
+    assert.equal(body.sideEffects.state, 'none');
     assert.ok(body.hint.includes('get_started'));
   });
 

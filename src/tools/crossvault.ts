@@ -32,6 +32,7 @@ import { calculateIndexCoverage, coveragePercent, ratio } from '../embeddings/in
 import { withAnnotations, ToolAnnotations } from './safety.js';
 import { annotateCrossVault } from './graph-annotate.js';
 import { DeclaredCrossVaultGraphBuilder, normalizeVaultRelativePath } from '../graph/cross-vault.js';
+import { recoveryResponse } from '../tool-outcomes.js';
 
 /**
  * Tool definitions for cross-vault operations
@@ -211,10 +212,18 @@ export function createCrossVaultHandlers(config: Config) {
         // Check Ollama availability
         const ollama = await checkOllamaAvailability(ollamaConfig);
         if (!ollama.available || !ollama.hasModel) {
-          return {
-            content: [{ type: 'text', text: `Ollama not ready: ${ollama.error}` }],
-            isError: true
-          };
+          return recoveryResponse({
+            status: 'unavailable',
+            code: ollama.available ? 'model_unavailable' : 'ollama_unavailable',
+            message: ollama.available
+              ? 'The configured embedding model is not available in Ollama.'
+              : 'The Ollama embedding service is not available.',
+            hint: ollama.available
+              ? `Install the configured ${ollamaConfig.model} model in Ollama, then retry.`
+              : 'Start Ollama and verify the configured host, then retry.',
+            retryable: true,
+            sideEffects: { state: 'none' }
+          });
         }
 
         // Generate query embedding

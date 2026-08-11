@@ -116,14 +116,16 @@ export function resolveVault(config: Config, vaultName?: string): VaultConfig {
   if (!found) {
     const availableNames = config.vaults.map(v => v.name);
     const suggestions = closestMatches(vaultName, availableNames);
-    const suggestionNote = suggestions.length > 0
-      ? ` Did you mean: ${suggestions.join(', ')}?`
-      : '';
-    const err = new Error(
-      `Unknown vault: "${vaultName}". Available: ${availableNames.join(', ')}.${suggestionNote}`
-    ) as Error & { closest_matches: string[]; hint: string };
+    const err = new Error('The requested configured vault was not found.') as Error & {
+      closest_matches: string[];
+      hint: string;
+      requested: string;
+      recovery_code: 'vault_not_found';
+    };
     err.closest_matches = suggestions;
     err.hint = VAULT_NOT_FOUND_HINT;
+    err.requested = vaultName;
+    err.recovery_code = 'vault_not_found';
     throw err;
   }
   return found;

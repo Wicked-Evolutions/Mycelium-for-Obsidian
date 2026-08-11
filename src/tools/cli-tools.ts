@@ -10,21 +10,37 @@
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { Config } from '../config.js';
 import { ToolResponse } from '../types/index.js';
-import { execCli, execCliForVault, evalInObsidian, isCliAvailable } from '../cli/bridge.js';
+import { execCli, execCliForVault, evalInObsidian, probeObsidianCli } from '../cli/bridge.js';
 import { vaultParam } from './schema-helpers.js';
 import { withAnnotations, ToolAnnotations } from './safety.js';
+import { recoveryResponse } from '../tool-outcomes.js';
 
 /**
  * Wrap a CLI tool handler to check availability first
  */
 function withCliCheck(handler: (...args: any[]) => Promise<ToolResponse>): (...args: any[]) => Promise<ToolResponse> {
   return async (...args) => {
-    const available = await isCliAvailable();
-    if (!available) {
-      return {
-        content: [{ type: 'text', text: 'Obsidian CLI is not available. Make sure Obsidian 1.12+ with installer 1.12.7+ is running and CLI enabled.' }],
-        isError: true
-      };
+    const probe = await probeObsidianCli();
+    if (probe.status !== 'available') {
+      const code = probe.status === 'unknown' ? 'cli_probe_failed' : probe.status;
+      const message = probe.status === 'obsidian_unavailable'
+        ? 'The Obsidian app is not available to the CLI.'
+        : probe.status === 'cli_unavailable'
+          ? 'The Obsidian CLI is not available because it is not installed or enabled.'
+          : 'The Obsidian CLI availability check could not be completed.';
+      const hint = probe.status === 'obsidian_unavailable'
+        ? 'Start Obsidian with the intended vault open, then retry this CLI-only tool.'
+        : probe.status === 'cli_unavailable'
+          ? 'Install or enable the Obsidian CLI, then restart the MCP server.'
+          : 'Verify the Obsidian CLI installation and app state before retrying.';
+      return recoveryResponse({
+        status: 'unavailable',
+        code,
+        message,
+        hint,
+        retryable: true,
+        sideEffects: { state: 'none' }
+      });
     }
     return handler(...args);
   };

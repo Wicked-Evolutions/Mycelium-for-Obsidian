@@ -15,7 +15,20 @@
 import * as crypto from 'crypto';
 import express, { Request, Response, NextFunction } from 'express';
 import { Config, getPrimaryVault } from './config.js';
-import { allTools, createAllHandlers } from './tools/index.js';
+import {
+  allTools,
+  applicableRecoveryTools,
+  createAllHandlers,
+  getToolByName,
+  isKnownToolName
+} from './tools/index.js';
+import {
+  normalizeToolResponse,
+  toolResponseBody,
+  unknownToolResponse,
+  unexpectedToolFailure
+} from './tool-outcomes.js';
+import { ToolResponse } from './types/index.js';
 
 export interface HttpServerOptions {
   port: number;
@@ -72,6 +85,25 @@ export function createHttpServer(options: HttpServerOptions) {
   // Create all handlers
   const allHandlers = options.handlers ?? createAllHandlers(config);
   const vault = getPrimaryVault(config);
+  const recoveryContext = {
+    enabledTools: allTools,
+    applicableTools: applicableRecoveryTools(config, allTools),
+  };
+
+  const errorBody = (result: ToolResponse, toolName: string): unknown => {
+    const tool = getToolByName(toolName);
+    const normalized = tool
+      ? normalizeToolResponse(tool, result, recoveryContext)
+      : result;
+    if (normalized.structuredContent) return normalized.structuredContent;
+    try {
+      const parsed = toolResponseBody(normalized);
+      if (parsed && typeof parsed === 'object') return parsed;
+    } catch {
+      // Fall through to a generic body rather than reflecting raw diagnostics.
+    }
+    return { error: 'The request could not be completed.' };
+  };
 
   // Health check (no auth required)
   app.get('/health', (req: Request, res: Response) => {
@@ -95,29 +127,40 @@ export function createHttpServer(options: HttpServerOptions) {
     try {
       const { tool, args = {} } = req.body;
 
-      if (!tool) {
+      if (typeof tool !== 'string' || tool.length === 0) {
         return res.status(400).json({ error: 'tool name is required' });
       }
 
-      const handler = allHandlers[tool];
+      const handler = Object.prototype.hasOwnProperty.call(allHandlers, tool)
+        ? allHandlers[tool]
+        : undefined;
       if (!handler) {
-        return res.status(404).json({
-          error: `Tool not found: ${tool}`,
-          available: allTools.map(t => t.name)
-        });
+        const outcome = unknownToolResponse(
+          tool,
+          recoveryContext,
+          config.disabledTools.has(tool) && isKnownToolName(tool)
+        );
+        return res.status(404).json(outcome.structuredContent);
       }
 
       const result = await handler(args, { signal: controller.signal });
 
       if (result.isError) {
-        return res.status(500).json({ error: result.content[0]?.text });
+        return res.status(500).json(errorBody(result, tool));
       }
 
-      // Parse the JSON result
-      const data = JSON.parse(result.content[0]?.text || '{}');
-      res.json(data);
+      res.json(toolResponseBody(result));
     } catch (error) {
-      if (!res.headersSent) res.status(500).json({ error: String(error) });
+      if (!res.headersSent) {
+        const toolName = typeof req.body?.tool === 'string' ? req.body.tool : '';
+        const tool = getToolByName(toolName);
+        if (tool) {
+          const outcome = unexpectedToolFailure(tool, error);
+          res.status(500).json(outcome.structuredContent);
+        } else {
+          res.status(500).json({ error: 'The request could not be completed.' });
+        }
+      }
     } finally {
       req.removeListener('aborted', abortRequest);
       res.removeListener('close', abortOnClose);
@@ -143,13 +186,12 @@ export function createHttpServer(options: HttpServerOptions) {
       });
 
       if (result.isError) {
-        return res.status(500).json({ error: result.content[0]?.text });
+        return res.status(500).json(errorBody(result, 'semantic_search'));
       }
 
-      const data = JSON.parse(result.content[0]?.text || '{}');
-      res.json(data);
-    } catch (error) {
-      res.status(500).json({ error: String(error) });
+      res.json(toolResponseBody(result));
+    } catch {
+      res.status(500).json({ error: 'The request could not be completed.' });
     }
   });
 
@@ -165,13 +207,12 @@ export function createHttpServer(options: HttpServerOptions) {
       const result = await allHandlers.read_file({ path: filePath });
 
       if (result.isError) {
-        return res.status(500).json({ error: result.content[0]?.text });
+        return res.status(500).json(errorBody(result, 'read_file'));
       }
 
-      const data = JSON.parse(result.content[0]?.text || '{}');
-      res.json(data);
-    } catch (error) {
-      res.status(500).json({ error: String(error) });
+      res.json(toolResponseBody(result));
+    } catch {
+      res.status(500).json({ error: 'The request could not be completed.' });
     }
   });
 
@@ -179,10 +220,12 @@ export function createHttpServer(options: HttpServerOptions) {
   app.get('/index/status', authMiddleware, async (req: Request, res: Response) => {
     try {
       const result = await allHandlers.index_status({});
-      const data = JSON.parse(result.content[0]?.text || '{}');
-      res.json(data);
-    } catch (error) {
-      res.status(500).json({ error: String(error) });
+      if (result.isError) {
+        return res.json(errorBody(result, 'index_status'));
+      }
+      res.json(toolResponseBody(result));
+    } catch {
+      res.status(500).json({ error: 'The request could not be completed.' });
     }
   });
 

@@ -687,6 +687,78 @@ describe('open_vault exact snapshot preparation', () => {
     assert.equal(getPreparedExactGraph(root), undefined);
   });
 
+  test('proven no-change mutator preserves prepared snapshots', async () => {
+    const { root, config } = fixture();
+    replacePreparedExactGraph({
+      canonicalPath: root,
+      vaultId: 'abcdef0123456789',
+      digest: 'same',
+      capturedAt: '2026-08-10T12:00:00.000Z',
+      graph: exactGraph(),
+    });
+    const outcome = {
+      status: 'no_change',
+      code: 'search_text_not_found',
+      message: 'The requested search text was not found, so the file was unchanged.',
+      retryable: false,
+      sideEffects: { state: 'none' },
+    };
+    const wrapped = applyPreparedSnapshotInvalidation(
+      config,
+      [{ name: 'no_change_mutator', annotations: { readOnlyHint: false } }],
+      {
+        no_change_mutator: async () => ({
+          content: [{ type: 'text', text: JSON.stringify(outcome) }],
+          isError: false,
+          structuredContent: outcome,
+        }),
+      },
+    );
+
+    const response = await wrapped.no_change_mutator({ vault: 'Project' });
+    assert.equal(response.structuredContent.sideEffects.state, 'none');
+    assert.ok(
+      getPreparedExactGraph(root),
+      'proven no-change outcome must not evict authoritative prepared state',
+    );
+  });
+
+  test('conflicting no-change text and structured content invalidates prepared snapshots', async () => {
+    const { root, config } = fixture();
+    replacePreparedExactGraph({
+      canonicalPath: root,
+      vaultId: 'abcdef0123456789',
+      digest: 'same',
+      capturedAt: '2026-08-10T12:00:00.000Z',
+      graph: exactGraph(),
+    });
+    const outcome = {
+      status: 'no_change',
+      code: 'search_text_not_found',
+      message: 'The requested search text was not found, so the file was unchanged.',
+      retryable: false,
+      sideEffects: { state: 'none' },
+    };
+    const wrapped = applyPreparedSnapshotInvalidation(
+      config,
+      [{ name: 'conflicting_mutator', annotations: { readOnlyHint: false } }],
+      {
+        conflicting_mutator: async () => ({
+          content: [{ type: 'text', text: 'post-write verification failed' }],
+          isError: true,
+          structuredContent: outcome,
+        }),
+      },
+    );
+
+    await wrapped.conflicting_mutator({ vault: 'Project' });
+    assert.equal(
+      getPreparedExactGraph(root),
+      undefined,
+      'conflicting recovery representations cannot prove that no mutation occurred',
+    );
+  });
+
   test('same-vault mutators serialize before newer snapshot preparation', async () => {
     const { root, config } = fixture();
     const disabledHandlers = createAllHandlers({

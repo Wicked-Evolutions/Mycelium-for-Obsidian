@@ -74,6 +74,35 @@ test('stdio transport initializes, exposes surfaces, accepts a large request, an
     const tools = await client.listTools();
     assert.ok(tools.tools.some(tool => tool.name === 'list_files'));
 
+    const unknown = await client.callTool({
+      name: 'read_note',
+      arguments: {},
+    });
+    assert.equal(unknown.isError, true);
+    assert.equal(unknown.structuredContent?.code, 'unknown_tool');
+    assert.deepEqual(JSON.parse(unknown.content[0].text), unknown.structuredContent);
+    assert.deepEqual(unknown.structuredContent?.closest_matches, [
+      'read_file',
+      'find_note_by_name',
+      'follow_link',
+    ]);
+
+    const prototypeName = await client.callTool({
+      name: 'toString',
+      arguments: {},
+    });
+    assert.equal(prototypeName.isError, true);
+    assert.equal(prototypeName.structuredContent?.code, 'unknown_tool');
+    assert.equal(prototypeName.structuredContent?.requested, 'toString');
+
+    const missingRead = await client.callTool({
+      name: 'read_file',
+      arguments: { vault: 'TransportVault', path: 'Missing.md' },
+    });
+    assert.equal(missingRead.isError, true);
+    assert.equal(missingRead.structuredContent?.code, 'note_not_found');
+    assert.deepEqual(JSON.parse(missingRead.content[0].text), missingRead.structuredContent);
+
     const prompts = await client.listPrompts();
     assert.ok(prompts.prompts.length > 0);
 
@@ -140,6 +169,316 @@ test('HTTP transport enforces bearer auth and executes an authenticated call', {
     const entries = await call.json();
     assert.ok(Array.isArray(entries));
     assert.ok(entries.some(entry => entry.name === 'Existing.md'));
+
+    const missingRead = await fetch(`${base}/call`, {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tool: 'read_file',
+        args: { vault: 'TransportVault', path: 'Missing.md' },
+      }),
+    });
+    assert.equal(missingRead.status, 500);
+    const missingReadBody = await missingRead.json();
+    assert.equal(missingReadBody.status, 'needs_action');
+    assert.equal(missingReadBody.code, 'note_not_found');
+    assert.deepEqual(missingReadBody.sideEffects, { state: 'none' });
+
+    const unresolvedLink = await fetch(`${base}/call`, {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tool: 'resolve_wikilink',
+        args: { vault: 'TransportVault', link: 'Missing' },
+      }),
+    });
+    assert.equal(unresolvedLink.status, 200);
+    const unresolvedLinkBody = await unresolvedLink.json();
+    assert.equal(unresolvedLinkBody.status, 'needs_action');
+    assert.equal(unresolvedLinkBody.code, 'note_not_found');
+    assert.deepEqual(unresolvedLinkBody.sideEffects, { state: 'none' });
+
+    const similarWithoutIndex = await fetch(`${base}/call`, {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tool: 'get_similar',
+        args: { vault: 'TransportVault', path: 'Existing.md' },
+      }),
+    });
+    assert.equal(similarWithoutIndex.status, 200);
+    const similarWithoutIndexBody = await similarWithoutIndex.json();
+    assert.equal(similarWithoutIndexBody.error, 'File not indexed. Run index_file first.');
+    assert.equal(similarWithoutIndexBody.path, 'Existing.md');
+    assert.equal(similarWithoutIndexBody.status, 'needs_action');
+    assert.equal(similarWithoutIndexBody.code, 'file_index_required');
+    assert.deepEqual(similarWithoutIndexBody.sideEffects, { state: 'none' });
+    assert.deepEqual(similarWithoutIndexBody.actions, [{
+      label: 'Index this file',
+      tool: 'index_file',
+      arguments: { path: 'Existing.md', vault: 'TransportVault' },
+    }]);
+
+    const unknown = await fetch(`${base}/call`, {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tool: 'read_note', args: {} }),
+    });
+    assert.equal(unknown.status, 404);
+    const unknownBody = await unknown.json();
+    assert.equal(unknownBody.status, 'needs_action');
+    assert.equal(unknownBody.code, 'unknown_tool');
+    assert.deepEqual(unknownBody.closest_matches, [
+      'read_file',
+      'find_note_by_name',
+      'follow_link',
+    ]);
+
+    const prototypeName = await fetch(`${base}/call`, {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tool: 'constructor', args: {} }),
+    });
+    assert.equal(prototypeName.status, 404);
+    const prototypeBody = await prototypeName.json();
+    assert.equal(prototypeBody.code, 'unknown_tool');
+    assert.equal(prototypeBody.requested, 'constructor');
+
+    for (const invalidTool of [['read_file'], { name: 'read_file' }]) {
+      const invalid = await fetch(`${base}/call`, {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tool: invalidTool, args: {} }),
+      });
+      assert.equal(invalid.status, 400);
+      assert.deepEqual(await invalid.json(), { error: 'tool name is required' });
+    }
+  } finally {
+    try {
+      if (server) await closeServer(server);
+    } finally {
+      if (previousToken === undefined) delete process.env.OBSIDIAN_HTTP_TOKEN;
+      else process.env.OBSIDIAN_HTTP_TOKEN = previousToken;
+    }
+  }
+});
+
+test('legacy HTTP routes preserve their historical status matrix', { timeout: 30_000 }, async () => {
+  const vaultDir = createTempVault({ 'Existing.md': '# Existing\n' });
+  vaultsToClean.push(vaultDir);
+  const previousToken = process.env.OBSIDIAN_HTTP_TOKEN;
+  let server;
+  let indexCall = 0;
+
+  const recovery = {
+    status: 'failed',
+    code: 'fixture_failure',
+    message: 'The fixture handler could not complete.',
+    retryable: true,
+    sideEffects: { state: 'none' },
+  };
+  const response = (payload, isError = false) => ({
+    content: [{ type: 'text', text: JSON.stringify(payload) }],
+    isError,
+    ...(isError ? { structuredContent: payload } : {}),
+  });
+
+  try {
+    process.env.OBSIDIAN_HTTP_TOKEN = 'transport-legacy-secret';
+    const config = loadConfigFromVault(vaultDir);
+    server = createHttpServer({
+      port: 0,
+      config,
+      handlers: {
+        semantic_search: async ({ query }) => {
+          if (query === 'throw') throw new Error('private search diagnostic');
+          if (query === 'handler-error') return response(recovery, true);
+          return response({ route: 'search', query });
+        },
+        read_file: async ({ path: filePath }) => {
+          if (filePath === 'throw') throw new Error('private read diagnostic');
+          if (filePath === 'handler-error') return response(recovery, true);
+          return response({ route: 'read', path: filePath });
+        },
+        index_status: async () => {
+          indexCall += 1;
+          if (indexCall === 1) return response({ route: 'index', indexed: 0 });
+          if (indexCall === 2) return response(recovery, true);
+          throw new Error('private index diagnostic');
+        },
+      },
+    });
+    if (!server.listening) await once(server, 'listening');
+    const address = server.address();
+    assert.ok(address && typeof address === 'object');
+    const base = `http://127.0.0.1:${address.port}`;
+    const headers = {
+      Authorization: 'Bearer transport-legacy-secret',
+      'Content-Type': 'application/json',
+    };
+
+    const request = (route, body) => fetch(`${base}${route}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+    });
+
+    assert.equal((await request('/search', {})).status, 400);
+    const searchSuccess = await request('/search', { query: 'ok' });
+    assert.equal(searchSuccess.status, 200);
+    assert.deepEqual(await searchSuccess.json(), { route: 'search', query: 'ok' });
+    const searchError = await request('/search', { query: 'handler-error' });
+    assert.equal(searchError.status, 500);
+    assert.deepEqual(await searchError.json(), recovery);
+    const searchThrown = await request('/search', { query: 'throw' });
+    assert.equal(searchThrown.status, 500);
+    assert.deepEqual(await searchThrown.json(), { error: 'The request could not be completed.' });
+
+    assert.equal((await request('/read', {})).status, 400);
+    const readSuccess = await request('/read', { path: 'Existing.md' });
+    assert.equal(readSuccess.status, 200);
+    assert.deepEqual(await readSuccess.json(), { route: 'read', path: 'Existing.md' });
+    const readError = await request('/read', { path: 'handler-error' });
+    assert.equal(readError.status, 500);
+    assert.deepEqual(await readError.json(), recovery);
+    const readThrown = await request('/read', { path: 'throw' });
+    assert.equal(readThrown.status, 500);
+    assert.deepEqual(await readThrown.json(), { error: 'The request could not be completed.' });
+
+    const indexSuccess = await fetch(`${base}/index/status`, { headers });
+    assert.equal(indexSuccess.status, 200);
+    assert.deepEqual(await indexSuccess.json(), { route: 'index', indexed: 0 });
+    const indexError = await fetch(`${base}/index/status`, { headers });
+    assert.equal(indexError.status, 200);
+    assert.deepEqual(await indexError.json(), recovery);
+    const indexThrown = await fetch(`${base}/index/status`, { headers });
+    assert.equal(indexThrown.status, 500);
+    assert.deepEqual(await indexThrown.json(), { error: 'The request could not be completed.' });
+  } finally {
+    try {
+      if (server) await closeServer(server);
+    } finally {
+      if (previousToken === undefined) delete process.env.OBSIDIAN_HTTP_TOKEN;
+      else process.env.OBSIDIAN_HTTP_TOKEN = previousToken;
+    }
+  }
+});
+
+test('HTTP transport distinguishes a disabled tool without suggesting it', { timeout: 30_000 }, async () => {
+  const vaultDir = createTempVault({ 'Existing.md': '# Existing\n' });
+  vaultsToClean.push(vaultDir);
+  const previousToken = process.env.OBSIDIAN_HTTP_TOKEN;
+  let server;
+
+  try {
+    process.env.OBSIDIAN_HTTP_TOKEN = 'transport-disabled-secret';
+    const config = loadConfigFromVault(vaultDir, { disabled: ['read_file'] });
+    server = createHttpServer({ port: 0, config });
+    if (!server.listening) await once(server, 'listening');
+    const address = server.address();
+    assert.ok(address && typeof address === 'object');
+    const response = await fetch(`http://127.0.0.1:${address.port}/call`, {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer transport-disabled-secret',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ tool: 'read_file', args: { path: 'Existing.md' } }),
+    });
+    assert.equal(response.status, 404);
+    const payload = await response.json();
+    assert.equal(payload.status, 'unavailable');
+    assert.equal(payload.code, 'tool_disabled');
+    assert.equal(payload.requested, 'read_file');
+    assert.ok(!payload.closest_matches?.includes('read_file'));
+
+    const alias = await fetch(`http://127.0.0.1:${address.port}/call`, {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer transport-disabled-secret',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ tool: ['read_file'], args: { path: 'Existing.md' } }),
+    });
+    assert.equal(alias.status, 400);
+    assert.deepEqual(await alias.json(), { error: 'tool name is required' });
+  } finally {
+    try {
+      if (server) await closeServer(server);
+    } finally {
+      if (previousToken === undefined) delete process.env.OBSIDIAN_HTTP_TOKEN;
+      else process.env.OBSIDIAN_HTTP_TOKEN = previousToken;
+    }
+  }
+});
+
+test('HTTP preserves authoritative graph and open-vault error objects', { timeout: 30_000 }, async () => {
+  const vaultDir = createTempVault({ 'Existing.md': '# Existing\n' });
+  vaultsToClean.push(vaultDir);
+  const previousToken = process.env.OBSIDIAN_HTTP_TOKEN;
+  let server;
+
+  const graphOutcome = {
+    status: 'analysis_failed',
+    message: 'Exact graph analysis failed.',
+    decisionState: {
+      requestedMode: 'exact',
+      targetReadiness: 'open',
+      probeInvoked: true,
+      openInvoked: false,
+      analysisInvoked: true,
+    },
+  };
+  const openVaultOutcome = {
+    status: 'exact_unavailable',
+    message: 'Exact vault preparation is unavailable.',
+    decisionState: {
+      requestedMode: 'exact',
+      targetReadiness: 'closed',
+      probeInvoked: true,
+      openInvoked: true,
+      analysisInvoked: false,
+    },
+  };
+
+  try {
+    process.env.OBSIDIAN_HTTP_TOKEN = 'transport-domain-error-secret';
+    const config = loadConfigFromVault(vaultDir);
+    server = createHttpServer({
+      port: 0,
+      config,
+      handlers: {
+        analyze_link_hierarchy: async () => ({
+          content: [{ type: 'text', text: JSON.stringify(graphOutcome) }],
+          isError: true,
+        }),
+        open_vault: async () => ({
+          content: [{ type: 'text', text: JSON.stringify(openVaultOutcome) }],
+          isError: true,
+        }),
+      },
+    });
+    if (!server.listening) await once(server, 'listening');
+    const address = server.address();
+    assert.ok(address && typeof address === 'object');
+    const base = `http://127.0.0.1:${address.port}`;
+    const headers = {
+      Authorization: 'Bearer transport-domain-error-secret',
+      'Content-Type': 'application/json',
+    };
+
+    for (const [tool, expected] of [
+      ['analyze_link_hierarchy', graphOutcome],
+      ['open_vault', openVaultOutcome],
+    ]) {
+      const response = await fetch(`${base}/call`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ tool, args: { vault: 'TransportVault' } }),
+      });
+      assert.equal(response.status, 500);
+      assert.deepEqual(await response.json(), expected);
+    }
   } finally {
     try {
       if (server) await closeServer(server);
@@ -334,11 +673,11 @@ test('HTTP disconnect cancels the real graph handler rather than leaving graph w
   }
 });
 
-function loadConfigFromVault(vaultDir) {
+function loadConfigFromVault(vaultDir, { disabled = [] } = {}) {
   const previousVaults = process.env.OBSIDIAN_VAULTS;
   const previousDisabled = process.env.OBSIDIAN_DISABLED_TOOLS;
   process.env.OBSIDIAN_VAULTS = JSON.stringify({ TransportVault: vaultDir });
-  delete process.env.OBSIDIAN_DISABLED_TOOLS;
+  process.env.OBSIDIAN_DISABLED_TOOLS = disabled.join(',');
   try {
     return loadConfig();
   } finally {

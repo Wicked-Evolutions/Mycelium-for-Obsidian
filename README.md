@@ -190,7 +190,7 @@ the index tools when an operation must perform no derived-index writes.
 
 - **Unified Multi-Vault**: Single server process handles all vaults. Most tools accept an optional `vault` parameter; authoritative graph orientation (`analyze_link_hierarchy`) requires an explicit one.
 - **Explicit Capability Tiers**: 75 filesystem tools + 1 explicit app-contact tool + 28 CLI-only tools
-- **Orientation & Self-Correction**: `get_started` and `discover_tools` map the server's surface; configured vault names surface as an `enum` in each tool's input schema; unknown vault/note names return closest-match suggestions instead of bare errors
+- **Orientation & Self-Correction**: `get_started` and `discover_tools` map the server's surface; configured vault names surface as an `enum` in each tool's input schema; bounded structured recovery outcomes distinguish unknown tools, unavailable providers, conflicts, refusals, and safe no-change results
 - **File Operations**: List, read, create, update, delete, move files with frontmatter support
 - **Wikilink Resolution**: Resolve `[[wikilinks]]`, get outlinks/backlinks, follow link chains
 - **Semantic Search**: Vector-based similarity search using Ollama embeddings
@@ -210,9 +210,46 @@ the index tools when an operation must perform no derived-index writes.
 - `providerMode: "exact"` (default) consumes a prepared, session-only Obsidian base-graph snapshot. It never calls the CLI, opens or focuses a window, or falls back to filesystem analysis. If preparation is needed, it returns `decision_required` before graph construction or ranking.
 - `providerMode: "filesystem"` is an explicit approximation. It does not inspect the Obsidian registry, call the CLI, or open the app.
 
-To choose exact analysis, call `open_vault` with one configured vault. The tool resolves that configured canonical path to exactly one registered 16-character Obsidian vault ID, opens it only when needed, and prepares the exact base graph without ranking. Re-run `analyze_link_hierarchy` in exact mode to rank that snapshot. Snapshots remain in server-session memory only and are invalidated by vault changes, identity changes, every attempted in-process mutation, or a fresh preparation attempt.
+To choose exact analysis, call `open_vault` with one configured vault. The tool resolves that configured canonical path to exactly one registered 16-character Obsidian vault ID, opens it only when needed, and prepares the exact base graph without ranking. Re-run `analyze_link_hierarchy` in exact mode to rank that snapshot. Snapshots remain in server-session memory only and are invalidated by vault changes, identity changes, in-process mutation attempts other than a canonical proven no-change outcome, or a fresh preparation attempt.
 
 Graph results include top-level `provider`, graph-build `providerState`, and request-level `decisionState`. Control outcomes such as `decision_required` and `exact_unavailable` include `decisionState` but no `providerState`, because no graph was returned. Other graph consumers, including additive search enrichment, retain their existing automatic provider recovery and bounded `providerFallbackReason` behavior.
+
+## Structured Recovery Outcomes
+
+Routine successful tool responses keep their established contracts. When a tool cannot complete safely or usefully, the server returns a bounded recovery object as both the first JSON text block and MCP `structuredContent`:
+
+```json
+{
+  "status": "needs_action",
+  "code": "unknown_tool",
+  "message": "The requested tool is not registered in this server instance.",
+  "requested": "read_note",
+  "closest_matches": [
+    "read_file",
+    "find_note_by_name",
+    "follow_link"
+  ],
+  "hint": "Use discover_tools to inspect the enabled tool inventory before retrying.",
+  "actions": [
+    {
+      "label": "List available tools",
+      "tool": "discover_tools"
+    }
+  ],
+  "retryable": false,
+  "sideEffects": {
+    "state": "none"
+  }
+}
+```
+
+Recovery statuses cover `needs_action`, `no_change`, `unavailable`, `conflict`, `refused`, `cancelled`, and `failed`. Specific codes distinguish conditions such as an unknown or disabled tool, an unavailable Obsidian CLI, app, Ollama service, or model, an index that must be built, a failed precondition, and a request that safely made no change.
+
+Closest matches and next actions are suggestions only: the server never executes a guessed replacement. Suggestions are capped, sanitized, deterministic, and limited to tools enabled for the current server and applicable to the request; read-like requests do not suggest mutators. Suggestions derived from vault content are marked as untrusted identifiers and are never copied into prose or executable actions.
+
+`sideEffects.state` reports whether state was changed: `none`, `performed`, `possible`, or `unknown`. Unexpected reader failures report `none`; unexpected writer failures report `unknown` rather than claiming a write did or did not occur. Existing graph and vault decision/provider states remain their own authoritative domain contracts.
+
+Over stdio, clients receive the full MCP tool result including `structuredContent`. HTTP successes keep their existing response bodies; known handler errors return the structured body with status 500, while unknown and disabled tools return distinct structured bodies with status 404. Legacy shorthand routes keep their existing HTTP status behavior.
 
 ## Capability Tiers
 
@@ -228,7 +265,7 @@ Graph results include top-level `provider`, graph-build `providerState`, and req
 
 **CLI tools** access Obsidian's runtime API (`app.vault`, `app.metadataCache`, `app.fileManager`, etc.) via the Obsidian CLI. They provide access to features that only exist in the running app — metadata cache, daily notes configuration, task parsing, property types, backlink index, version history, and more.
 
-If Obsidian is not running, CLI tools return a clear error message. All filesystem tools continue to work normally.
+If Obsidian is not running, CLI tools return a structured unavailable outcome with a corrective hint. All filesystem tools continue to work normally.
 
 ### Enabling the Obsidian CLI
 
@@ -484,7 +521,7 @@ The additive `declaredCrossVaultGraph` projects only validated cross-vault decla
 
 ### CLI-Only (28 tools — require Obsidian 1.12+ with installer 1.12.7+)
 
-These tools access Obsidian's runtime state, plugin systems, or internal databases. They require the Obsidian app to be running with [CLI enabled](https://obsidian.md/help/cli). If Obsidian is not running, they return a clear error message.
+These tools access Obsidian's runtime state, plugin systems, or internal databases. They require the Obsidian app to be running with [CLI enabled](https://obsidian.md/help/cli). If Obsidian is not running, they return a structured unavailable outcome with a corrective hint.
 
 #### Commands (2)
 
@@ -616,6 +653,7 @@ src/
 ├── index.ts              # Entry point, MCP server setup
 ├── http-server.ts        # HTTP server mode
 ├── config.ts             # Config loading + resolveVault() helper
+├── tool-outcomes.ts      # Bounded structured recovery contract
 ├── types/index.ts        # TypeScript type definitions
 ├── cli/
 │   ├── bridge.ts         # Obsidian CLI bridge (1.12+, installer 1.12.7+)
@@ -657,7 +695,7 @@ The following tools have application-state or broad-write consequences. Understa
 
 ### `search_replace_in_file` — fixed in v1.0.1 ([#4](https://github.com/Wicked-Evolutions/Mycelium-for-Obsidian/issues/4))
 
-**Fixed.** Previously, when the search text was not found, the tool wrote the literal string `"NO_CHANGE"` as file content, destroying the original. Now it safely returns an error without modifying the file.
+**Fixed.** Previously, when the search text was not found, the tool wrote the literal string `"NO_CHANGE"` as file content, destroying the original. Now it returns a structured `no_change` outcome and does not modify the file.
 
 ### `update_section` on H1 headings — by design ([#5](https://github.com/Wicked-Evolutions/Mycelium-for-Obsidian/issues/5))
 
@@ -669,7 +707,7 @@ The following tools have application-state or broad-write consequences. Understa
 
 ## Known Limitations
 
-- **CLI-only tools require Obsidian running** — a subset of tools need Obsidian 1.12+ with installer 1.12.7+ and [CLI enabled](https://obsidian.md/help/cli). If Obsidian is not running, these tools return a clear error while all other tools continue working.
+- **CLI-only tools require Obsidian running** — a subset of tools need Obsidian 1.12+ with installer 1.12.7+ and [CLI enabled](https://obsidian.md/help/cli). If Obsidian is not running, these tools return a structured unavailable outcome while all other tools continue working.
 - **Unicode filenames** — Files with curly apostrophes (U+2019) and some Unicode characters may fail to resolve.
 - **Vault path changes** — If a vault folder is renamed on disk, the `OBSIDIAN_VAULTS` environment variable must be updated manually.
 - **Exact graph snapshots are session-only** — Restarting the MCP server clears prepared snapshots. Run `open_vault` again before exact orientation; choose `providerMode: "filesystem"` when an explicit approximation is sufficient.
