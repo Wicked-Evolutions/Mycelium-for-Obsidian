@@ -21,14 +21,22 @@ import {
   ListToolsRequestSchema,
   CallToolRequestSchema,
   ListPromptsRequestSchema,
-  GetPromptRequestSchema
+  GetPromptRequestSchema,
+  CallToolResult
 } from '@modelcontextprotocol/sdk/types.js';
 import { loadConfig, Config } from './config.js';
-import { allTools, createAllHandlers } from './tools/index.js';
+import {
+  allTools,
+  applicableRecoveryTools,
+  createAllHandlers,
+  getToolByName,
+  isKnownToolName
+} from './tools/index.js';
 import { allPrompts, getPromptMessages } from './prompts/index.js';
 import { createVaultWatcher, VaultWatcher } from './embeddings/watcher.js';
 import { createHttpServer } from './http-server.js';
 import { SERVER_VERSION } from './version.js';
+import { unknownToolResponse, unexpectedToolFailure } from './tool-outcomes.js';
 
 export const STDIO_MAX_BUFFER_SIZE = 128 * 1024 * 1024;
 
@@ -62,6 +70,10 @@ const server = new Server(
 
 // Create tool handlers
 const handlers = createAllHandlers(config);
+const recoveryContext = {
+  enabledTools: allTools,
+  applicableTools: applicableRecoveryTools(config, allTools),
+};
 
 // Create file watcher for auto-indexing
 let watcher: VaultWatcher | null = null;
@@ -86,12 +98,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
 
   console.error(`[mcp-obsidian] Tool call: ${name}`);
 
-  const handler = handlers[name];
+  const handler = Object.prototype.hasOwnProperty.call(handlers, name)
+    ? handlers[name]
+    : undefined;
   if (!handler) {
-    return {
-      content: [{ type: 'text', text: `Unknown tool: ${name}` }],
-      isError: true
-    } as const;
+    return unknownToolResponse(
+      name,
+      recoveryContext,
+      config.disabledTools.has(name) && isKnownToolName(name)
+    ) as CallToolResult;
   }
 
   try {
@@ -100,16 +115,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
       { signal: extra.signal }
     );
     console.error(`[mcp-obsidian] Tool complete: ${name}`);
-    return {
-      content: result.content,
-      isError: result.isError
-    } as const;
+    return result as CallToolResult;
   } catch (error) {
     console.error(`[mcp-obsidian] Tool error:`, error);
-    return {
-      content: [{ type: 'text', text: `Error executing ${name}: ${error}` }],
-      isError: true
-    } as const;
+    const tool = getToolByName(name);
+    return (tool
+      ? unexpectedToolFailure(tool, error)
+      : unknownToolResponse(
+        name,
+        recoveryContext,
+        config.disabledTools.has(name) && isKnownToolName(name)
+      )) as CallToolResult;
   }
 });
 

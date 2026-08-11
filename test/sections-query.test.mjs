@@ -284,6 +284,12 @@ describe('append_to_section', () => {
         res.content[0].text.includes('Nonexistent Section'),
         'error message names the missing section',
       );
+      const payload = JSON.parse(res.content[0].text);
+      assert.equal(payload.status, 'needs_action');
+      assert.equal(payload.code, 'section_not_found');
+      assert.deepEqual(payload.sideEffects, { state: 'none' });
+      assert.equal(payload.actions[0].tool, 'get_outline');
+      assert.deepEqual(payload, res.structuredContent);
     } finally {
       cleanup(vaultDir);
     }

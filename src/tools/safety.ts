@@ -18,6 +18,7 @@
 
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { ToolRequestContext, ToolResponse } from '../types/index.js';
+import { isRecoveryOutcome, recoveryResponse } from '../tool-outcomes.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type AnyHandler = (
@@ -97,30 +98,25 @@ export function withAnnotations(
  * restriction. isError:true so clients surface it.
  */
 function readOnlyRefusal(toolName: string): ToolResponse {
-  return {
-    content: [
-      {
-        type: 'text',
-        text: JSON.stringify(
-          {
-            error: 'read_only_mode',
-            tool: toolName,
-            message:
-              `This server is running in read-only mode (OBSIDIAN_READ_ONLY is set), ` +
-              `so the vault/app-state mutator "${toolName}" is refused. No changes were made.`,
-            hint:
-              `To make changes, ask the operator to unset the OBSIDIAN_READ_ONLY environment ` +
-              `variable and restart the MCP server. Read, search, analysis, and index tools ` +
-              `remain available — use those to inspect the vault without modifying it.`,
-            readOnly: true,
-          },
-          null,
-          2
-        ),
-      },
-    ],
-    isError: true,
-  };
+  const message =
+    `This server is running in read-only mode, so the "${toolName}" mutator was refused.`;
+  const hint =
+    'Ask the operator to disable OBSIDIAN_READ_ONLY and restart the MCP server before retrying a mutation.';
+  return recoveryResponse({
+    status: 'refused',
+    code: 'read_only_mode',
+    message,
+    hint,
+    retryable: false,
+    sideEffects: { state: 'none' },
+    legacy: {
+      error: 'read_only_mode',
+      tool: toolName,
+      message,
+      hint,
+      readOnly: true,
+    },
+  });
 }
 
 /**
@@ -173,6 +169,9 @@ export const UNTRUSTED_END = '[END UNTRUSTED VAULT CONTENT]';
  */
 export function wrapUntrusted(response: ToolResponse): ToolResponse {
   if (response.isError) return response;
+  if (response.structuredContent && isRecoveryOutcome(response.structuredContent)) {
+    return response;
+  }
   return {
     ...response,
     content: response.content.map(block => {

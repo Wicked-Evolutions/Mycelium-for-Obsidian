@@ -17,6 +17,7 @@ import {
 } from '../parsers/markdown.js';
 import { vaultParam } from './schema-helpers.js';
 import { withAnnotations, ToolAnnotations } from './safety.js';
+import { recoveryResponse } from '../tool-outcomes.js';
 
 /**
  * Byte-delta telemetry helper: on-disk UTF-8 size of a vault file, or 0 if
@@ -124,6 +125,28 @@ export const sectionTools: Tool[] = withAnnotations(rawSectionTools, sectionAnno
  * Handler functions for section tools
  */
 export function createSectionHandlers(config: Config) {
+  const sectionNotFoundResponse = (
+    args: { vault?: string; path: string; heading: string },
+    originalError?: string
+  ): ToolResponse => recoveryResponse({
+    status: 'needs_action',
+    code: 'section_not_found',
+    message: 'The requested section heading was not found.',
+    requested: args.heading,
+    hint: 'Use get_outline to inspect the note headings, then retry with an exact heading.',
+    actions: config.disabledTools.has('get_outline') ? undefined : [{
+      label: 'Inspect note headings',
+      tool: 'get_outline',
+      arguments: {
+        path: args.path,
+        ...(args.vault ? { vault: args.vault } : {})
+      }
+    }],
+    retryable: false,
+    sideEffects: { state: 'none' },
+    ...(originalError ? { legacy: { error: originalError } } : {})
+  });
+
   return {
     append_to_section: async (args: {
       vault?: string;
@@ -142,10 +165,7 @@ export function createSectionHandlers(config: Config) {
         );
 
         if (!result.success) {
-          return {
-            content: [{ type: 'text', text: result.error || 'Unknown error' }],
-            isError: true
-          };
+          return sectionNotFoundResponse(args, result.error);
         }
 
         const currentSizeInBytes = await fileSizeInBytes(vault.path, args.path);
@@ -189,10 +209,7 @@ export function createSectionHandlers(config: Config) {
         );
 
         if (!result.success) {
-          return {
-            content: [{ type: 'text', text: result.error || 'Unknown error' }],
-            isError: true
-          };
+          return sectionNotFoundResponse(args, result.error);
         }
 
         const currentSizeInBytes = await fileSizeInBytes(vault.path, args.path);
@@ -236,10 +253,7 @@ export function createSectionHandlers(config: Config) {
         );
 
         if (!result.success) {
-          return {
-            content: [{ type: 'text', text: result.error || 'Unknown error' }],
-            isError: true
-          };
+          return sectionNotFoundResponse(args, result.error);
         }
 
         const currentSizeInBytes = await fileSizeInBytes(vault.path, args.path);

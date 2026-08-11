@@ -106,6 +106,7 @@ export interface VaultGraph {
 export interface ToolResponse {
   content: Array<{ type: 'text'; text: string }>;
   isError: boolean;
+  structuredContent?: Record<string, unknown>;
 }
 
 /** Request-scoped transport context passed through every handler wrapper. */

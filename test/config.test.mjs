@@ -298,16 +298,16 @@ test('resolveVault() — throws on unknown vault name', () => {
     () => resolveVault(config, 'Gamma'),
     (err) => {
       assert.ok(err instanceof Error);
-      assert.ok(
-        err.message.includes('Gamma') || err.message.toLowerCase().includes('unknown'),
-        `Expected error about unknown vault, got: ${err.message}`
-      );
+      assert.match(err.message, /configured vault was not found/i);
+      assert.equal(err.requested, 'Gamma');
+      assert.equal(err.recovery_code, 'vault_not_found');
+      assert.ok(Array.isArray(err.closest_matches));
       return true;
     }
   );
 });
 
-test('resolveVault() — error message on unknown vault lists available vaults', () => {
+test('resolveVault() — keeps vault suggestions out of prose and in bounded fields', () => {
   const config = {
     mode: 'multi',
     vaults: [
@@ -319,12 +319,13 @@ test('resolveVault() — error message on unknown vault lists available vaults',
   };
 
   assert.throws(
-    () => resolveVault(config, 'NoSuchVault'),
+    () => resolveVault(config, 'Alhpa'),
     (err) => {
       assert.ok(err instanceof Error);
-      // The real error includes Available: Alpha, Beta
-      assert.ok(err.message.includes('Alpha') && err.message.includes('Beta'),
-        `Expected available vaults listed in error, got: ${err.message}`);
+      assert.ok(!err.message.includes('Alpha') && !err.message.includes('Beta'));
+      assert.deepEqual(err.closest_matches, ['Alpha']);
+      assert.equal(err.requested, 'Alhpa');
+      assert.match(err.hint, /get_started/);
       return true;
     }
   );

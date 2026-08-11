@@ -92,6 +92,15 @@ test('closestMatches — returns empty array when no candidates are close', () =
   assert.equal(matches.length, 0, `Expected no matches for ZZZZZ, got ${JSON.stringify(matches)}`);
 });
 
+test('closestMatches — skips oversized or token-heavy queries and candidates', () => {
+  assert.deepEqual(closestMatches('x'.repeat(129), ['Alpha']), []);
+  assert.deepEqual(
+    closestMatches(Array.from({ length: 17 }, () => 'x').join('-'), ['Alpha']),
+    [],
+  );
+  assert.deepEqual(closestMatches('Alpha', [`Alpha${'x'.repeat(129)}`]), []);
+});
+
 // ─── VAULT_NOT_FOUND_HINT constant ───────────────────────────────────────────
 
 test('VAULT_NOT_FOUND_HINT is defined and non-empty', () => {
@@ -137,9 +146,9 @@ test('resolveVault() — unknown vault error includes hint property', () => {
 
   assert.ok(caughtErr !== null, 'Expected resolveVault to throw');
   assert.ok(caughtErr instanceof Error);
-  // Must still include the "Available:" list (existing contract)
-  assert.ok(caughtErr.message.includes('Platform') && caughtErr.message.includes('Helena'),
-    `Expected available vaults in message: "${caughtErr.message}"`);
+  assert.equal(caughtErr.message, 'The requested configured vault was not found.');
+  assert.equal(caughtErr.requested, 'Platfrm');
+  assert.equal(caughtErr.recovery_code, 'vault_not_found');
   // New: hint property
   assert.equal(caughtErr.hint, VAULT_NOT_FOUND_HINT,
     `Expected hint property on error`);
@@ -209,12 +218,14 @@ test('read_file handler — missing note returns isError:true with closest_match
   assert.ok(data.error, `Expected error field, got: ${JSON.stringify(data)}`);
   assert.ok(Array.isArray(data.closest_matches),
     `Expected closest_matches array, got: ${typeof data.closest_matches}`);
-  // Near-miss → hint now leads with "Did you mean: ...?" then the generic guidance.
-  assert.ok(data.hint.includes(NOTE_NOT_FOUND_HINT),
+  assert.equal(data.hint, NOTE_NOT_FOUND_HINT,
     `Expected generic guidance in hint field, got: "${data.hint}"`);
+  assert.equal(data.status, 'needs_action');
+  assert.equal(data.code, 'note_not_found');
+  assert.deepEqual(JSON.parse(res.content[0].text), res.structuredContent);
   if (data.closest_matches.length > 0) {
-    assert.ok(data.hint.includes('Did you mean:'),
-      `Expected "Did you mean:" in hint when closest_matches non-empty, got: "${data.hint}"`);
+    assert.equal(data.suggestionTrust.state, 'untrusted_identifiers');
+    assert.ok(!data.hint.includes(data.closest_matches[0]));
   }
 });
 
@@ -240,11 +251,14 @@ test('follow_link handler — missing note returns found:false with closest_matc
   assert.equal(data.found, false, `Expected found:false`);
   assert.ok(Array.isArray(data.closest_matches),
     `Expected closest_matches array on follow_link not-found`);
-  assert.ok(data.hint.includes(NOTE_NOT_FOUND_HINT),
+  assert.equal(data.hint, NOTE_NOT_FOUND_HINT,
     `Expected generic guidance in hint field, got: "${data.hint}"`);
+  assert.equal(data.status, 'needs_action');
+  assert.equal(data.code, 'note_not_found');
+  assert.deepEqual(JSON.parse(res.content[0].text), res.structuredContent);
   if (data.closest_matches.length > 0) {
-    assert.ok(data.hint.includes('Did you mean:'),
-      `Expected "Did you mean:" in hint when closest_matches non-empty, got: "${data.hint}"`);
+    assert.equal(data.suggestionTrust.state, 'untrusted_identifiers');
+    assert.ok(!data.hint.includes(data.closest_matches[0]));
   }
 });
 
@@ -268,11 +282,14 @@ test('resolve_wikilink handler — missing note returns exists:false with closes
   assert.equal(data.exists, false);
   assert.ok(Array.isArray(data.closest_matches),
     `Expected closest_matches array on resolve_wikilink not-found`);
-  assert.ok(data.hint.includes(NOTE_NOT_FOUND_HINT),
+  assert.equal(data.hint, NOTE_NOT_FOUND_HINT,
     `Expected generic guidance in hint field, got: "${data.hint}"`);
+  assert.equal(data.status, 'needs_action');
+  assert.equal(data.code, 'note_not_found');
+  assert.deepEqual(JSON.parse(res.content[0].text), res.structuredContent);
   if (data.closest_matches.length > 0) {
-    assert.ok(data.hint.includes('Did you mean:'),
-      `Expected "Did you mean:" in hint when closest_matches non-empty, got: "${data.hint}"`);
+    assert.equal(data.suggestionTrust.state, 'untrusted_identifiers');
+    assert.ok(!data.hint.includes(data.closest_matches[0]));
   }
 });
 
@@ -311,6 +328,10 @@ test('read_file handler — unknown vault returns isError:true with structured J
     `Expected Platform in closest_matches: ${JSON.stringify(data.closest_matches)}`);
   assert.equal(data.hint, VAULT_NOT_FOUND_HINT,
     `Expected VAULT_NOT_FOUND_HINT in hint field`);
+  assert.equal(data.status, 'needs_action');
+  assert.equal(data.code, 'vault_not_found');
+  assert.equal(data.requested, 'Platfrm');
+  assert.deepEqual(JSON.parse(res.content[0].text), res.structuredContent);
 });
 
 test('read_file handler — completely unknown vault has empty closest_matches', async () => {

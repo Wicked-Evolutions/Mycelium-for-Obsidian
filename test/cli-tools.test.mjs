@@ -233,6 +233,11 @@ describe('withCliCheck gate', { skip: MOCK_SKIP }, () => {
     const res = await handlers.eval_obsidian({ vault: 'TestVault', code: '1+1' });
     assertError(res, 'eval_obsidian CLI unavailable');
     assert.ok(res.content[0].text.includes('not available'), 'error message mentions "not available"');
+    const payload = JSON.parse(res.content[0].text);
+    assert.equal(payload.status, 'unavailable');
+    assert.equal(payload.code, 'cli_unavailable');
+    assert.deepEqual(payload.sideEffects, { state: 'none' });
+    assert.deepEqual(payload, res.structuredContent);
     assert.equal(lastEvalCall, null, 'evalInObsidian must not be called when CLI unavailable');
   });
 

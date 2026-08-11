@@ -15,6 +15,7 @@ import { vaultParam } from './schema-helpers.js';
 import { buildFileIndex } from '../parsers/wikilink.js';
 import { closestMatches, noteNotFoundHint, formatVaultError } from '../resolver-hints.js';
 import { withAnnotations, ToolAnnotations } from './safety.js';
+import { recoveryResponse } from '../tool-outcomes.js';
 
 const ok = (text: string): ToolResponse => ({
   content: [{ type: 'text', text }],
@@ -679,15 +680,19 @@ export function createFsPromotedHandlers(config: Config) {
    *
    * The message NEVER contains an absolute filesystem path — only the note
    * name the caller supplied. Attaches `closest_matches` (nearest note
-   * basenames by edit distance, from the vault-wide index) and `hint`
-   * ("Did you mean: X?" + generic guidance) so that callers can render it
-   * via formatVaultError() with the same structured shape that read_file /
-   * follow_link / resolve_wikilink already return.
+   * basenames by edit distance, from the vault-wide index) and a generic
+   * corrective hint. Vault-derived suggestions stay isolated in the structured
+   * match field so callers do not treat them as trusted prose or actions.
    */
   const noteNotFoundError = async (
     vaultPath: string,
     requested: string
-  ): Promise<Error & { closest_matches: string[]; hint: string }> => {
+  ): Promise<Error & {
+    closest_matches: string[];
+    hint: string;
+    requested: string;
+    recovery_code: 'note_not_found';
+  }> => {
     const query = path.basename(requested, '.md');
     let suggestions: string[] = [];
     try {
@@ -698,12 +703,16 @@ export function createFsPromotedHandlers(config: Config) {
     } catch {
       // If the index can't be built, fall back to no suggestions.
     }
-    const error = new Error(`${query} not found`) as Error & {
+    const error = new Error('The requested note was not found.') as Error & {
       closest_matches: string[];
       hint: string;
+      requested: string;
+      recovery_code: 'note_not_found';
     };
     error.closest_matches = suggestions;
     error.hint = noteNotFoundHint(suggestions);
+    error.requested = requested;
+    error.recovery_code = 'note_not_found';
     return error;
   };
 
@@ -894,7 +903,15 @@ export function createFsPromotedHandlers(config: Config) {
     update_task: async (args) => {
       try {
         const vault = resolveVault(config, args.vault);
-        if (!args.path && !args.file) return err('Either file or path parameter is required');
+        if (!args.path && !args.file) {
+          return recoveryResponse({
+            status: 'needs_action',
+            code: 'file_required',
+            message: 'A file or path parameter is required to update a task.',
+            retryable: false,
+            sideEffects: { state: 'none' }
+          });
+        }
         // Route through the shared resolver so update_task gets the Bug-4
         // vault-wide index lookup AND the structured no-abs-path not-found
         // error (parity with list_aliases / property_read etc.).
@@ -903,10 +920,32 @@ export function createFsPromotedHandlers(config: Config) {
         const content = await readVaultFile(vault.path, filePath);
         const lines = content.split('\n');
         const lineIdx = args.line - 1;
-        if (lineIdx < 0 || lineIdx >= lines.length) return err(`Line ${args.line} out of range`);
+        if (lineIdx < 0 || lineIdx >= lines.length) {
+          return recoveryResponse({
+            status: 'needs_action',
+            code: 'task_line_out_of_range',
+            message: `Line ${args.line} is outside the file's line range.`,
+            requested: String(args.line),
+            hint: 'Use list_tasks to inspect current task line numbers before retrying.',
+            retryable: false,
+            sideEffects: { state: 'none' },
+            legacy: { line: args.line }
+          });
+        }
 
         const match = lines[lineIdx].match(/^(\s*[-*]\s+)\[(.)\](\s+.*)/);
-        if (!match) return err(`Line ${args.line} is not a task`);
+        if (!match) {
+          return recoveryResponse({
+            status: 'needs_action',
+            code: 'task_line_not_task',
+            message: `Line ${args.line} is not a task.`,
+            requested: String(args.line),
+            hint: 'Use list_tasks to inspect current task line numbers before retrying.',
+            retryable: false,
+            sideEffects: { state: 'none' },
+            legacy: { line: args.line }
+          });
+        }
 
         const currentDone = match[2] === 'x' || match[2] === 'X';
         let newStatus: string;
@@ -1171,7 +1210,16 @@ export function createFsPromotedHandlers(config: Config) {
           // ENOENT whose message embeds the absolute filesystem path. Sanitize:
           // report only the vault-relative path, never the absolute one.
           if (e?.code === 'ENOENT') {
-            return err(`Cannot append — parent folder does not exist: ${filePath}`);
+            return recoveryResponse({
+              status: 'needs_action',
+              code: 'parent_folder_not_found',
+              message: 'The parent folder for the requested file does not exist.',
+              requested: filePath,
+              hint: 'Create the parent folder or choose an existing vault-relative path before retrying.',
+              retryable: false,
+              sideEffects: { state: 'none' },
+              legacy: { path: filePath }
+            });
           }
           throw e;
         }
@@ -1205,7 +1253,14 @@ export function createFsPromotedHandlers(config: Config) {
         const filePath = await resolveFile(vault, args);
         const content = await readVaultFile(vault.path, filePath);
         if (!content.includes(args.search)) {
-          return err('Search text not found in file. No changes made.');
+          return recoveryResponse({
+            status: 'no_change',
+            code: 'search_text_not_found',
+            message: 'The requested search text was not found, so the file was unchanged.',
+            hint: 'Read or search the file to confirm the exact text before retrying.',
+            retryable: false,
+            sideEffects: { state: 'none' }
+          });
         }
         const newContent = args.all
           ? content.replaceAll(args.search, args.replace)

@@ -20,6 +20,7 @@ import {
   ToolResponse
 } from '../types/index.js';
 import { formatVaultError, VAULT_NOT_FOUND_HINT } from '../resolver-hints.js';
+import { recoveryResponse } from '../tool-outcomes.js';
 import { limitParam } from './schema-helpers.js';
 import {
   getFilesystemGraphSignals,
@@ -486,13 +487,23 @@ function jsonResponse(payload: Record<string, unknown>, isError = false): ToolRe
 }
 
 function missingVaultResponse(config: Config): ToolResponse {
-  const availableNames = config.vaults.map((vault) => vault.name);
-  const error = new Error(
-    `Missing required "vault". Available: ${availableNames.join(', ')}.`
-  ) as Error & { closest_matches: string[]; hint: string };
-  error.closest_matches = [];
-  error.hint = VAULT_NOT_FOUND_HINT;
-  return formatVaultError(error);
+  const availableNames = config.vaults.slice(0, 3).map((vault) => vault.name);
+  return recoveryResponse({
+    status: 'needs_action',
+    code: 'vault_required',
+    message: 'An explicit configured vault is required for link hierarchy analysis.',
+    closest_matches: availableNames,
+    hint: VAULT_NOT_FOUND_HINT,
+    retryable: false,
+    sideEffects: { state: 'none' },
+    ...(availableNames.length > 0 ? {
+      suggestionTrust: {
+        state: 'untrusted_identifiers',
+        fields: ['closest_matches'] as ['closest_matches']
+      }
+    } : {}),
+    legacy: { error: 'vault_required' }
+  });
 }
 
 function readinessWithoutSnapshot(target: RegisteredVaultTarget): GraphTargetReadiness {

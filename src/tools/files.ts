@@ -17,6 +17,7 @@ import {
 } from '../parsers/markdown.js';
 import { vaultParam } from './schema-helpers.js';
 import { closestMatches, noteNotFoundHint } from '../resolver-hints.js';
+import { recoveryResponse } from '../tool-outcomes.js';
 import { withAnnotations, ToolAnnotations } from './safety.js';
 
 /**
@@ -303,17 +304,23 @@ export function createFileHandlers(config: Config) {
             const noteNames = await collectNoteBasenames(vault.path);
             const query = path.basename(args.path, '.md');
             const suggestions = closestMatches(query, noteNames);
-            return {
-              content: [{
-                type: 'text',
-                text: JSON.stringify({
-                  error: `File not found: ${args.path}`,
-                  closest_matches: suggestions,
-                  hint: noteNotFoundHint(suggestions)
-                }, null, 2)
-              }],
-              isError: true
-            };
+            return recoveryResponse({
+              status: 'needs_action',
+              code: 'note_not_found',
+              message: 'The requested note was not found.',
+              requested: args.path,
+              closest_matches: suggestions,
+              hint: noteNotFoundHint(suggestions),
+              retryable: false,
+              sideEffects: { state: 'none' },
+              ...(suggestions.length > 0 ? {
+                suggestionTrust: {
+                  state: 'untrusted_identifiers',
+                  fields: ['closest_matches']
+                }
+              } : {}),
+              legacy: { error: `File not found: ${args.path}` }
+            });
           } catch {
             // Fall through to generic error if vault resolution also fails
           }
@@ -336,10 +343,14 @@ export function createFileHandlers(config: Config) {
 
         // Check if file already exists
         if (await fileExists(args.path, vault.path)) {
-          return {
-            content: [{ type: 'text', text: `File already exists: ${args.path}` }],
-            isError: true
-          };
+          return recoveryResponse({
+            status: 'conflict',
+            code: 'destination_exists',
+            message: 'A file already exists at the requested destination.',
+            requested: args.path,
+            retryable: false,
+            sideEffects: { state: 'none' }
+          });
         }
 
         const parsed = await createMarkdownFile(
@@ -556,18 +567,26 @@ export function createFileHandlers(config: Config) {
 
         // Verify source exists
         if (!(await fileExists(args.from_path, vault.path))) {
-          return {
-            content: [{ type: 'text', text: `Source file not found: ${args.from_path}` }],
-            isError: true
-          };
+          return recoveryResponse({
+            status: 'needs_action',
+            code: 'source_note_not_found',
+            message: 'The requested source note was not found.',
+            requested: args.from_path,
+            retryable: false,
+            sideEffects: { state: 'none' }
+          });
         }
 
         // Verify destination doesn't exist
         if (await fileExists(args.to_path, vault.path)) {
-          return {
-            content: [{ type: 'text', text: `Destination already exists: ${args.to_path}` }],
-            isError: true
-          };
+          return recoveryResponse({
+            status: 'conflict',
+            code: 'destination_exists',
+            message: 'A file already exists at the requested destination.',
+            requested: args.to_path,
+            retryable: false,
+            sideEffects: { state: 'none' }
+          });
         }
 
         // Create destination directory if needed
