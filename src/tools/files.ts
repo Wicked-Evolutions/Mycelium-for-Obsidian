@@ -19,6 +19,12 @@ import { vaultParam } from './schema-helpers.js';
 import { closestMatches, noteNotFoundHint } from '../resolver-hints.js';
 import { recoveryResponse } from '../tool-outcomes.js';
 import { withAnnotations, ToolAnnotations } from './safety.js';
+import {
+  CompletenessReason,
+  exactResultMetadata,
+  limitReachedMetadata,
+  partialCompletenessMetadata,
+} from '../result-metadata.js';
 
 /**
  * Tool definitions for file operations
@@ -532,9 +538,16 @@ export function createFileHandlers(config: Config) {
 
         const flags = args.caseSensitive ? 'g' : 'gi';
         const regex = new RegExp(args.query, flags);
-        const maxResults = args.maxResults || 20;
+        const maxResults = Math.max(0, Math.ceil(args.maxResults || 20));
 
-        const results = await searchFiles(searchDir, vault.path, regex, maxResults);
+        const scan = await searchFiles(searchDir, vault.path, regex, maxResults);
+        const results = scan.results.slice(0, maxResults);
+        const metadata = scan.limitReached || scan.skipped > 0
+          ? {
+              ...limitReachedMetadata(scan.limitReached),
+              ...partialCompletenessMetadata(scan.scanned, scan.skipped, scan.reasons),
+            }
+          : exactResultMetadata(scan.results.length, results.length);
 
         return {
           content: [{
@@ -542,6 +555,7 @@ export function createFileHandlers(config: Config) {
             text: JSON.stringify({
               query: args.query,
               resultCount: results.length,
+              ...metadata,
               results
             }, null, 2)
           }],
@@ -751,42 +765,89 @@ async function listDirectory(
 /**
  * Helper: Search files for content
  */
+interface SearchFileScan {
+  results: SearchResult[];
+  scanned: number;
+  skipped: number;
+  reasons: CompletenessReason[];
+  limitReached: boolean;
+}
+
 async function searchFiles(
   dirPath: string,
   vaultPath: string,
   regex: RegExp,
-  maxResults: number,
-  results: SearchResult[] = []
-): Promise<SearchResult[]> {
-  if (results.length >= maxResults) return results;
+  maxResults: number
+): Promise<SearchFileScan> {
+  const scan: SearchFileScan = {
+    results: [],
+    scanned: 0,
+    skipped: 0,
+    reasons: [],
+    limitReached: false,
+  };
 
-  const entries = await fs.readdir(dirPath, { withFileTypes: true });
+  const scanDirectory = async (currentDir: string, isRoot = false): Promise<void> => {
+    let entries;
+    try {
+      entries = await fs.readdir(currentDir, { withFileTypes: true });
+    } catch {
+      if (isRoot) throw new Error('Search root directory is unavailable');
+      scan.skipped += 1;
+      scan.reasons.push('directory_unavailable');
+      return;
+    }
 
-  for (const entry of entries) {
-    if (results.length >= maxResults) break;
-    if (entry.name.startsWith('.')) continue;
+    for (const entry of entries) {
+      if (scan.limitReached) return;
+      if (entry.name.startsWith('.')) continue;
 
-    const fullPath = path.join(dirPath, entry.name);
+      const fullPath = path.join(currentDir, entry.name);
+      if (entry.isDirectory()) {
+        await scanDirectory(fullPath, false);
+        continue;
+      }
+      if (!entry.name.endsWith('.md')) continue;
 
-    if (entry.isDirectory()) {
-      await searchFiles(fullPath, vaultPath, regex, maxResults, results);
-    } else if (entry.name.endsWith('.md')) {
-      // Skip files larger than 50 MB to prevent OOM
-      const stat = await fs.stat(fullPath);
-      if (stat.size > 50 * 1024 * 1024) continue;
-      const content = await fs.readFile(fullPath, 'utf-8');
+      let stat;
+      try {
+        stat = await fs.stat(fullPath);
+      } catch {
+        scan.skipped += 1;
+        scan.reasons.push('file_metadata_unavailable');
+        continue;
+      }
+      if (stat.size > 50 * 1024 * 1024) {
+        scan.skipped += 1;
+        scan.reasons.push('file_too_large');
+        continue;
+      }
+
+      let content: string;
+      try {
+        content = await fs.readFile(fullPath, 'utf-8');
+      } catch {
+        scan.skipped += 1;
+        scan.reasons.push('file_unreadable');
+        continue;
+      }
+
       const matches = findMatches(content, regex);
+      scan.scanned += 1;
+      if (matches.length === 0) continue;
 
-      if (matches.length > 0) {
-        results.push({
-          path: path.relative(vaultPath, fullPath),
-          matches
-        });
+      scan.results.push({
+        path: path.relative(vaultPath, fullPath),
+        matches
+      });
+      if (scan.results.length > maxResults) {
+        scan.limitReached = true;
       }
     }
-  }
+  };
 
-  return results;
+  await scanDirectory(dirPath, true);
+  return scan;
 }
 
 /**

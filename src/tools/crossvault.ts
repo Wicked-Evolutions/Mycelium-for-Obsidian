@@ -33,6 +33,12 @@ import { withAnnotations, ToolAnnotations } from './safety.js';
 import { annotateCrossVault } from './graph-annotate.js';
 import { DeclaredCrossVaultGraphBuilder, normalizeVaultRelativePath } from '../graph/cross-vault.js';
 import { recoveryResponse } from '../tool-outcomes.js';
+import {
+  CompletenessReason,
+  exactResultMetadata,
+  limitReachedMetadata,
+  partialCompletenessMetadata,
+} from '../result-metadata.js';
 
 /**
  * Tool definitions for cross-vault operations
@@ -164,24 +170,62 @@ export function createCrossVaultHandlers(config: Config) {
       try {
         const flags = args.caseSensitive ? 'g' : 'gi';
         const regex = new RegExp(args.query, flags);
-        const maxPerVault = args.maxResultsPerVault || 10;
+        const maxPerVault = Math.max(0, Math.ceil(args.maxResultsPerVault || 10));
 
         const vaultResults: Array<{
           vault: string;
           vaultPath: string;
           results: Array<{ path: string; matches: SearchMatch[] }>;
+          total?: number;
+          returned?: number;
+          truncated?: boolean;
+          has_more?: boolean;
+          limit_reached?: true;
+          completeness?: {
+            state: 'partial';
+            scanned: number;
+            skipped: number;
+            reasons: CompletenessReason[];
+          };
         }> = [];
+        let scanned = 0;
+        let skipped = 0;
+        const reasons: CompletenessReason[] = [];
+        let anyLimitReached = false;
+        let allExact = true;
+        let exactTotal = 0;
 
         for (const vault of config.vaults) {
-          const results = await searchVault(vault.path, regex, maxPerVault);
+          const scan = await searchVault(vault.path, regex, maxPerVault);
+          const results = scan.results.slice(0, maxPerVault);
+          const exact = !scan.limitReached && scan.skipped === 0;
+          const metadata = exact
+            ? exactResultMetadata(scan.results.length, results.length)
+            : {
+                ...limitReachedMetadata(scan.limitReached),
+                ...partialCompletenessMetadata(scan.scanned, scan.skipped, scan.reasons),
+              };
           vaultResults.push({
             vault: vault.name,
             vaultPath: vault.path,
-            results
+            ...metadata,
+            results,
           });
+          scanned += scan.scanned;
+          skipped += scan.skipped;
+          reasons.push(...scan.reasons);
+          anyLimitReached ||= scan.limitReached;
+          allExact &&= exact;
+          exactTotal += scan.results.length;
         }
 
         const totalResults = vaultResults.reduce((sum, v) => sum + v.results.length, 0);
+        const metadata = allExact
+          ? exactResultMetadata(exactTotal, totalResults)
+          : {
+              ...limitReachedMetadata(anyLimitReached),
+              ...partialCompletenessMetadata(scanned, skipped, reasons),
+            };
 
         return {
           content: [{
@@ -190,6 +234,7 @@ export function createCrossVaultHandlers(config: Config) {
               query: args.query,
               vaultsSearched: config.vaults.length,
               totalResults,
+              ...metadata,
               results: vaultResults
             }, null, 2)
           }],
@@ -239,36 +284,85 @@ export function createCrossVaultHandlers(config: Config) {
           similarity: number;
           preview: string;
         }> = [];
+        const resultMetadataByVault: Array<{
+          vault: string;
+          state: 'searched' | 'unindexed' | 'failed';
+          limit_reached?: true;
+          completeness?: {
+            state: 'partial';
+            scanned: number;
+            skipped: number;
+            reasons: CompletenessReason[];
+          };
+        }> = [];
+        let searchedVaults = 0;
+        let skippedVaults = 0;
+        let indexedVaults = 0;
+        let anyProviderLimitReached = false;
+        const semanticReasons: CompletenessReason[] = [];
 
         for (const vault of config.vaults) {
-          const storage = getStorage(vault);
-          const stats = storage.getStats();
+          try {
+            const storage = getStorage(vault);
+            const stats = storage.getStats();
 
-          if (stats.totalEmbeddings === 0) {
-            continue; // Skip unindexed vaults
-          }
-
-          const vaultResults = storage.search(queryResult.embedding, limit * 2, minSimilarity);
-
-          for (const r of vaultResults) {
-            try {
-              const parsed = await parseMarkdownFile(r.filePath, vault.path);
-              allResults.push({
+            if (stats.totalEmbeddings === 0) {
+              skippedVaults += 1;
+              semanticReasons.push('vault_unindexed');
+              resultMetadataByVault.push({
                 vault: vault.name,
-                path: r.filePath,
-                title: extractTitle(parsed),
-                similarity: Math.round(r.similarity * 1000) / 1000,
-                preview: parsed.content.slice(0, 150) + (parsed.content.length > 150 ? '...' : '')
+                state: 'unindexed',
+                ...partialCompletenessMetadata(0, 1, ['vault_unindexed']),
               });
-            } catch {
-              allResults.push({
-                vault: vault.name,
-                path: r.filePath,
-                title: path.basename(r.filePath, '.md'),
-                similarity: Math.round(r.similarity * 1000) / 1000,
-                preview: ''
-              });
+              continue;
             }
+
+            indexedVaults += 1;
+            const historicalCap = limit * 2;
+            const fetched = storage.search(
+              queryResult.embedding,
+              historicalCap + 1,
+              minSimilarity
+            );
+            const providerLimitReached = fetched.length > historicalCap;
+            const vaultResults = fetched.slice(0, historicalCap);
+            anyProviderLimitReached ||= providerLimitReached;
+
+            for (const r of vaultResults) {
+              try {
+                const parsed = await parseMarkdownFile(r.filePath, vault.path);
+                allResults.push({
+                  vault: vault.name,
+                  path: r.filePath,
+                  title: extractTitle(parsed),
+                  similarity: Math.round(r.similarity * 1000) / 1000,
+                  preview: parsed.content.slice(0, 150) + (parsed.content.length > 150 ? '...' : '')
+                });
+              } catch {
+                allResults.push({
+                  vault: vault.name,
+                  path: r.filePath,
+                  title: path.basename(r.filePath, '.md'),
+                  similarity: Math.round(r.similarity * 1000) / 1000,
+                  preview: ''
+                });
+              }
+            }
+
+            searchedVaults += 1;
+            resultMetadataByVault.push({
+              vault: vault.name,
+              state: 'searched',
+              ...limitReachedMetadata(providerLimitReached),
+            });
+          } catch {
+            skippedVaults += 1;
+            semanticReasons.push('vault_search_failed');
+            resultMetadataByVault.push({
+              vault: vault.name,
+              state: 'failed',
+              ...partialCompletenessMetadata(0, 1, ['vault_search_failed']),
+            });
           }
         }
 
@@ -276,11 +370,7 @@ export function createCrossVaultHandlers(config: Config) {
         allResults.sort((a, b) => b.similarity - a.similarity);
         const topResults = allResults.slice(0, limit);
 
-        // Count indexed vaults
-        const indexedVaults = config.vaults.filter(v => {
-          const s = getStorage(v);
-          return s.getStats().totalEmbeddings > 0;
-        }).length;
+        const globalLimitReached = allResults.length > limit;
 
         // ---------------------------------------------------------------
         // PR-A (#25): graph-aware annotation, cross-vault.
@@ -303,6 +393,13 @@ export function createCrossVaultHandlers(config: Config) {
               vaultsSearched: config.vaults.length,
               vaultsIndexed: indexedVaults,
               resultCount: annotated.results.length,
+              ...limitReachedMetadata(anyProviderLimitReached || globalLimitReached),
+              ...partialCompletenessMetadata(
+                searchedVaults,
+                skippedVaults,
+                semanticReasons
+              ),
+              resultMetadataByVault,
               graphByVault: annotated.graphByVault,
               results: annotated.results
             }, null, 2)
@@ -777,41 +874,73 @@ async function inventoryNativeUris(config: Config, sourceVaults: VaultConfig[]) 
 /**
  * Helper: Search a single vault for regex matches
  */
+interface VaultTextSearchScan {
+  results: Array<{ path: string; matches: SearchMatch[] }>;
+  scanned: number;
+  skipped: number;
+  reasons: CompletenessReason[];
+  limitReached: boolean;
+}
+
 async function searchVault(
   vaultPath: string,
   regex: RegExp,
-  maxResults: number,
-  results: Array<{ path: string; matches: SearchMatch[] }> = [],
-  currentDir?: string
-): Promise<Array<{ path: string; matches: SearchMatch[] }>> {
-  const dirPath = currentDir || vaultPath;
+  maxResults: number
+): Promise<VaultTextSearchScan> {
+  const scan: VaultTextSearchScan = {
+    results: [],
+    scanned: 0,
+    skipped: 0,
+    reasons: [],
+    limitReached: false,
+  };
 
-  if (results.length >= maxResults) return results;
+  const scanDirectory = async (dirPath: string, root: boolean): Promise<void> => {
+    let entries;
+    try {
+      entries = await fs.readdir(dirPath, { withFileTypes: true });
+    } catch {
+      scan.skipped += 1;
+      scan.reasons.push(root ? 'vault_unavailable' : 'directory_unavailable');
+      return;
+    }
 
-  const entries = await fs.readdir(dirPath, { withFileTypes: true });
+    for (const entry of entries) {
+      if (scan.limitReached) return;
+      if (entry.name.startsWith('.')) continue;
 
-  for (const entry of entries) {
-    if (results.length >= maxResults) break;
-    if (entry.name.startsWith('.')) continue;
+      const fullPath = path.join(dirPath, entry.name);
+      if (entry.isDirectory()) {
+        await scanDirectory(fullPath, false);
+        continue;
+      }
+      if (!entry.name.endsWith('.md')) continue;
 
-    const fullPath = path.join(dirPath, entry.name);
+      let content: string;
+      try {
+        content = await fs.readFile(fullPath, 'utf-8');
+      } catch {
+        scan.skipped += 1;
+        scan.reasons.push('file_unreadable');
+        continue;
+      }
 
-    if (entry.isDirectory()) {
-      await searchVault(vaultPath, regex, maxResults, results, fullPath);
-    } else if (entry.name.endsWith('.md')) {
-      const content = await fs.readFile(fullPath, 'utf-8');
       const matches = findMatches(content, regex);
+      scan.scanned += 1;
+      if (matches.length === 0) continue;
 
-      if (matches.length > 0) {
-        results.push({
-          path: path.relative(vaultPath, fullPath),
-          matches
-        });
+      scan.results.push({
+        path: path.relative(vaultPath, fullPath),
+        matches
+      });
+      if (scan.results.length > maxResults) {
+        scan.limitReached = true;
       }
     }
-  }
+  };
 
-  return results;
+  await scanDirectory(vaultPath, true);
+  return scan;
 }
 
 /**

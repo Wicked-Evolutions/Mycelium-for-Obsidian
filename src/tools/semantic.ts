@@ -30,6 +30,10 @@ import {
 } from '../embeddings/reranker.js';
 import { llmReranker } from '../embeddings/reranker-llm.js';
 import { recoveryResponse } from '../tool-outcomes.js';
+import {
+  exactResultMetadata,
+  limitReachedMetadata,
+} from '../result-metadata.js';
 
 // Register the built-in LLM-as-reranker backend (#27, PR-C). Registration is
 // INERT on the default path: the backend is only retrieved when the operator
@@ -330,6 +334,7 @@ export function createSemanticHandlers(config: Config) {
         }
 
         const limit = args.limit || 10;
+        const returnLimit = Math.max(0, Math.ceil(limit));
         const minSimilarity = args.minSimilarity || 0.5;
 
         // Optionally expand query into multiple variants
@@ -362,6 +367,8 @@ export function createSemanticHandlers(config: Config) {
           blockId: string | null;
           score: number;
         }> = [];
+        const historicalCandidateCap = limit * 2;
+        let providerLimitReached = false;
 
         // Embeddings pass (includes the HyDE hypothetical when present).
         for (const q of embeddingTexts) {
@@ -375,16 +382,18 @@ export function createSemanticHandlers(config: Config) {
           // be silently collapsed by any post-fusion minSimilarity gate.
           const semResults = store.search(
             queryResult.embedding,
-            limit * 2,  // Get extra candidates for fusion
+            historicalCandidateCap + 1,
             minSimilarity  // Embeddings candidate-floor (cosine cutoff)
           );
-          allSemanticResults.push(...semResults);
+          providerLimitReached ||= semResults.length > historicalCandidateCap;
+          allSemanticResults.push(...semResults.slice(0, historicalCandidateCap));
         }
 
         // BM25/keyword pass — ORIGINAL query variants only (never the hypothetical).
         for (const q of bm25Texts) {
-          const kwResults = store.keywordSearch(q, limit * 2);
-          allKeywordResults.push(...kwResults);
+          const kwResults = store.keywordSearch(q, historicalCandidateCap + 1);
+          providerLimitReached ||= kwResults.length > historicalCandidateCap;
+          allKeywordResults.push(...kwResults.slice(0, historicalCandidateCap));
         }
 
         // ---------------------------------------------------------------
@@ -483,8 +492,10 @@ export function createSemanticHandlers(config: Config) {
             metadata: c.metadata,
           });
 
-          if (results.length >= limit) break;
+          if (results.length > returnLimit) break;
         }
+        const responseLimitReached = results.length > returnLimit;
+        const boundedResults = results.slice(0, returnLimit);
 
         // ---------------------------------------------------------------
         // Reranker SEAM (#27, PR-B). The ONE stage that REORDERS.
@@ -505,7 +516,7 @@ export function createSemanticHandlers(config: Config) {
         // ---------------------------------------------------------------
         const resultKey = (r: { filePath: string; blockId: string | null }) =>
           `${r.filePath}:${r.blockId || ''}`;
-        let rankedResults = results;
+        let rankedResults = boundedResults;
         let rerankerScores = new Map<string, number>();
         let rerankerAvailable: boolean | null = null;
         let rerankerUnavailableReason: string | undefined;
@@ -516,7 +527,7 @@ export function createSemanticHandlers(config: Config) {
           rerankerBackendName = backend.name;
           const reranked = await applyRerank(
             args.query,
-            results,
+            boundedResults,
             resultKey,
             (r) => store.getContent(r.filePath, r.blockId) ?? '',
             (r) => r.fusionScore,
@@ -605,6 +616,7 @@ export function createSemanticHandlers(config: Config) {
               query: args.query,
               queriesUsed: queries,  // Show expanded queries if any
               resultCount: graphAttach.results.length,
+              ...limitReachedMetadata(providerLimitReached || responseLimitReached),
               searchType: args.expand ? 'hybrid+expansion' : 'hybrid',
               graphAvailable: graphAttach.graphAvailable,
               ...(graphAttach.graphAvailable
@@ -922,9 +934,15 @@ export function createSemanticHandlers(config: Config) {
         }
 
         // Search for similar (excluding self)
-        const results = store.search(stored.embedding, (args.limit || 5) + 1, 0)
+        const limit = args.limit || 5;
+        const selfChunkCount = store.getPathStats()
+          .find(stat => stat.filePath === args.path)?.embeddingChunks ?? 1;
+        const evidencePool = store.search(stored.embedding, limit + selfChunkCount + 1, 0);
+        const historicalPool = evidencePool.slice(0, limit + 1);
+        const results = historicalPool
           .filter(r => r.filePath !== args.path)
-          .slice(0, args.limit || 5);
+          .slice(0, limit);
+        const evidenceNonSelfCount = evidencePool.filter(r => r.filePath !== args.path).length;
 
         // Enrich results
         const enrichedResults = await Promise.all(results.map(async r => {
@@ -949,6 +967,7 @@ export function createSemanticHandlers(config: Config) {
             type: 'text',
             text: JSON.stringify({
               referencePath: args.path,
+              ...limitReachedMetadata(evidenceNonSelfCount > results.length),
               similarFiles: enrichedResults
             }, null, 2)
           }],
@@ -999,6 +1018,12 @@ export function createSemanticHandlers(config: Config) {
               embeddingChunksPerCurrentIndexedFile: coverage.embeddingChunksPerCurrentIndexedFile,
               embeddingChunksPerCurrentMarkdownFile: coverage.embeddingChunksPerCurrentMarkdownFile,
               staleIndexedFileSamples: coverage.staleIndexedFileSamples,
+              resultMetadata: {
+                staleIndexedFileSamples: exactResultMetadata(
+                  coverage.staleIndexedFiles,
+                  coverage.staleIndexedFileSamples.length
+                ),
+              },
               ollama: {
                 available: ollama.available,
                 model: ollamaConfig.model,

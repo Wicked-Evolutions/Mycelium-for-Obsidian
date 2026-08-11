@@ -253,6 +253,9 @@ describe('search_all_vaults', () => {
       vaultAEntry.results.length <= 1,
       `VaultA results should be <= 1 (got ${vaultAEntry.results.length})`,
     );
+    assert.equal(vaultAEntry.limit_reached, true, 'VaultA has a qualifying result sentinel');
+    assert.equal(data.limit_reached, true, 'top-level metadata reflects a bounded vault result');
+    assert.equal('total' in data, false, 'cross-vault bounded scan does not fabricate an exact total');
   });
 
   test('query with no matches returns zero totalResults', async () => {

@@ -184,6 +184,20 @@ test('HTTP transport enforces bearer auth and executes an authenticated call', {
     assert.equal(missingReadBody.code, 'note_not_found');
     assert.deepEqual(missingReadBody.sideEffects, { state: 'none' });
 
+    const missingSearchRoot = await fetch(`${base}/call`, {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tool: 'search_content',
+        args: {
+          vault: 'TransportVault',
+          query: 'anything',
+          directory: 'MissingDirectory',
+        },
+      }),
+    });
+    assert.equal(missingSearchRoot.status, 500);
+
     const unresolvedLink = await fetch(`${base}/call`, {
       method: 'POST',
       headers: { ...headers, 'Content-Type': 'application/json' },

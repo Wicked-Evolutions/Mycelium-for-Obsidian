@@ -11,11 +11,16 @@ import { ToolResponse } from '../types/index.js';
 import { parseMarkdownFile, extractTitle } from '../parsers/markdown.js';
 import {
   extractWikilinks,
-  resolveWikilink,
-  buildMultiFileIndex
+  resolveWikilink
 } from '../parsers/wikilink.js';
 import { vaultParam, limitParam } from './schema-helpers.js';
 import { withAnnotations, ToolAnnotations } from './safety.js';
+import {
+  CompletenessReason,
+  exactResultMetadata,
+  limitReachedMetadata,
+  partialCompletenessMetadata,
+} from '../result-metadata.js';
 
 interface BrokenLinkOccurrence {
   source: string;
@@ -118,12 +123,41 @@ export const analyticsTools: Tool[] = withAnnotations(rawAnalyticsTools, analyti
 /**
  * Collect all markdown files with metadata
  */
+interface CollectedFile {
+  relativePath: string;
+  mtime: Date;
+  indexable: boolean;
+}
+
+interface FileInventory {
+  files: CollectedFile[];
+  skipped: number;
+  reasons: CompletenessReason[];
+}
+
+interface BacklinkScan {
+  backlinkCounts: Map<string, number>;
+  brokenLinks: BrokenLinkOccurrence[];
+  scanned: number;
+  skipped: number;
+  reasons: CompletenessReason[];
+}
+
 async function collectFiles(
   dirPath: string,
   vaultPath: string,
-  files: Array<{ relativePath: string; mtime: Date }> = []
-): Promise<Array<{ relativePath: string; mtime: Date }>> {
-  const entries = await fs.readdir(dirPath, { withFileTypes: true });
+  inventory: FileInventory = { files: [], skipped: 0, reasons: [] },
+  isRoot = true
+): Promise<FileInventory> {
+  let entries;
+  try {
+    entries = await fs.readdir(dirPath, { withFileTypes: true });
+  } catch {
+    if (isRoot) throw new Error('Analytics root directory is unavailable');
+    inventory.skipped += 1;
+    inventory.reasons.push('directory_unavailable');
+    return inventory;
+  }
 
   for (const entry of entries) {
     if (entry.name.startsWith('.')) continue;
@@ -131,49 +165,73 @@ async function collectFiles(
     const fullPath = path.join(dirPath, entry.name);
 
     if (entry.isDirectory()) {
-      await collectFiles(fullPath, vaultPath, files);
+      await collectFiles(fullPath, vaultPath, inventory, false);
     } else if (entry.name.endsWith('.md')) {
-      const stats = await fs.stat(fullPath);
-      files.push({
-        relativePath: path.relative(vaultPath, fullPath),
-        mtime: stats.mtime
-      });
+      try {
+        const stats = await fs.stat(fullPath);
+        inventory.files.push({
+          relativePath: path.relative(vaultPath, fullPath),
+          mtime: stats.mtime,
+          // Preserve legacy scanning of Markdown symlinks, but never let one
+          // become an authoritative local wikilink resolution candidate.
+          indexable: entry.isFile(),
+        });
+      } catch {
+        inventory.skipped += 1;
+        inventory.reasons.push('file_metadata_unavailable');
+      }
     }
   }
 
-  return files;
+  return inventory;
 }
 
 /**
  * Build a reverse link index: for each note, which notes link TO it
  */
 async function buildBacklinkIndex(
-  vaultPath: string
-): Promise<{ backlinkCounts: Map<string, number>; brokenLinks: BrokenLinkOccurrence[] }> {
-  // Use multi-candidate index so duplicate-basename links credit the same-folder note
-  const multiIndex = await buildMultiFileIndex(vaultPath);
+  vaultPath: string,
+  inventory: FileInventory
+): Promise<BacklinkScan> {
+  // Use one tracked inventory so duplicate-basename resolution and completeness agree.
+  const multiIndex = new Map<string, string[]>();
   const backlinkCounts = new Map<string, number>();
   const brokenLinks: BrokenLinkOccurrence[] = [];
+  let scanned = 0;
+  let skipped = inventory.skipped;
+  const reasons = [...inventory.reasons];
 
-  // Initialize all files with 0 backlinks (derive from multi-index)
-  for (const paths of multiIndex.values()) {
-    for (const filePath of paths) {
-      const rel = path.relative(vaultPath, filePath);
-      if (!backlinkCounts.has(rel)) {
-        backlinkCounts.set(rel, 0);
+  for (const file of inventory.files) {
+    if (file.indexable) {
+      const absolutePath = path.join(vaultPath, file.relativePath);
+      const key = path.basename(file.relativePath).toLowerCase();
+      const candidates = multiIndex.get(key);
+      if (candidates) {
+        candidates.push(absolutePath);
+      } else {
+        multiIndex.set(key, [absolutePath]);
       }
     }
+    backlinkCounts.set(file.relativePath, 0);
   }
 
-  // Scan all files for outgoing links
-  const files = await collectFiles(vaultPath, vaultPath);
-
-  for (const file of files) {
+  for (const file of inventory.files) {
+    let content: string;
     try {
       const sourceAbsPath = path.join(vaultPath, file.relativePath);
-      const content = await fs.readFile(sourceAbsPath, 'utf-8');
+      content = await fs.readFile(sourceAbsPath, 'utf-8');
+    } catch {
+      skipped += 1;
+      reasons.push('file_unreadable');
+      continue;
+    }
+
+    try {
+      const sourceAbsPath = path.join(vaultPath, file.relativePath);
       const links = extractWikilinks(content);
       const occurrenceDetails = getWikilinkOccurrenceDetails(content, links.map(link => link.raw));
+      const resolvedTargets: string[] = [];
+      const fileBrokenLinks: BrokenLinkOccurrence[] = [];
 
       for (let linkIndex = 0; linkIndex < links.length; linkIndex++) {
         const link = links[linkIndex];
@@ -181,8 +239,7 @@ async function buildBacklinkIndex(
         const resolved = await resolveWikilink(link.target, vaultPath, undefined, sourceAbsPath, multiIndex);
 
         if (resolved) {
-          const relTarget = path.relative(vaultPath, resolved);
-          backlinkCounts.set(relTarget, (backlinkCounts.get(relTarget) || 0) + 1);
+          resolvedTargets.push(path.relative(vaultPath, resolved));
         } else {
           const occurrence = occurrenceDetails[linkIndex] ?? {
             lineNumber: 0,
@@ -190,7 +247,7 @@ async function buildBacklinkIndex(
             occurrenceIndexOnLine: 0,
             sourceText: link.raw
           };
-          brokenLinks.push({
+          fileBrokenLinks.push({
             source: file.relativePath,
             target: link.target,
             lineNumber: occurrence.lineNumber,
@@ -200,12 +257,19 @@ async function buildBacklinkIndex(
           });
         }
       }
+
+      for (const relTarget of resolvedTargets) {
+        backlinkCounts.set(relTarget, (backlinkCounts.get(relTarget) || 0) + 1);
+      }
+      brokenLinks.push(...fileBrokenLinks);
+      scanned += 1;
     } catch {
-      // Skip unreadable files
+      skipped += 1;
+      reasons.push('scan_failure');
     }
   }
 
-  return { backlinkCounts, brokenLinks };
+  return { backlinkCounts, brokenLinks, scanned, skipped, reasons };
 }
 
 function getWikilinkOccurrenceDetails(
@@ -311,10 +375,12 @@ export function createAnalyticsHandlers(config: Config) {
         const staleThreshold = Date.now() - (staleDays * 24 * 60 * 60 * 1000);
 
         // Collect files
-        const files = await collectFiles(vault.path, vault.path);
+        const inventory = await collectFiles(vault.path, vault.path);
+        const files = inventory.files;
 
         // Build backlink index (also finds broken links)
-        const { backlinkCounts, brokenLinks } = await buildBacklinkIndex(vault.path);
+        const backlinkScan = await buildBacklinkIndex(vault.path, inventory);
+        const { backlinkCounts, brokenLinks } = backlinkScan;
         const uniqueTargets = uniqueUnresolvedTargetStrings(brokenLinks);
 
         // Orphans (zero backlinks, excluding root-level files)
@@ -330,6 +396,12 @@ export function createAnalyticsHandlers(config: Config) {
             path: f.relativePath,
             lastModified: f.mtime.toISOString()
           }));
+        const topOrphans = orphans.slice(0, 10);
+        const topBrokenLinks = brokenLinks.slice(0, 10);
+        const topUniqueTargets = uniqueTargets.slice(0, 10);
+        const topStaleNotes = staleNotes.slice(0, 10);
+        const linkScanExact = backlinkScan.skipped === 0;
+        const inventoryExact = inventory.skipped === 0;
 
         return {
           content: [{
@@ -343,10 +415,29 @@ export function createAnalyticsHandlers(config: Config) {
               uniqueUnresolvedTargetStringCount: uniqueTargets.length,
               staleNotes: staleNotes.length,
               staleDaysThreshold: staleDays,
-              topOrphans: orphans.slice(0, 10),
-              topBrokenLinks: brokenLinks.slice(0, 10),
-              topUniqueUnresolvedTargetStrings: uniqueTargets.slice(0, 10),
-              topStaleNotes: staleNotes.slice(0, 10)
+              topOrphans,
+              topBrokenLinks,
+              topUniqueUnresolvedTargetStrings: topUniqueTargets,
+              topStaleNotes,
+              resultMetadata: {
+                topOrphans: linkScanExact
+                  ? exactResultMetadata(orphans.length, topOrphans.length)
+                  : limitReachedMetadata(orphans.length > topOrphans.length),
+                topBrokenLinks: linkScanExact
+                  ? exactResultMetadata(brokenLinks.length, topBrokenLinks.length)
+                  : limitReachedMetadata(brokenLinks.length > topBrokenLinks.length),
+                topUniqueUnresolvedTargetStrings: linkScanExact
+                  ? exactResultMetadata(uniqueTargets.length, topUniqueTargets.length)
+                  : limitReachedMetadata(uniqueTargets.length > topUniqueTargets.length),
+                topStaleNotes: inventoryExact
+                  ? exactResultMetadata(staleNotes.length, topStaleNotes.length)
+                  : limitReachedMetadata(staleNotes.length > topStaleNotes.length),
+              },
+              ...partialCompletenessMetadata(
+                backlinkScan.scanned,
+                backlinkScan.skipped,
+                backlinkScan.reasons
+              )
             }, null, 2)
           }],
           isError: false
@@ -368,13 +459,15 @@ export function createAnalyticsHandlers(config: Config) {
         const vault = resolveVault(config, args.vault);
         const limit = args.limit || 50;
 
-        const files = await collectFiles(vault.path, vault.path);
-        const { backlinkCounts } = await buildBacklinkIndex(vault.path);
+        const inventory = await collectFiles(vault.path, vault.path);
+        const files = inventory.files;
+        const backlinkScan = await buildBacklinkIndex(vault.path, inventory);
+        const { backlinkCounts } = backlinkScan;
 
-        const orphans = files
+        const allOrphans = files
           .filter(f => (backlinkCounts.get(f.relativePath) || 0) === 0)
-          .filter(f => !matchesExclude(f.relativePath, args.exclude_patterns))
-          .slice(0, limit);
+          .filter(f => !matchesExclude(f.relativePath, args.exclude_patterns));
+        const orphans = allOrphans.slice(0, limit);
 
         // Enrich with titles
         const enriched = await Promise.all(orphans.map(async f => {
@@ -393,6 +486,16 @@ export function createAnalyticsHandlers(config: Config) {
             };
           }
         }));
+        const metadata = backlinkScan.skipped === 0
+          ? exactResultMetadata(allOrphans.length, enriched.length)
+          : {
+              ...limitReachedMetadata(allOrphans.length > enriched.length),
+              ...partialCompletenessMetadata(
+                backlinkScan.scanned,
+                backlinkScan.skipped,
+                backlinkScan.reasons
+              ),
+            };
 
         return {
           content: [{
@@ -400,6 +503,7 @@ export function createAnalyticsHandlers(config: Config) {
             text: JSON.stringify({
               vault: vault.name,
               orphanCount: enriched.length,
+              ...metadata,
               orphans: enriched
             }, null, 2)
           }],
@@ -421,8 +525,13 @@ export function createAnalyticsHandlers(config: Config) {
         const vault = resolveVault(config, args.vault);
         const limit = args.limit || 50;
 
-        const { brokenLinks } = await buildBacklinkIndex(vault.path);
+        const inventory = await collectFiles(vault.path, vault.path);
+        const backlinkScan = await buildBacklinkIndex(vault.path, inventory);
+        const { brokenLinks } = backlinkScan;
         const uniqueTargets = uniqueUnresolvedTargetStrings(brokenLinks);
+        const returnedBrokenLinks = brokenLinks.slice(0, limit);
+        const returnedUniqueTargets = uniqueTargets.slice(0, limit);
+        const scanExact = backlinkScan.skipped === 0;
 
         return {
           content: [{
@@ -432,8 +541,21 @@ export function createAnalyticsHandlers(config: Config) {
               brokenLinkCount: brokenLinks.length,
               brokenLinkOccurrenceCount: brokenLinks.length,
               uniqueUnresolvedTargetStringCount: uniqueTargets.length,
-              brokenLinks: brokenLinks.slice(0, limit),
-              uniqueUnresolvedTargetStrings: uniqueTargets.slice(0, limit)
+              brokenLinks: returnedBrokenLinks,
+              uniqueUnresolvedTargetStrings: returnedUniqueTargets,
+              resultMetadata: {
+                brokenLinks: scanExact
+                  ? exactResultMetadata(brokenLinks.length, returnedBrokenLinks.length)
+                  : limitReachedMetadata(brokenLinks.length > returnedBrokenLinks.length),
+                uniqueUnresolvedTargetStrings: scanExact
+                  ? exactResultMetadata(uniqueTargets.length, returnedUniqueTargets.length)
+                  : limitReachedMetadata(uniqueTargets.length > returnedUniqueTargets.length),
+              },
+              ...partialCompletenessMetadata(
+                backlinkScan.scanned,
+                backlinkScan.skipped,
+                backlinkScan.reasons
+              )
             }, null, 2)
           }],
           isError: false
@@ -457,9 +579,11 @@ export function createAnalyticsHandlers(config: Config) {
         const vault = resolveVault(config, args.vault);
         const days = args.days || 90;
         const limit = args.limit || 50;
+        const returnLimit = Math.max(0, Math.ceil(limit));
         const staleThreshold = Date.now() - (days * 24 * 60 * 60 * 1000);
 
-        const files = await collectFiles(vault.path, vault.path);
+        const inventory = await collectFiles(vault.path, vault.path);
+        const files = inventory.files;
 
         // Filter stale files
         const staleFiles = files
@@ -475,9 +599,8 @@ export function createAnalyticsHandlers(config: Config) {
           daysSinceModified: number;
         }> = [];
 
+        let parseSkipped = 0;
         for (const file of staleFiles) {
-          if (results.length >= limit) break;
-
           try {
             const parsed = await parseMarkdownFile(file.relativePath, vault.path);
 
@@ -503,12 +626,26 @@ export function createAnalyticsHandlers(config: Config) {
                 lastModified: file.mtime.toISOString(),
                 daysSinceModified: Math.floor((Date.now() - file.mtime.getTime()) / (24 * 60 * 60 * 1000))
               });
+            } else {
+              parseSkipped += 1;
             }
           }
         }
 
         // Sort by stalest first
         results.sort((a, b) => b.daysSinceModified - a.daysSinceModified);
+        const limited = results.slice(0, returnLimit);
+        const skipped = inventory.skipped + parseSkipped;
+        const reasons = [
+          ...inventory.reasons,
+          ...(parseSkipped > 0 ? ['file_unparseable' as const] : []),
+        ];
+        const metadata = skipped === 0
+          ? exactResultMetadata(results.length, limited.length)
+          : {
+              ...limitReachedMetadata(results.length > limited.length),
+              ...partialCompletenessMetadata(files.length - parseSkipped, skipped, reasons),
+            };
 
         return {
           content: [{
@@ -517,8 +654,9 @@ export function createAnalyticsHandlers(config: Config) {
               vault: vault.name,
               daysThreshold: days,
               typeFilter: args.type_filter || null,
-              staleCount: results.length,
-              staleNotes: results
+              staleCount: limited.length,
+              ...metadata,
+              staleNotes: limited
             }, null, 2)
           }],
           isError: false

@@ -11,6 +11,12 @@ import { ToolResponse } from '../types/index.js';
 import { parseMarkdownFile, extractTitle } from '../parsers/markdown.js';
 import { vaultParam, limitParam } from './schema-helpers.js';
 import { withAnnotations, ToolAnnotations } from './safety.js';
+import {
+  CompletenessReason,
+  exactResultMetadata,
+  limitReachedMetadata,
+  partialCompletenessMetadata,
+} from '../result-metadata.js';
 
 /**
  * Supported filter operators
@@ -183,7 +189,11 @@ export function createQueryHandlers(config: Config) {
         const limit = args.limit || 20;
 
         // Collect all markdown files
-        const files = await collectMarkdownFiles(searchDir, vault.path);
+        const collection = await collectMarkdownFiles(searchDir, vault.path);
+        const files = collection.files;
+        let scanned = 0;
+        let skipped = collection.skipped;
+        const reasons = [...collection.reasons];
 
         // Parse and filter
         const results: Array<{
@@ -195,6 +205,7 @@ export function createQueryHandlers(config: Config) {
         for (const filePath of files) {
           try {
             const parsed = await parseMarkdownFile(filePath, vault.path);
+            scanned += 1;
 
             // Apply all conditions
             if (args.where && args.where.length > 0) {
@@ -208,7 +219,8 @@ export function createQueryHandlers(config: Config) {
               frontmatter: projectFields(parsed.frontmatter, args.fields)
             });
           } catch {
-            // Skip files that can't be parsed
+            skipped += 1;
+            reasons.push('file_unparseable');
           }
         }
 
@@ -227,6 +239,12 @@ export function createQueryHandlers(config: Config) {
 
         // Limit
         const limited = results.slice(0, limit);
+        const metadata = skipped === 0
+          ? exactResultMetadata(results.length, limited.length)
+          : {
+              ...limitReachedMetadata(results.length > limited.length),
+              ...partialCompletenessMetadata(scanned, skipped, reasons),
+            };
 
         return {
           content: [{
@@ -236,6 +254,7 @@ export function createQueryHandlers(config: Config) {
               from: args.from || '/',
               totalMatches: results.length,
               returned: limited.length,
+              ...metadata,
               results: limited
             }, null, 2)
           }],
@@ -254,11 +273,17 @@ export function createQueryHandlers(config: Config) {
 /**
  * Helper: Collect all markdown files recursively
  */
+interface MarkdownCollection {
+  files: string[];
+  skipped: number;
+  reasons: CompletenessReason[];
+}
+
 async function collectMarkdownFiles(
   dirPath: string,
   vaultPath: string,
-  files: string[] = []
-): Promise<string[]> {
+  collection: MarkdownCollection = { files: [], skipped: 0, reasons: [] }
+): Promise<MarkdownCollection> {
   try {
     const entries = await fs.readdir(dirPath, { withFileTypes: true });
 
@@ -268,14 +293,15 @@ async function collectMarkdownFiles(
       const fullPath = path.join(dirPath, entry.name);
 
       if (entry.isDirectory()) {
-        await collectMarkdownFiles(fullPath, vaultPath, files);
+        await collectMarkdownFiles(fullPath, vaultPath, collection);
       } else if (entry.name.endsWith('.md')) {
-        files.push(path.relative(vaultPath, fullPath));
+        collection.files.push(path.relative(vaultPath, fullPath));
       }
     }
   } catch {
-    // Directory doesn't exist or is inaccessible
+    collection.skipped += 1;
+    collection.reasons.push('directory_unavailable');
   }
 
-  return files;
+  return collection;
 }

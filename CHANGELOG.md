@@ -8,17 +8,20 @@ All notable changes to mcp-obsidian are documented here.
 
 - Added `open_vault`, an explicit app-state tool that opens one configured vault only when needed and prepares a session-only exact Obsidian base-graph snapshot. Targeting is bound to one canonical configured path and one registered 16-character Obsidian vault ID; basename, active-window, default-vault, arbitrary-URI, and batch targeting are not used. (#45)
 - Added bounded structured recovery outcomes across the 104-tool MCP boundary. Unknown or disabled tools, unavailable runtime/model prerequisites, resolver misses, conflicts, refusals, cancellations, and safe no-change results now expose stable status, code, retry, side-effect, hint, and optional corrective-action fields without executing guessed replacements. (#80)
+- Added truthful exact-total, proven-limit, partial-scan, composite-result, and per-vault metadata to bounded file search, frontmatter query, analytics, cross-vault search, semantic search/similarity, and stale-index summaries. (#81)
 
 ### Changed
 
 - `analyze_link_hierarchy` now defaults to side-effect-free `providerMode: "exact"`. Exact mode ranks only a valid prepared snapshot and returns `decision_required` or `exact_unavailable` without opening Obsidian or silently falling back. Explicit `providerMode: "filesystem"` performs approximate analysis without probing or invoking Obsidian. Graph results add a request-level `decisionState`; non-graph outcomes omit `providerState`. (#45)
 - Exact snapshot preparation, consumption, and in-process mutations are serialized per canonical vault; cancellation is carried through stdio/HTTP and graph work; and snapshots are invalidated conservatively on identity/digest changes, fresh preparation, and in-process mutation attempts other than canonical proven no-change outcomes. (#45, #80)
 - Obsidian CLI/app, Ollama/model, and semantic-index prerequisites now remain distinct recovery conditions. Resolver suggestions are bounded and identify vault-derived names as untrusted; mutator preconditions and `search_replace_in_file` no-match results report truthful side-effect state. Stdio now preserves MCP `structuredContent`, and HTTP returns structured error bodies while retaining existing success and legacy-route behavior. (#80)
+- High-volume scans now distinguish complete-but-limited output from failed/skipped work, seek a qualifying text-search sentinel before claiming a bound, isolate cross-vault failures, and keep semantic sentinel candidates out of historical ranking, graph, and reranker pipelines. Legacy text-only filesystem readers remain format-compatible pending a separate success-response carrier. (#81)
 
 ### Tests
 
 - Added canonical registry identity, exact-ID argv, cross-platform opener, digest collision/failure, snapshot race/invalidation, consent-response, read-only refusal, queue cancellation/concurrency, and real graph-work cancellation coverage over stdio and HTTP. On the independently approved final candidate, the strict macOS live gate executed both required lanes successfully (exact Obsidian graph and real Ollama semantic search): 3 tests, 2 passed, 0 failed, 1 optional concept-vault test skipped. (#45)
 - Added hostile-input bounds, recovery compatibility, resolver trust, provider-prerequisite, no-change, side-effect, stdio, and HTTP coverage for structured recovery outcomes. (#80)
+- Added always-run injected-failure and mocked-provider coverage for exact-at-limit scans, qualifying sentinels, partial scans, duplicate semantic blocks, multi-chunk self exclusion, per-vault isolation, composite metadata, and unchanged semantic ordering/reranker inputs. (#81)
 
 ## [1.5.0] - 2026-08-10
 
