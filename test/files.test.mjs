@@ -721,6 +721,11 @@ describe('search_content', () => {
     const data = parse(res);
     assert.equal(data.resultCount, 0, 'resultCount=0 for no-match');
     assert.equal(data.results.length, 0, 'results array is empty');
+    assert.deepEqual(
+      { total: data.total, returned: data.returned, truncated: data.truncated, has_more: data.has_more },
+      { total: 0, returned: 0, truncated: false, has_more: false },
+      'complete empty search reports an exact result quartet',
+    );
   });
 
   test('maxResults caps the number of returned files', async () => {
@@ -732,6 +737,8 @@ describe('search_content', () => {
     assertOk(res, 'search_content maxResults');
     const data = parse(res);
     assert.ok(data.results.length <= 1, 'results capped at maxResults=1');
+    assert.equal(data.limit_reached, true, 'a qualifying sentinel proves the result bound was reached');
+    assert.equal('total' in data, false, 'bounded scan does not fabricate an exact total');
   });
 
   test('regex pattern search works', async () => {

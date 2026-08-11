@@ -192,6 +192,10 @@ describe('get_orphan_notes', () => {
       data.orphans.length <= 1,
       `get_orphan_notes limit=1: expected at most 1 result, got ${data.orphans.length}`,
     );
+    assert.equal(data.returned, data.orphans.length, 'returned matches the bounded orphan array');
+    assert.ok(data.total >= data.returned, 'exact orphan total is not smaller than returned');
+    assert.equal(data.truncated, data.total > data.returned, 'orphan truncation follows exact counts');
+    assert.equal(data.has_more, data.truncated, 'orphan has_more follows truncation');
   });
 });
 

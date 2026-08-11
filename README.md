@@ -251,6 +251,22 @@ Closest matches and next actions are suggestions only: the server never executes
 
 Over stdio, clients receive the full MCP tool result including `structuredContent`. HTTP successes keep their existing response bodies; known handler errors return the structured body with status 500, while unknown and disabled tools return distinct structured bodies with status 404. Legacy shorthand routes keep their existing HTTP status behavior.
 
+## Result Completeness and Limits
+
+High-volume JSON readers report what they actually evaluated instead of treating a returned-array length as a full total:
+
+- `total`, `returned`, `truncated`, and `has_more` appear together only when the full matching total is known. A limited but fully scanned result is not `partial`.
+- `limit_reached: true` means a configured result or provider bound is proven to have withheld at least one eligible candidate while the exact total remains unknown. The field is omitted when that fact is not proven; it is never emitted as `false`.
+- `completeness: { state: "partial", scanned, skipped, reasons }` appears only when required files, descendant subtrees, or vaults could not be evaluated. `scanned` and `skipped` are operational units, not a mathematical coverage denominator: one inaccessible descendant directory is one skipped unknown-subtree unit. Caller-limit-unvisited work, hidden/non-Markdown exclusions, and successful fallback representations are not skipped.
+
+Reasons are stable, bounded codes such as `file_unreadable`, `file_unparseable`, `directory_unavailable`, `vault_unindexed`, and `vault_search_failed`. They never contain exception text, file paths, or vault-derived prose.
+
+Composite reports place independently bounded arrays under `resultMetadata`. `get_broken_links` describes `brokenLinks` and `uniqueUnresolvedTargetStrings`; `get_vault_health` describes all four `top*` arrays; and `index_status` describes `staleIndexedFileSamples`. The stale-sample `total` counts all stale index records, while unsafe absolute or platform-specific path samples remain suppressed from the returned array.
+
+`semantic_search`, `semantic_search_all`, and `get_similar` cannot claim an exact note total from capped embedding and FTS providers. For these tools, `limit_reached` means at least one eligible provider candidate row was withheld; that candidate can be another indexed block from a note already represented in the results. For `get_similar`, self-note chunks are excluded from the returned list, and extra self chunks inspected only to establish the bound do not change its historical result pool. Evidence-only sentinel rows never enter ranking, RRF scores, graph annotation, reranker input, or returned ordering. Cross-vault semantic search also returns configured-order `resultMetadataByVault` entries with `searched`, `unindexed`, or `failed` state so one vault failure does not erase successful results from another.
+
+Legacy newline/tab readers such as `search_with_context` keep their established text responses. They do not yet receive machine-readable completeness metadata because adding metadata-only `structuredContent` would hide their text body on the HTTP surface, while converting them to a success envelope would be a broader compatibility migration. Their absence of completeness fields is not a claim that a swallowed read failure could not occur.
+
 ## Capability Tiers
 
 | Tier | Tools | Requires | Always Available |

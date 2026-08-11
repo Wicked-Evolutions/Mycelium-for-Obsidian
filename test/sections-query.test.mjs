@@ -773,6 +773,9 @@ describe('query_notes', () => {
     assert.ok(data.totalMatches > 2, `limit: totalMatches (${data.totalMatches}) should exceed limit`);
     assert.equal(data.results.length, 2, 'limit: exactly 2 results returned');
     assert.equal(data.returned, 2, 'limit: returned field equals 2');
+    assert.equal(data.total, data.totalMatches, 'complete query exposes the exact canonical total');
+    assert.equal(data.truncated, true, 'complete query reports result truncation');
+    assert.equal(data.has_more, true, 'complete query reports more known matches');
   });
 
   // ─── multi-condition AND ─────────────────────────────────────────────────

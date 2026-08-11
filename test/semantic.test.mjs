@@ -355,6 +355,12 @@ describe('index_status (always-run)', () => {
       assert.ok(!data.staleIndexedFileSamples.some(p => p.includes('/tmp')), 'unsafe absolute DB key is omitted from samples');
       assert.ok(!data.staleIndexedFileSamples.some(p => p.includes('C:')), 'Windows drive DB key is omitted from samples');
       assert.ok(!data.staleIndexedFileSamples.some(p => p.includes('server')), 'Windows UNC DB key is omitted from samples');
+      assert.deepEqual(data.resultMetadata.staleIndexedFileSamples, {
+        total: data.staleIndexedFiles,
+        returned: data.staleIndexedFileSamples.length,
+        truncated: data.staleIndexedFileSamples.length < data.staleIndexedFiles,
+        has_more: data.staleIndexedFileSamples.length < data.staleIndexedFiles,
+      }, 'stale sample metadata counts all stale index records while unsafe samples stay suppressed');
     } finally {
       process.env.OBSIDIAN_VAULTS = JSON.stringify({ TestVault: vaultDir });
       cleanup(statsDir);
