@@ -22,12 +22,20 @@ import {
   ObsidianUriDiagnostic
 } from '../parsers/obsidian-uri.js';
 import {
+  assertEmbeddingResultIdentity,
+  assertOllamaModelIdentity,
+  assertValidEmbeddingVector,
   generateEmbedding,
   checkOllamaAvailability,
   cosineSimilarity,
-  OllamaConfig
+  OllamaConfig,
+  resolveEmbeddingModelConfig,
 } from '../embeddings/ollama.js';
-import { getSharedStorage } from '../embeddings/storage.js';
+import {
+  getSharedStorage,
+  type EmbeddingIndexCompatibility,
+} from '../embeddings/storage.js';
+import { pinVaultRoot, type PinnedVaultRoot } from '../embeddings/vault-root.js';
 import { calculateIndexCoverage, coveragePercent, ratio } from '../embeddings/index-stats.js';
 import { withAnnotations, ToolAnnotations } from './safety.js';
 import { annotateCrossVault } from './graph-annotate.js';
@@ -39,6 +47,7 @@ import {
   limitReachedMetadata,
   partialCompletenessMetadata,
 } from '../result-metadata.js';
+import { secureMutationSupported } from '../embeddings/secure-fs.js';
 
 /**
  * Tool definitions for cross-vault operations
@@ -148,17 +157,37 @@ export const crossVaultTools: Tool[] = withAnnotations(rawCrossVaultTools, cross
 /**
  * Get storage instance for a vault (shared singleton per vault path)
  */
-function getStorage(vault: VaultConfig) {
-  return getSharedStorage(vault.path);
+function getStorage(vaultRoot: PinnedVaultRoot) {
+  return getSharedStorage(vaultRoot);
 }
 
 /**
  * Handler functions for cross-vault tools
  */
-export function createCrossVaultHandlers(config: Config) {
+export interface CrossVaultHandlerDependencies {
+  secureMutationSupported?: () => boolean;
+}
+
+export function createCrossVaultHandlers(
+  config: Config,
+  dependencies: CrossVaultHandlerDependencies = {}
+) {
   const ollamaConfig: OllamaConfig = {
     host: config.ollama.host,
     model: config.ollama.model
+  };
+  const semanticStorageUnavailable = (): ToolResponse | null => {
+    const supported = dependencies.secureMutationSupported?.()
+      ?? secureMutationSupported();
+    if (supported) return null;
+    return recoveryResponse({
+      status: 'unavailable',
+      code: 'semantic_storage_unavailable',
+      message: 'Hardened semantic-index storage is unavailable on this platform.',
+      hint: 'Run Mycelium on macOS or Linux for semantic indexing. Filesystem and Obsidian tools remain available.',
+      retryable: false,
+      sideEffects: { state: 'none' },
+    });
   };
 
   return {
@@ -253,10 +282,12 @@ export function createCrossVaultHandlers(config: Config) {
       limit?: number;
       minSimilarity?: number;
     }): Promise<ToolResponse> => {
+      const storageUnavailable = semanticStorageUnavailable();
+      if (storageUnavailable) return storageUnavailable;
       try {
         // Check Ollama availability
         const ollama = await checkOllamaAvailability(ollamaConfig);
-        if (!ollama.available || !ollama.hasModel) {
+        if (!ollama.available || !ollama.hasModel || !ollama.model) {
           return recoveryResponse({
             status: 'unavailable',
             code: ollama.available ? 'model_unavailable' : 'ollama_unavailable',
@@ -272,7 +303,12 @@ export function createCrossVaultHandlers(config: Config) {
         }
 
         // Generate query embedding
-        const queryResult = await generateEmbedding(args.query, ollamaConfig);
+        const embeddingConfig = resolveEmbeddingModelConfig(ollamaConfig, ollama.model);
+        const queryResult = await generateEmbedding(args.query, embeddingConfig);
+        assertValidEmbeddingVector(queryResult.embedding, 'Ollama');
+        assertEmbeddingResultIdentity(queryResult, ollama.model);
+        await assertOllamaModelIdentity(ollamaConfig, ollama.model);
+        const exactModelIdentity = `${ollama.model.name}@${ollama.model.digest}`;
         const limit = args.limit || 10;
         const minSimilarity = args.minSimilarity || 0.3;
 
@@ -286,7 +322,8 @@ export function createCrossVaultHandlers(config: Config) {
         }> = [];
         const resultMetadataByVault: Array<{
           vault: string;
-          state: 'searched' | 'unindexed' | 'failed';
+          state: 'searched' | 'unindexed' | 'incompatible' | 'failed';
+          indexCompatibility?: EmbeddingIndexCompatibility;
           limit_reached?: true;
           completeness?: {
             state: 'partial';
@@ -300,10 +337,15 @@ export function createCrossVaultHandlers(config: Config) {
         let indexedVaults = 0;
         let anyProviderLimitReached = false;
         const semanticReasons: CompletenessReason[] = [];
+        let totalEmbeddingCount = 0;
+        let compatibleEmbeddingCount = 0;
+        let excludedEmbeddingCount = 0;
+        let excludedFileCount = 0;
 
         for (const vault of config.vaults) {
           try {
-            const storage = getStorage(vault);
+            const vaultRoot = await pinVaultRoot(vault.path);
+            const storage = getStorage(vaultRoot);
             const stats = storage.getStats();
 
             if (stats.totalEmbeddings === 0) {
@@ -319,18 +361,36 @@ export function createCrossVaultHandlers(config: Config) {
 
             indexedVaults += 1;
             const historicalCap = limit * 2;
-            const fetched = storage.search(
+            const compatibleSearch = storage.searchCompatible(
               queryResult.embedding,
+              exactModelIdentity,
               historicalCap + 1,
               minSimilarity
             );
+            const fetched = compatibleSearch.results;
+            const compatibility = compatibleSearch.compatibility;
+            totalEmbeddingCount += compatibility.totalEmbeddingCount;
+            compatibleEmbeddingCount += compatibility.compatibleEmbeddingCount;
+            excludedEmbeddingCount += compatibility.excludedEmbeddingCount;
+            excludedFileCount += compatibility.excludedFileCount;
+            if (compatibility.compatibleEmbeddingCount === 0) {
+              skippedVaults += 1;
+              semanticReasons.push('embedding_index_incompatible');
+              resultMetadataByVault.push({
+                vault: vault.name,
+                state: 'incompatible',
+                indexCompatibility: compatibility,
+                ...partialCompletenessMetadata(0, 1, ['embedding_index_incompatible']),
+              });
+              continue;
+            }
             const providerLimitReached = fetched.length > historicalCap;
             const vaultResults = fetched.slice(0, historicalCap);
             anyProviderLimitReached ||= providerLimitReached;
 
             for (const r of vaultResults) {
               try {
-                const parsed = await parseMarkdownFile(r.filePath, vault.path);
+                const parsed = await parseMarkdownFile(r.filePath, vaultRoot.path);
                 allResults.push({
                   vault: vault.name,
                   path: r.filePath,
@@ -353,6 +413,7 @@ export function createCrossVaultHandlers(config: Config) {
             resultMetadataByVault.push({
               vault: vault.name,
               state: 'searched',
+              indexCompatibility: compatibility,
               ...limitReachedMetadata(providerLimitReached),
             });
           } catch {
@@ -393,6 +454,16 @@ export function createCrossVaultHandlers(config: Config) {
               vaultsSearched: config.vaults.length,
               vaultsIndexed: indexedVaults,
               resultCount: annotated.results.length,
+              indexCompatibility: {
+                state: excludedEmbeddingCount === 0 ? 'complete' : 'partial',
+                modelIdentity: exactModelIdentity,
+                embeddingDimension: queryResult.embedding.length,
+                totalEmbeddingCount,
+                compatibleEmbeddingCount,
+                excludedEmbeddingCount,
+                excludedFileCount,
+                reindexRequired: excludedEmbeddingCount > 0,
+              },
               ...limitReachedMetadata(anyProviderLimitReached || globalLimitReached),
               ...partialCompletenessMetadata(
                 searchedVaults,
@@ -468,6 +539,8 @@ export function createCrossVaultHandlers(config: Config) {
     },
 
     get_ecosystem_stats: async (): Promise<ToolResponse> => {
+      const storageUnavailable = semanticStorageUnavailable();
+      if (storageUnavailable) return storageUnavailable;
       try {
         const vaultStats: Array<{
           vault: string;
@@ -495,10 +568,11 @@ export function createCrossVaultHandlers(config: Config) {
         let totalStaleEmbeddingChunks = 0;
 
         for (const vault of config.vaults) {
-          const files = await collectMarkdownFilePaths(vault.path, vault.path);
-          const storage = getStorage(vault);
+          const vaultRoot = await pinVaultRoot(vault.path);
+          const files = await collectMarkdownFilePaths(vaultRoot.path, vaultRoot.path);
+          const storage = getStorage(vaultRoot);
           const coverage = calculateIndexCoverage(
-            vault.path,
+            vaultRoot.path,
             files,
             storage.getPathStats(),
             { staleSampleLimit: 0 }

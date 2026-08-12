@@ -8,6 +8,7 @@ export const COMPLETENESS_REASONS = [
   'file_too_large',
   'vault_unavailable',
   'vault_unindexed',
+  'embedding_index_incompatible',
   'vault_search_failed',
   'scan_failure',
 ] as const;

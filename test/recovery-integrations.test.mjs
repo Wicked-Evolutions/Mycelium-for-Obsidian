@@ -7,8 +7,29 @@ const ollamaSpecifier = new URL('../dist/embeddings/ollama.js', import.meta.url)
 
 await mock.module(ollamaSpecifier, {
   namedExports: {
+    assertEmbeddingResultIdentity: (result, expected) => {
+      if (result.model !== expected.name || result.digest !== expected.digest) {
+        throw new Error('Ollama embedding model identity changed during the operation.');
+      }
+    },
+    assertOllamaModelIdentity: async () => {},
+    isValidEmbeddingVector: (value) => Array.isArray(value) &&
+      value.length > 0 && value.every(item => typeof item === 'number' && Number.isFinite(item)),
+    assertValidEmbeddingVector: (value, source = 'Embedding provider') => {
+      if (!Array.isArray(value) || value.length === 0 || value.some(item => !Number.isFinite(item))) {
+        throw new Error(`${source} returned an invalid embedding vector.`);
+      }
+    },
     checkOllamaAvailability: async () => ollamaState,
-    generateEmbedding: async () => ({ embedding: [1, 0], dimensions: 2 }),
+    getEmbeddingModelProfile: async () => ({
+      name: 'mock-embed:latest', digest: 'sha256:mock', contextLength: 2048, maxInputBytes: 1920,
+    }),
+    resolveEmbeddingModelConfig: (config, model) => ({
+      ...config, model: model.name, modelDigest: model.digest,
+    }),
+    generateEmbedding: async (_text, config) => ({
+      embedding: [1, 0], dimensions: 2, model: config.model, digest: config.modelDigest,
+    }),
     generateCompletion: async () => 'mock completion',
     cosineSimilarity: () => 0,
   },
@@ -20,6 +41,7 @@ const { createCrossVaultHandlers } = await import('../dist/tools/crossvault.js')
 const { getSharedStorage } = await import('../dist/embeddings/storage.js');
 
 let vaultDir;
+let config;
 let handlers;
 let crossVaultHandlers;
 
@@ -27,7 +49,7 @@ before(() => {
   vaultDir = createTempVault({ 'Note.md': '# Note\n\nContent.' });
   process.env.OBSIDIAN_VAULTS = JSON.stringify({ RecoveryVault: vaultDir });
   delete process.env.OBSIDIAN_DISABLED_TOOLS;
-  const config = loadConfig();
+  config = loadConfig();
   handlers = createSemanticHandlers(config);
   crossVaultHandlers = createCrossVaultHandlers(config);
 });
@@ -42,6 +64,37 @@ function payload(response) {
   assert.deepEqual(parsed, response.structuredContent);
   return parsed;
 }
+
+test('unsupported semantic storage returns one structured outcome without blocking filesystem search', async () => {
+  const unsupportedSemantic = createSemanticHandlers(config, {
+    secureMutationSupported: () => false,
+  });
+  const unsupportedCrossVault = createCrossVaultHandlers(config, {
+    secureMutationSupported: () => false,
+  });
+  const calls = [
+    unsupportedSemantic.semantic_search({ vault: 'RecoveryVault', query: 'topic' }),
+    unsupportedSemantic.index_vault({ vault: 'RecoveryVault' }),
+    unsupportedSemantic.index_file({ vault: 'RecoveryVault', path: 'Note.md' }),
+    unsupportedSemantic.get_similar({ vault: 'RecoveryVault', path: 'Note.md' }),
+    unsupportedSemantic.index_status({ vault: 'RecoveryVault' }),
+    unsupportedCrossVault.semantic_search_all({ query: 'topic' }),
+    unsupportedCrossVault.get_ecosystem_stats(),
+  ];
+
+  for (const response of await Promise.all(calls)) {
+    const result = payload(response);
+    assert.equal(response.isError, true);
+    assert.equal(result.status, 'unavailable');
+    assert.equal(result.code, 'semantic_storage_unavailable');
+    assert.equal(result.retryable, false);
+    assert.deepEqual(result.sideEffects, { state: 'none' });
+  }
+
+  const filesystemSearch = await unsupportedCrossVault.search_all_vaults({ query: 'Content' });
+  assert.equal(filesystemSearch.isError, false);
+  assert.equal(JSON.parse(filesystemSearch.content[0].text).totalResults, 1);
+});
 
 test('semantic search distinguishes unavailable Ollama from a missing model', async () => {
   ollamaState = { available: false, hasModel: false };
@@ -63,7 +116,11 @@ test('semantic search distinguishes unavailable Ollama from a missing model', as
 });
 
 test('empty semantic index returns an actionable compatibility-preserving outcome', async () => {
-  ollamaState = { available: true, hasModel: true };
+  ollamaState = {
+    available: true,
+    hasModel: true,
+    model: { name: 'mock-embed:latest', digest: 'sha256:mock' },
+  };
   const response = await handlers.semantic_search({
     vault: 'RecoveryVault',
     query: 'topic',

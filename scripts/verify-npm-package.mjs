@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { once } from 'node:events';
+import fs from 'node:fs';
 import { cp, mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -255,18 +256,25 @@ async function stagePackageSource(stageRoot) {
   );
 }
 
-async function verifyNativeBinding(installRoot) {
+async function verifyNativeBindings(installRoot) {
   const nativeProbe = String.raw`
     const path = require('node:path');
     const { createRequire } = require('node:module');
     const requireFromInstall = createRequire(path.join(process.cwd(), 'package.json'));
     const Database = requireFromInstall('better-sqlite3');
+    requireFromInstall('koffi');
     const database = new Database(':memory:');
     const result = database.prepare('select 1 as ok').get();
     database.close();
-    const binding = Object.keys(require.cache).find(file => file.endsWith('.node') && file.includes('better-sqlite3'));
-    if (!binding) throw new Error('loaded better-sqlite3 native binding was not found in require.cache');
-    process.stdout.write(JSON.stringify({ ok: result.ok, binding }));
+    const betterSqlite3 = Object.keys(require.cache).find(
+      file => file.endsWith('.node') && file.includes('better-sqlite3')
+    );
+    const koffi = Object.keys(require.cache).find(
+      file => file.endsWith('.node') && file.toLowerCase().includes('koffi')
+    );
+    if (!betterSqlite3) throw new Error('loaded better-sqlite3 native binding was not found in require.cache');
+    if (!koffi) throw new Error('loaded Koffi native binding was not found in require.cache');
+    process.stdout.write(JSON.stringify({ ok: result.ok, betterSqlite3, koffi }));
   `;
   const { stdout } = await runCommand(process.execPath, ['-e', nativeProbe], {
     cwd: installRoot,
@@ -276,7 +284,93 @@ async function verifyNativeBinding(installRoot) {
   }, 'native binding probe');
   const result = JSON.parse(stdout);
   assert.equal(result.ok, 1);
-  return assertInside(result.binding, path.join(installRoot, 'node_modules'), 'native binding');
+  const nodeModules = path.join(installRoot, 'node_modules');
+  return {
+    betterSqlite3: await assertInside(
+      result.betterSqlite3,
+      nodeModules,
+      'better-sqlite3 native binding'
+    ),
+    koffi: await assertInside(result.koffi, nodeModules, 'Koffi native binding'),
+  };
+}
+
+async function verifySecureFilesystemAdapter(packageRoot, tempRoot) {
+  const moduleUrl = `${pathToFileURL(
+    path.join(packageRoot, 'dist', 'embeddings', 'secure-fs.js')
+  ).href}?package-check=${Date.now()}`;
+  const secureFilesystem = await import(moduleUrl);
+  const root = path.join(tempRoot, 'secure-fs-smoke');
+  const owned = path.join(root, 'owned');
+  const moved = path.join(root, 'owned-moved');
+  const external = path.join(root, 'external');
+  await mkdir(owned, { recursive: true, mode: 0o700 });
+  await mkdir(external, { mode: 0o700 });
+  await writeFile(path.join(owned, 'embeddings.db'), 'owned generation', { mode: 0o600 });
+  await writeFile(path.join(external, 'embeddings.db'), 'external generation', { mode: 0o600 });
+  const ownedStat = fs.lstatSync(owned, { bigint: true });
+
+  if (!secureFilesystem.secureMutationSupported()) {
+    assert.throws(
+      () => secureFilesystem.openPinnedDirectory(owned, {
+        device: String(ownedStat.dev),
+        inode: String(ownedStat.ino),
+      }),
+      error => error?.name === 'SecureFilesystemUnavailableError'
+    );
+    return {
+      state: 'unavailable',
+      reason: 'descriptor_relative_backend_unavailable',
+    };
+  }
+
+  const externalBefore = fs.readFileSync(path.join(external, 'embeddings.db'));
+  const directoryDescriptor = secureFilesystem.openPinnedDirectory(owned, {
+    device: String(ownedStat.dev),
+    inode: String(ownedStat.ino),
+  });
+  try {
+    fs.renameSync(owned, moved);
+    fs.symlinkSync(external, owned, 'dir');
+    const temporaryDescriptor = secureFilesystem.openFileAt(
+      directoryDescriptor,
+      'temporary.tmp',
+      fs.constants.O_CREAT | fs.constants.O_EXCL | fs.constants.O_RDWR,
+      0o600
+    );
+    try {
+      fs.writeFileSync(temporaryDescriptor, 'installed adapter generation');
+      fs.fsyncSync(temporaryDescriptor);
+      assert.equal(fs.fstatSync(temporaryDescriptor).mode & 0o777, 0o600);
+    } finally {
+      fs.closeSync(temporaryDescriptor);
+    }
+    secureFilesystem.renameAt(directoryDescriptor, 'temporary.tmp', 'embeddings.db');
+    const cleanupDescriptor = secureFilesystem.openFileAt(
+      directoryDescriptor,
+      'cleanup.tmp',
+      fs.constants.O_CREAT | fs.constants.O_EXCL | fs.constants.O_RDWR,
+      0o600
+    );
+    fs.closeSync(cleanupDescriptor);
+    secureFilesystem.unlinkAt(directoryDescriptor, 'cleanup.tmp');
+    secureFilesystem.fsyncDirectory(directoryDescriptor);
+    assert.equal(
+      fs.readFileSync(path.join(moved, 'embeddings.db'), 'utf8'),
+      'installed adapter generation'
+    );
+    assert.deepEqual(fs.readFileSync(path.join(external, 'embeddings.db')), externalBefore);
+  } finally {
+    fs.closeSync(directoryDescriptor);
+    if (fs.lstatSync(owned).isSymbolicLink()) fs.unlinkSync(owned);
+    if (fs.existsSync(moved)) fs.renameSync(moved, owned);
+  }
+
+  return {
+    state: 'executed',
+    parentSwapContained: true,
+    externalTargetPreserved: true,
+  };
 }
 
 async function verifyInstalledServer({ installRoot, packageRoot, packageJson, vaultPath, expectedToolNames }) {
@@ -442,7 +536,8 @@ async function verifyPackage(tempRoot) {
   assert.equal(installedPackage.name, packResult.name);
   assert.equal(installedPackage.version, packResult.version);
 
-  const nativeBinding = await verifyNativeBinding(installRoot);
+  const nativeBindings = await verifyNativeBindings(installRoot);
+  const secureFilesystem = await verifySecureFilesystemAdapter(packageRoot, tempRoot);
   const toolsModuleUrl = `${pathToFileURL(path.join(stageRoot, 'dist', 'tools', 'index.js')).href}?package-check=${Date.now()}`;
   const { allTools } = await import(toolsModuleUrl);
   const expectedToolNames = allTools.map(tool => tool.name);
@@ -466,7 +561,11 @@ async function verifyPackage(tempRoot) {
       integrity: packResult.integrity,
       entryCount: packagePaths.size,
     },
-    nativeBinding: path.relative(installRoot, nativeBinding).split(path.sep).join('/'),
+    nativeBindings: Object.fromEntries(Object.entries(nativeBindings).map(([name, binding]) => [
+      name,
+      path.relative(installRoot, binding).split(path.sep).join('/'),
+    ])),
+    secureFilesystem,
     server,
   };
 }

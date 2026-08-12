@@ -1393,6 +1393,8 @@ function inferExistingOutcome(
   );
   const readOnlyTool = annotationReadOnly(tool);
   const structuredErrorCode = existingError.toLowerCase();
+  const explicitCliEvidence = structuredErrorCode === 'cli_unavailable' ||
+    /(^|[^a-z0-9])cli([^a-z0-9]|$)/iu.test(unavailableEvidence ?? '');
   const declaredSideEffects = existing?.sideEffects && typeof existing.sideEffects === 'object'
     ? sanitizeRecoveryString((existing.sideEffects as Record<string, unknown>).state, 16)
     : '';
@@ -1437,15 +1439,20 @@ function inferExistingOutcome(
             : 'item_not_found';
     retryable = false;
   } else if (unavailableEvidence) {
-    status = 'unavailable';
-    code = unavailableEvidence.includes('vault')
+    const unavailableCode = unavailableEvidence.includes('vault')
       ? 'vault_unavailable'
       : unavailableEvidence.includes('ollama') || unavailableEvidence.includes('model')
       ? 'model_unavailable'
-      : unavailableEvidence.includes('obsidian') && !unavailableEvidence.includes('cli')
+      : unavailableEvidence.includes('obsidian') && !explicitCliEvidence
         ? 'obsidian_unavailable'
-        : 'cli_unavailable';
-    retryable = true;
+        : explicitCliEvidence
+          ? 'cli_unavailable'
+          : undefined;
+    if (unavailableCode) {
+      status = 'unavailable';
+      code = unavailableCode;
+      retryable = true;
+    }
   }
 
   const message = existingMessage

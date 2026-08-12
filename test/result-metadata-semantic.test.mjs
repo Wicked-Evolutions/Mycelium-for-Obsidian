@@ -1,15 +1,52 @@
 import { after, mock, test } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { cleanup, createTempVault } from './helpers.mjs';
 
 const storageByPath = new Map();
+const embeddingModels = [];
 const ollamaSpecifier = new URL('../dist/embeddings/ollama.js', import.meta.url).href;
 const storageSpecifier = new URL('../dist/embeddings/storage.js', import.meta.url).href;
 
 await mock.module(ollamaSpecifier, {
   namedExports: {
-    checkOllamaAvailability: async () => ({ available: true, hasModel: true }),
-    generateEmbedding: async () => ({ embedding: [1, 0], dimensions: 2 }),
+    assertEmbeddingResultIdentity: (result, expected) => {
+      if (result.model !== expected.name || result.digest !== expected.digest) {
+        throw new Error('Ollama embedding model identity changed during the operation.');
+      }
+    },
+    assertOllamaModelIdentity: async () => {},
+    assertValidEmbeddingVector: (value, source = 'Embedding provider') => {
+      if (
+        !Array.isArray(value) ||
+        value.length === 0 ||
+        value.some(item => typeof item !== 'number' || !Number.isFinite(item))
+      ) {
+        throw new Error(`${source} returned an invalid embedding vector.`);
+      }
+    },
+    checkOllamaAvailability: async () => ({
+      available: true,
+      hasModel: true,
+      model: { name: 'mock-embed:latest', digest: 'sha256:mock' },
+    }),
+    getEmbeddingModelProfile: async () => ({
+      name: 'mock-embed:latest', digest: 'sha256:mock', contextLength: 2048, maxInputBytes: 1920,
+    }),
+    resolveEmbeddingModelConfig: (config, model) => ({
+      ...config, model: model.name, modelDigest: model.digest,
+    }),
+    generateEmbedding: async (_text, config) => {
+      embeddingModels.push(config.model);
+      return {
+        embedding: _text === 'invalid-empty-vector' ? [] : [1, 0],
+        dimensions: _text === 'invalid-empty-vector' ? 0 : 2,
+        model: config.model,
+        digest: _text === 'retagged-provider-vector'
+          ? 'sha256:replacement'
+          : config.modelDigest,
+      };
+    },
     generateCompletion: async () => 'unused mock completion',
     cosineSimilarity: () => 0,
   },
@@ -17,7 +54,8 @@ await mock.module(ollamaSpecifier, {
 
 await mock.module(storageSpecifier, {
   namedExports: {
-    getSharedStorage: (vaultPath) => {
+    getSharedStorage: (vaultRoot) => {
+      const vaultPath = typeof vaultRoot === 'string' ? vaultRoot : vaultRoot.path;
       const storage = storageByPath.get(vaultPath);
       if (storage instanceof Error) throw storage;
       if (!storage) throw new Error('missing fake storage');
@@ -39,7 +77,7 @@ after(() => {
 });
 
 function makeVault(files) {
-  const vault = createTempVault(files);
+  const vault = fs.realpathSync(createTempVault(files));
   vaultsToClean.push(vault);
   return vault;
 }
@@ -56,7 +94,7 @@ function payload(response) {
 }
 
 function storageFixture(overrides = {}) {
-  return {
+  const fixture = {
     getStats: () => ({ totalEmbeddings: 1, uniqueFiles: 1, lastUpdated: null }),
     search: () => [],
     keywordSearch: () => [],
@@ -65,9 +103,29 @@ function storageFixture(overrides = {}) {
     getPathStats: () => [],
     ...overrides,
   };
+  fixture.searchCompatible ??= (embedding, modelIdentity, limit, minSimilarity) => {
+    const stats = fixture.getStats();
+    return {
+      results: fixture.search(embedding, limit, minSimilarity),
+      compatibility: {
+        state: 'complete',
+        modelIdentity,
+        embeddingDimension: embedding.length,
+        totalEmbeddingCount: stats.totalEmbeddings,
+        compatibleEmbeddingCount: stats.totalEmbeddings,
+        excludedEmbeddingCount: 0,
+        excludedFileCount: 0,
+        reindexRequired: false,
+      },
+    };
+  };
+  fixture.keywordSearchCompatible ??= (query, _modelIdentity, _dimension, limit) =>
+    fixture.keywordSearch(query, limit);
+  return fixture;
 }
 
 test('semantic_search keeps sentinel rows out of ranking, scores, and reranker inputs', async () => {
+  embeddingModels.length = 0;
   const vault = makeVault({
     'A.md': '# A\n\nalpha',
     'B.md': '# B\n\nbeta',
@@ -141,6 +199,7 @@ test('semantic_search keeps sentinel rows out of ranking, scores, and reranker i
     'content:A.md:a1',
   ]);
   assert.ok(!rerankerInputs.some(row => row.id.includes('sentinel')));
+  assert.deepEqual(embeddingModels, ['mock-embed:latest']);
 });
 
 test('semantic_search preserves the historical positive fractional result cap', async () => {
@@ -191,6 +250,98 @@ test('semantic_search preserves the historical positive fractional result cap', 
   assert.equal(result.limit_reached, true);
 });
 
+test('semantic_search reports and excludes incompatible model generations', async () => {
+  const vault = makeVault({
+    'Current.md': '# Current\n\ncurrent content',
+    'Stale.md': '# Stale\n\nstale content',
+  });
+  const compatibility = {
+    state: 'partial',
+    modelIdentity: 'mock-embed:latest@sha256:mock',
+    embeddingDimension: 2,
+    totalEmbeddingCount: 2,
+    compatibleEmbeddingCount: 1,
+    excludedEmbeddingCount: 1,
+    excludedFileCount: 1,
+    reindexRequired: true,
+  };
+  storageByPath.set(vault, storageFixture({
+    getStats: () => ({ totalEmbeddings: 2, uniqueFiles: 2, lastUpdated: null }),
+    searchCompatible: () => ({
+      results: [{
+        filePath: 'Current.md', blockId: null, similarity: 0.9,
+        metadata: { modelIdentity: compatibility.modelIdentity },
+      }],
+      compatibility,
+    }),
+    keywordSearchCompatible: () => [],
+  }));
+
+  const handlers = createSemanticHandlers(configFor({ Compatible: vault }));
+  const result = payload(await handlers.semantic_search({
+    vault: 'Compatible', query: 'current', limit: 10, minSimilarity: 0,
+  }));
+
+  assert.deepEqual(result.results.map(row => row.path), ['Current.md']);
+  assert.deepEqual(result.indexCompatibility, compatibility);
+  assert.equal(result.results.some(row => row.path === 'Stale.md'), false);
+});
+
+test('semantic_search fails before semantic or BM25 retrieval on an invalid query vector', async () => {
+  const vault = makeVault({ 'Indexed.md': '# Indexed' });
+  let semanticCalls = 0;
+  let keywordCalls = 0;
+  storageByPath.set(vault, storageFixture({
+    searchCompatible: () => {
+      semanticCalls += 1;
+      return { results: [], compatibility: {} };
+    },
+    keywordSearchCompatible: () => {
+      keywordCalls += 1;
+      return [];
+    },
+  }));
+
+  const handlers = createSemanticHandlers(configFor({ InvalidVector: vault }));
+  const response = await handlers.semantic_search({
+    vault: 'InvalidVector', query: 'invalid-empty-vector', minSimilarity: 0,
+  });
+
+  assert.equal(response.isError, true);
+  assert.match(response.content[0].text, /invalid embedding vector/i);
+  assert.equal(semanticCalls, 0);
+  assert.equal(keywordCalls, 0);
+});
+
+test('semantic query generation rejects a producer digest mismatch before exact retrieval', async () => {
+  const vault = makeVault({ 'Indexed.md': '# Indexed' });
+  let retrievalCalls = 0;
+  storageByPath.set(vault, storageFixture({
+    searchCompatible: () => {
+      retrievalCalls += 1;
+      return { results: [], compatibility: {} };
+    },
+    keywordSearchCompatible: () => {
+      retrievalCalls += 1;
+      return [];
+    },
+  }));
+  const config = configFor({ Retagged: vault });
+
+  const single = await createSemanticHandlers(config).semantic_search({
+    vault: 'Retagged', query: 'retagged-provider-vector', minSimilarity: 0,
+  });
+  const crossVault = await createCrossVaultHandlers(config).semantic_search_all({
+    query: 'retagged-provider-vector', minSimilarity: 0,
+  });
+
+  assert.equal(single.isError, true);
+  assert.match(single.content[0].text, /model identity changed/i);
+  assert.equal(crossVault.isError, true);
+  assert.match(crossVault.content[0].text, /model identity changed/i);
+  assert.equal(retrievalCalls, 0);
+});
+
 test('get_similar accounts for every self chunk without changing the historical returned pool', async () => {
   const vault = makeVault({
     'Self.md': '# Self',
@@ -208,7 +359,10 @@ test('get_similar accounts for every self chunk without changing the historical 
     { filePath: 'OtherC.md', blockId: 'c', similarity: 0.5, metadata: {} },
   ];
   storageByPath.set(vault, storageFixture({
-    get: () => ({ filePath: 'Self.md', blockId: 's1', embedding: [1, 0] }),
+    get: () => ({
+      filePath: 'Self.md', blockId: 's1', embedding: [1, 0],
+      metadata: { modelIdentity: 'mock-embed:latest@sha256:mock' },
+    }),
     getPathStats: () => [
       { filePath: 'Self.md', embeddingChunks: 3 },
       { filePath: 'OtherA.md', embeddingChunks: 1 },
@@ -303,4 +457,63 @@ test('semantic_search_all isolates searched, unindexed, and failed vaults in con
       { vault: 'SearchFailed', state: 'failed', limit_reached: undefined, reason: 'vault_search_failed' },
     ],
   );
+});
+
+test('semantic_search_all isolates an all-incompatible vault and aggregates reindex truth', async () => {
+  const current = makeVault({ 'Current.md': '# Current' });
+  const stale = makeVault({ 'Stale.md': '# Stale' });
+  const currentCompatibility = {
+    state: 'complete',
+    modelIdentity: 'mock-embed:latest@sha256:mock',
+    embeddingDimension: 2,
+    totalEmbeddingCount: 1,
+    compatibleEmbeddingCount: 1,
+    excludedEmbeddingCount: 0,
+    excludedFileCount: 0,
+    reindexRequired: false,
+  };
+  const staleCompatibility = {
+    ...currentCompatibility,
+    state: 'partial',
+    compatibleEmbeddingCount: 0,
+    excludedEmbeddingCount: 1,
+    excludedFileCount: 1,
+    reindexRequired: true,
+  };
+  storageByPath.set(current, storageFixture({
+    searchCompatible: () => ({
+      results: [{ filePath: 'Current.md', blockId: null, similarity: 0.9, metadata: {} }],
+      compatibility: currentCompatibility,
+    }),
+  }));
+  storageByPath.set(stale, storageFixture({
+    searchCompatible: () => ({ results: [], compatibility: staleCompatibility }),
+  }));
+
+  const handlers = createCrossVaultHandlers(configFor({ Current: current, Stale: stale }));
+  const result = payload(await handlers.semantic_search_all({
+    query: 'topic', limit: 10, minSimilarity: 0,
+  }));
+
+  assert.deepEqual(result.results.map(row => row.path), ['Current.md']);
+  assert.deepEqual(result.resultMetadataByVault.map(row => [row.vault, row.state]), [
+    ['Current', 'searched'],
+    ['Stale', 'incompatible'],
+  ]);
+  assert.deepEqual(result.completeness, {
+    state: 'partial',
+    scanned: 1,
+    skipped: 1,
+    reasons: ['embedding_index_incompatible'],
+  });
+  assert.deepEqual(result.indexCompatibility, {
+    state: 'partial',
+    modelIdentity: 'mock-embed:latest@sha256:mock',
+    embeddingDimension: 2,
+    totalEmbeddingCount: 2,
+    compatibleEmbeddingCount: 1,
+    excludedEmbeddingCount: 1,
+    excludedFileCount: 1,
+    reindexRequired: true,
+  });
 });

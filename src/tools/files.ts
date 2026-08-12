@@ -562,6 +562,22 @@ export function createFileHandlers(config: Config) {
           isError: false
         };
       } catch (error) {
+        if (error instanceof SearchRootError) {
+          const missing = error.causeCode === 'ENOENT' || error.causeCode === 'ENOTDIR';
+          return recoveryResponse({
+            status: missing ? 'needs_action' : 'unavailable',
+            code: missing ? 'directory_not_found' : 'directory_unavailable',
+            message: missing
+              ? 'The requested search directory was not found.'
+              : 'The requested search directory could not be read.',
+            requested: args.directory || '.',
+            hint: missing
+              ? 'Choose an existing directory in this vault, or omit directory to search the vault root.'
+              : 'Check access to this vault directory, then retry the search.',
+            retryable: !missing,
+            sideEffects: { state: 'none' }
+          });
+        }
         return {
           content: [{ type: 'text', text: `Error searching: ${error}` }],
           isError: true
@@ -773,6 +789,13 @@ interface SearchFileScan {
   limitReached: boolean;
 }
 
+class SearchRootError extends Error {
+  constructor(readonly causeCode?: string) {
+    super('Search root directory could not be read');
+    this.name = 'SearchRootError';
+  }
+}
+
 async function searchFiles(
   dirPath: string,
   vaultPath: string,
@@ -791,8 +814,13 @@ async function searchFiles(
     let entries;
     try {
       entries = await fs.readdir(currentDir, { withFileTypes: true });
-    } catch {
-      if (isRoot) throw new Error('Search root directory is unavailable');
+    } catch (error) {
+      if (isRoot) {
+        const causeCode = error && typeof error === 'object' && 'code' in error
+          ? String(error.code)
+          : undefined;
+        throw new SearchRootError(causeCode);
+      }
       scan.skipped += 1;
       scan.reasons.push('directory_unavailable');
       return;
