@@ -5,17 +5,30 @@
 
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import * as crypto from 'crypto';
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { Config, resolveVault, resolvePathInVault } from '../config.js';
 import { ToolResponse } from '../types/index.js';
-import { parseMarkdownFile, extractTitle, extractSections } from '../parsers/markdown.js';
+import { parseMarkdownFile, extractTitle } from '../parsers/markdown.js';
 import {
+  assertEmbeddingResultIdentity,
+  assertOllamaModelIdentity,
+  assertValidEmbeddingVector,
   generateEmbedding,
   checkOllamaAvailability,
-  OllamaConfig
+  getEmbeddingModelProfile,
+  OllamaConfig,
+  resolveEmbeddingModelConfig,
 } from '../embeddings/ollama.js';
-import { getSharedStorage } from '../embeddings/storage.js';
+import {
+  getSharedStorage,
+  type EmbeddingIndexCompatibility,
+} from '../embeddings/storage.js';
+import {
+  deleteStaleIndexedFiles,
+  indexMarkdownFile,
+  withVaultIndexLock,
+} from '../embeddings/indexer.js';
+import { pinVaultRoot, type PinnedVaultRoot } from '../embeddings/vault-root.js';
 import { calculateIndexCoverage, findCurrentMarkdownPathByIdentity } from '../embeddings/index-stats.js';
 import { reciprocalRankFusion, RRF_K } from '../embeddings/rrf.js';
 import { vaultParam } from './schema-helpers.js';
@@ -34,6 +47,7 @@ import {
   exactResultMetadata,
   limitReachedMetadata,
 } from '../result-metadata.js';
+import { secureMutationSupported } from '../embeddings/secure-fs.js';
 
 // Register the built-in LLM-as-reranker backend (#27, PR-C). Registration is
 // INERT on the default path: the backend is only retrieved when the operator
@@ -44,15 +58,8 @@ registerReranker(llmReranker);
 /**
  * Get storage instance for a vault (shared singleton per vault path)
  */
-function getStorage(vaultPath: string) {
-  return getSharedStorage(vaultPath);
-}
-
-/**
- * Generate content hash for change detection
- */
-function hashContent(content: string): string {
-  return crypto.createHash('md5').update(content).digest('hex');
+function getStorage(vaultRoot: PinnedVaultRoot) {
+  return getSharedStorage(vaultRoot);
 }
 
 /**
@@ -223,7 +230,14 @@ export const semanticTools: Tool[] = withAnnotations(rawSemanticTools, semanticA
 /**
  * Handler functions for semantic tools
  */
-export function createSemanticHandlers(config: Config) {
+export interface SemanticHandlerDependencies {
+  secureMutationSupported?: () => boolean;
+}
+
+export function createSemanticHandlers(
+  config: Config,
+  dependencies: SemanticHandlerDependencies = {}
+) {
   const ollamaConfig: OllamaConfig = {
     host: config.ollama.host,
     model: config.ollama.model
@@ -243,6 +257,19 @@ export function createSemanticHandlers(config: Config) {
     retryable: true,
     sideEffects: { state: 'none' }
   });
+  const semanticStorageUnavailable = (): ToolResponse | null => {
+    const supported = dependencies.secureMutationSupported?.()
+      ?? secureMutationSupported();
+    if (supported) return null;
+    return recoveryResponse({
+      status: 'unavailable',
+      code: 'semantic_storage_unavailable',
+      message: 'Hardened semantic-index storage is unavailable on this platform.',
+      hint: 'Run Mycelium on macOS or Linux for semantic indexing. Filesystem and Obsidian tools remain available.',
+      retryable: false,
+      sideEffects: { state: 'none' },
+    });
+  };
   const fileIndexRequired = async (
     vaultPath: string,
     args: { vault?: string; path: string },
@@ -300,16 +327,19 @@ export function createSemanticHandlers(config: Config) {
       // registry. Never part of the public input schema.
       _rerankerBackend?: Reranker;
     }): Promise<ToolResponse> => {
+      const storageUnavailable = semanticStorageUnavailable();
+      if (storageUnavailable) return storageUnavailable;
       try {
         const vault = resolveVault(config, args.vault);
+        const vaultRoot = await pinVaultRoot(vault.path);
 
         // Check Ollama availability
         const ollama = await checkOllamaAvailability(ollamaConfig);
-        if (!ollama.available || !ollama.hasModel) {
+        if (!ollama.available || !ollama.hasModel || !ollama.model) {
           return ollamaUnavailable(ollama);
         }
-
-        const store = getStorage(vault.path);
+        const embeddingConfig = resolveEmbeddingModelConfig(ollamaConfig, ollama.model);
+        const store = getStorage(vaultRoot);
         const stats = store.getStats();
 
         if (stats.totalEmbeddings === 0) {
@@ -369,29 +399,51 @@ export function createSemanticHandlers(config: Config) {
         }> = [];
         const historicalCandidateCap = limit * 2;
         let providerLimitReached = false;
+        const exactModelIdentity = `${ollama.model.name}@${ollama.model.digest}`;
+        let indexCompatibility: EmbeddingIndexCompatibility | null = null;
+        let embeddingDimension: number | null = null;
 
         // Embeddings pass (includes the HyDE hypothetical when present).
         for (const q of embeddingTexts) {
           // Generate embedding for this variant
-          const queryResult = await generateEmbedding(q, ollamaConfig);
+          const queryResult = await generateEmbedding(q, embeddingConfig);
+          assertValidEmbeddingVector(queryResult.embedding, 'Ollama');
+          assertEmbeddingResultIdentity(queryResult, ollama.model);
+          if (
+            embeddingDimension !== null &&
+            embeddingDimension !== queryResult.embedding.length
+          ) {
+            throw new Error('Ollama returned inconsistent embedding dimensions for one search.');
+          }
+          embeddingDimension = queryResult.embedding.length;
 
           // Semantic search. `minSimilarity` acts ONLY as the embeddings
           // candidate-floor here (a cosine cutoff on which docs enter fusion);
           // it is deliberately NOT re-applied to the fused RRF totals later,
           // which live in a much smaller numeric range (~0.016–0.033) and would
           // be silently collapsed by any post-fusion minSimilarity gate.
-          const semResults = store.search(
+          const compatibleSearch = store.searchCompatible(
             queryResult.embedding,
+            exactModelIdentity,
             historicalCandidateCap + 1,
             minSimilarity  // Embeddings candidate-floor (cosine cutoff)
           );
+          const semResults = compatibleSearch.results;
+          indexCompatibility = compatibleSearch.compatibility;
           providerLimitReached ||= semResults.length > historicalCandidateCap;
           allSemanticResults.push(...semResults.slice(0, historicalCandidateCap));
         }
 
+        await assertOllamaModelIdentity(ollamaConfig, ollama.model);
+
         // BM25/keyword pass — ORIGINAL query variants only (never the hypothetical).
         for (const q of bm25Texts) {
-          const kwResults = store.keywordSearch(q, historicalCandidateCap + 1);
+          const kwResults = store.keywordSearchCompatible(
+            q,
+            exactModelIdentity,
+            embeddingDimension ?? 0,
+            historicalCandidateCap + 1
+          );
           providerLimitReached ||= kwResults.length > historicalCandidateCap;
           allKeywordResults.push(...kwResults.slice(0, historicalCandidateCap));
         }
@@ -573,7 +625,7 @@ export function createSemanticHandlers(config: Config) {
             reranker_score: rerankerScores.get(resultKey(r)) ?? null,
           };
           try {
-            const parsed = await parseMarkdownFile(r.filePath, vault.path);
+            const parsed = await parseMarkdownFile(r.filePath, vaultRoot.path);
             return {
               path: r.filePath,
               title: extractTitle(parsed),
@@ -618,6 +670,7 @@ export function createSemanticHandlers(config: Config) {
               resultCount: graphAttach.results.length,
               ...limitReachedMetadata(providerLimitReached || responseLimitReached),
               searchType: args.expand ? 'hybrid+expansion' : 'hybrid',
+              ...(indexCompatibility ? { indexCompatibility } : {}),
               graphAvailable: graphAttach.graphAvailable,
               ...(graphAttach.graphAvailable
                 ? {
@@ -662,140 +715,68 @@ export function createSemanticHandlers(config: Config) {
       force?: boolean;
       directory?: string;
     }): Promise<ToolResponse> => {
+      const storageUnavailable = semanticStorageUnavailable();
+      if (storageUnavailable) return storageUnavailable;
       try {
         const vault = resolveVault(config, args.vault);
+        const vaultRoot = await pinVaultRoot(vault.path);
 
         // Check Ollama availability
         const ollama = await checkOllamaAvailability(ollamaConfig);
-        if (!ollama.available || !ollama.hasModel) {
+        if (!ollama.available || !ollama.hasModel || !ollama.model) {
           return ollamaUnavailable(ollama);
         }
+        const profile = await getEmbeddingModelProfile(ollamaConfig, ollama.model);
+        const embeddingConfig = resolveEmbeddingModelConfig(ollamaConfig, ollama.model);
 
-        const store = getStorage(vault.path);
+        const store = getStorage(vaultRoot);
         const searchDir = args.directory
-          ? resolvePathInVault(vault.path, args.directory)
-          : vault.path;
+          ? resolvePathInVault(vaultRoot.path, args.directory)
+          : vaultRoot.path;
 
         let indexedSections = 0;
         let indexedFiles = 0;
         let skipped = 0;
         let errors = 0;
+        let staleRemoved = 0;
 
         // Collect all markdown files
-        const files = await collectMarkdownFiles(searchDir, vault.path);
+        const files = await collectMarkdownFiles(searchDir, vaultRoot.path);
 
-        for (const filePath of files) {
-          try {
-            // Skip files larger than 50 MB to prevent OOM during indexing
-            const fileStat = await fs.stat(path.join(vault.path, filePath));
-            if (fileStat.size > 50 * 1024 * 1024) {
-              skipped++;
-              continue;
-            }
-
-            const content = await fs.readFile(path.join(vault.path, filePath), 'utf-8');
-
-            // Skip empty or nearly empty files
-            const trimmedContent = content.trim();
-            if (trimmedContent.length < 10) {
-              skipped++;
-              continue;
-            }
-
-            // Extract sections for heading-based chunking
-            const sections = extractSections(trimmedContent);
-
-            // If no sections found (no headings), index whole file
-            if (sections.length === 0) {
-              const contentHash = hashContent(content);
-
-              // Skip if already indexed and unchanged
-              if (!args.force && store.isUpToDate(filePath, contentHash)) {
-                skipped++;
-                continue;
-              }
-
-              const result = await generateEmbedding(content, ollamaConfig);
-              if (result.embedding && result.embedding.length > 0) {
-                store.store(filePath, result.embedding, contentHash, {
-                  indexedAt: new Date().toISOString(),
-                  chunked: false
-                }, null, content);  // Pass content for FTS
-                indexedSections++;
+        await withVaultIndexLock(vaultRoot, () => store.runBatch(async () => {
+          for (const filePath of files) {
+            try {
+              const result = await indexMarkdownFile({
+                vaultRoot,
+                filePath,
+                storage: store,
+                ollama: embeddingConfig,
+                profile,
+                force: args.force === true,
+              });
+              if (result.status === 'indexed') {
                 indexedFiles++;
-              }
-              continue;
-            }
-
-            // Delete old embeddings for this file before re-indexing sections
-            if (args.force) {
-              store.delete(filePath);
-            }
-
-            let fileIndexed = false;
-
-            // Index each section separately
-            for (const section of sections) {
-              // Skip very short sections
-              if (section.content.length < 20 && !section.heading) {
-                continue;
+                indexedSections += result.sections;
+              } else {
+                skipped++;
               }
 
-              // Create section content with heading for context
-              const sectionText = section.heading
-                ? `${section.heading}\n\n${section.content}`
-                : section.content;
-
-              const sectionHash = hashContent(sectionText);
-
-              // Skip if this section is unchanged
-              if (!args.force && store.isUpToDate(filePath, sectionHash, section.blockId)) {
-                continue;
+              // Log progress every 10 files
+              if (indexedFiles > 0 && indexedFiles % 10 === 0) {
+                console.error(`[mcp-obsidian] Indexed ${indexedFiles} files (${indexedSections} sections)...`);
               }
-
-              // Generate embedding for section
-              const result = await generateEmbedding(sectionText, ollamaConfig);
-
-              if (!result.embedding || result.embedding.length === 0) {
-                continue;
-              }
-
-              // Store with blockId for section-level tracking
-              store.store(filePath, result.embedding, sectionHash, {
-                indexedAt: new Date().toISOString(),
-                heading: section.heading,
-                level: section.level,
-                startLine: section.startLine,
-                chunked: true
-              }, section.blockId, sectionText);  // Pass content for FTS
-
-              indexedSections++;
-              fileIndexed = true;
+            } catch (err) {
+              console.error(`[mcp-obsidian] Error indexing ${filePath}:`, err);
+              errors++;
             }
-
-            if (fileIndexed) {
-              indexedFiles++;
-            } else {
-              // All sections were up-to-date or skipped (short/empty) — count as skipped
-              // so that: indexedFiles + skipped + errors === totalFiles
-              skipped++;
-            }
-
-            // Log progress every 10 files
-            if (indexedFiles > 0 && indexedFiles % 10 === 0) {
-              console.error(`[mcp-obsidian] Indexed ${indexedFiles} files (${indexedSections} sections)...`);
-            }
-          } catch (err) {
-            console.error(`[mcp-obsidian] Error indexing ${filePath}:`, err);
-            errors++;
           }
-        }
 
-        // Clean up stale embeddings for deleted/renamed files
-        const staleRemoved = store.deleteStale(vault.path);
-        if (staleRemoved > 0) {
-          console.error(`[mcp-obsidian] Removed ${staleRemoved} stale embedding(s) for deleted files`);
-        }
+          // Clean up stale embeddings for deleted/renamed files
+          staleRemoved = await deleteStaleIndexedFiles(vaultRoot, store);
+          if (staleRemoved > 0) {
+            console.error(`[mcp-obsidian] Removed ${staleRemoved} stale embedding(s) for deleted files`);
+          }
+        }));
 
         return {
           content: [{
@@ -821,77 +802,39 @@ export function createSemanticHandlers(config: Config) {
     },
 
     index_file: async (args: { vault?: string; path: string }): Promise<ToolResponse> => {
+      const storageUnavailable = semanticStorageUnavailable();
+      if (storageUnavailable) return storageUnavailable;
       try {
         const vault = resolveVault(config, args.vault);
+        const vaultRoot = await pinVaultRoot(vault.path);
 
         // Check Ollama availability
         const ollama = await checkOllamaAvailability(ollamaConfig);
-        if (!ollama.available || !ollama.hasModel) {
+        if (!ollama.available || !ollama.hasModel || !ollama.model) {
           return ollamaUnavailable(ollama);
         }
+        const profile = await getEmbeddingModelProfile(ollamaConfig, ollama.model);
+        const embeddingConfig = resolveEmbeddingModelConfig(ollamaConfig, ollama.model);
 
-        const store = getStorage(vault.path);
-        const absolutePath = resolvePathInVault(vault.path, args.path);
-        const resolvedPathKey = path.relative(vault.path, absolutePath);
-        const currentMarkdownPaths = await collectMarkdownFiles(vault.path, vault.path);
+        const store = getStorage(vaultRoot);
+        const absolutePath = resolvePathInVault(vaultRoot.path, args.path);
+        const resolvedPathKey = path.relative(vaultRoot.path, absolutePath);
+        const currentMarkdownPaths = await collectMarkdownFiles(vaultRoot.path, vaultRoot.path);
         const canonicalPath = findCurrentMarkdownPathByIdentity(
-          vault.path,
+          vaultRoot.path,
           currentMarkdownPaths,
           absolutePath
         ) ?? resolvedPathKey;
 
-        const content = await fs.readFile(absolutePath, 'utf-8');
-
-        // Delete old embeddings for this file
-        for (const oldPath of new Set([canonicalPath, resolvedPathKey, args.path])) {
-          if (oldPath) {
-            store.delete(oldPath);
-          }
-        }
-
-        // Extract sections for heading-based chunking
-        const sections = extractSections(content.trim());
-
-        let indexedSections = 0;
-
-        if (sections.length === 0) {
-          // No headings - index whole file
-          const contentHash = hashContent(content);
-          const result = await generateEmbedding(content, ollamaConfig);
-
-          if (result.embedding && result.embedding.length > 0) {
-            store.store(canonicalPath, result.embedding, contentHash, {
-              indexedAt: new Date().toISOString(),
-              chunked: false
-            }, null, content);  // Pass content for FTS
-            indexedSections = 1;
-          }
-        } else {
-          // Index each section
-          for (const section of sections) {
-            if (section.content.length < 20 && !section.heading) {
-              continue;
-            }
-
-            const sectionText = section.heading
-              ? `${section.heading}\n\n${section.content}`
-              : section.content;
-
-            const sectionHash = hashContent(sectionText);
-            const result = await generateEmbedding(sectionText, ollamaConfig);
-
-            if (result.embedding && result.embedding.length > 0) {
-              store.store(canonicalPath, result.embedding, sectionHash, {
-                indexedAt: new Date().toISOString(),
-                heading: section.heading,
-                level: section.level,
-                startLine: section.startLine,
-                chunked: true
-              }, section.blockId, sectionText);  // Pass content for FTS
-              indexedSections++;
-            }
-          }
-        }
+        const result = await indexMarkdownFile({
+          vaultRoot,
+          filePath: canonicalPath,
+          aliases: [resolvedPathKey, args.path],
+          storage: store,
+          ollama: embeddingConfig,
+          profile,
+          force: true,
+        });
 
         return {
           content: [{
@@ -899,7 +842,7 @@ export function createSemanticHandlers(config: Config) {
             text: JSON.stringify({
               indexed: true,
               path: canonicalPath,
-              sections: indexedSections
+              sections: result.sections
             }, null, 2)
           }],
           isError: false
@@ -917,27 +860,55 @@ export function createSemanticHandlers(config: Config) {
       path: string;
       limit?: number;
     }): Promise<ToolResponse> => {
+      const storageUnavailable = semanticStorageUnavailable();
+      if (storageUnavailable) return storageUnavailable;
       try {
         const vault = resolveVault(config, args.vault);
-        const store = getStorage(vault.path);
+        const vaultRoot = await pinVaultRoot(vault.path);
+        const store = getStorage(vaultRoot);
 
         // Get embedding for reference file
         const stored = store.get(args.path);
 
         if (!stored) {
-          return fileIndexRequired(vault.path, args);
+          return fileIndexRequired(vaultRoot.path, args);
         }
 
         // Handle empty embeddings
-        if (!stored.embedding || stored.embedding.length === 0) {
-          return fileIndexRequired(vault.path, args, true);
+        try {
+          assertValidEmbeddingVector(stored.embedding, 'Stored embedding');
+        } catch {
+          return fileIndexRequired(vaultRoot.path, args, true);
+        }
+
+        const storedModelIdentity = stored.metadata.modelIdentity;
+        if (typeof storedModelIdentity !== 'string' || storedModelIdentity.length === 0) {
+          return recoveryResponse({
+            status: 'needs_action',
+            code: 'file_reindex_required',
+            message: 'The reference file was indexed without an exact embedding model identity.',
+            requested: args.path,
+            hint: 'Run index_file for this file, then retry get_similar.',
+            retryable: false,
+            sideEffects: { state: 'none' },
+            legacy: {
+              error: 'File embedding model identity is unavailable. Re-index the file first.',
+              path: args.path,
+            },
+          }, false);
         }
 
         // Search for similar (excluding self)
         const limit = args.limit || 5;
         const selfChunkCount = store.getPathStats()
           .find(stat => stat.filePath === args.path)?.embeddingChunks ?? 1;
-        const evidencePool = store.search(stored.embedding, limit + selfChunkCount + 1, 0);
+        const compatibleSearch = store.searchCompatible(
+          stored.embedding,
+          storedModelIdentity,
+          limit + selfChunkCount + 1,
+          0
+        );
+        const evidencePool = compatibleSearch.results;
         const historicalPool = evidencePool.slice(0, limit + 1);
         const results = historicalPool
           .filter(r => r.filePath !== args.path)
@@ -947,7 +918,7 @@ export function createSemanticHandlers(config: Config) {
         // Enrich results
         const enrichedResults = await Promise.all(results.map(async r => {
           try {
-            const parsed = await parseMarkdownFile(r.filePath, vault.path);
+            const parsed = await parseMarkdownFile(r.filePath, vaultRoot.path);
             return {
               path: r.filePath,
               title: extractTitle(parsed),
@@ -967,6 +938,7 @@ export function createSemanticHandlers(config: Config) {
             type: 'text',
             text: JSON.stringify({
               referencePath: args.path,
+              indexCompatibility: compatibleSearch.compatibility,
               ...limitReachedMetadata(evidenceNonSelfCount > results.length),
               similarFiles: enrichedResults
             }, null, 2)
@@ -982,13 +954,16 @@ export function createSemanticHandlers(config: Config) {
     },
 
     index_status: async (args: { vault?: string }): Promise<ToolResponse> => {
+      const storageUnavailable = semanticStorageUnavailable();
+      if (storageUnavailable) return storageUnavailable;
       try {
         const vault = resolveVault(config, args.vault);
-        const store = getStorage(vault.path);
+        const vaultRoot = await pinVaultRoot(vault.path);
+        const store = getStorage(vaultRoot);
         const stats = store.getStats();
-        const currentMarkdownPaths = await collectMarkdownFiles(vault.path, vault.path);
+        const currentMarkdownPaths = await collectMarkdownFiles(vaultRoot.path, vaultRoot.path);
         const coverage = calculateIndexCoverage(
-          vault.path,
+          vaultRoot.path,
           currentMarkdownPaths,
           store.getPathStats(),
           { staleSampleLimit: 10 }

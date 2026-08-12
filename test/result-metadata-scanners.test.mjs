@@ -228,6 +228,13 @@ test('single-vault scanner roots remain errors while descendant failures are par
     vault: 'RootErrors', query: 'needle', directory: 'does-not-exist',
   });
   assert.equal(missingSearch.isError, true);
+  const missingSearchPayload = JSON.parse(missingSearch.content[0].text);
+  assert.deepEqual(missingSearchPayload, missingSearch.structuredContent);
+  assert.equal(missingSearchPayload.status, 'needs_action');
+  assert.equal(missingSearchPayload.code, 'directory_not_found');
+  assert.equal(missingSearchPayload.requested, 'does-not-exist');
+  assert.deepEqual(missingSearchPayload.sideEffects, { state: 'none' });
+  assert.doesNotMatch(missingSearchPayload.message, /cli/i);
 
   const analyticsHandlers = createAnalyticsHandlers(config);
   const partial = payload(await analyticsHandlers.get_broken_links({

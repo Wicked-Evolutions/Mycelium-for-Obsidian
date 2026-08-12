@@ -34,6 +34,7 @@ import {
 } from './tools/index.js';
 import { allPrompts, getPromptMessages } from './prompts/index.js';
 import { createVaultWatcher, VaultWatcher } from './embeddings/watcher.js';
+import { secureMutationSupported } from './embeddings/secure-fs.js';
 import { createHttpServer } from './http-server.js';
 import { SERVER_VERSION } from './version.js';
 import { unknownToolResponse, unexpectedToolFailure } from './tool-outcomes.js';
@@ -79,12 +80,16 @@ const recoveryContext = {
 let watcher: VaultWatcher | null = null;
 const autoIndexEnabled = process.env.OBSIDIAN_AUTO_INDEX !== 'false'; // Enabled by default
 
-if (autoIndexEnabled) {
+if (autoIndexEnabled && secureMutationSupported()) {
   watcher = createVaultWatcher({
     vaults: config.vaults,
     ollama: config.ollama,
     debounceMs: 2000
   });
+} else if (autoIndexEnabled) {
+  console.error(
+    '[mcp-obsidian] Auto-index disabled: hardened semantic-index storage is unavailable on this platform'
+  );
 }
 
 // Handle tool listing

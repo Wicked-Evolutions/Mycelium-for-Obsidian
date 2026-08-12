@@ -4,7 +4,7 @@
  * Requires Obsidian 1.12+ with installer 1.12.7+, CLI enabled, and the app running.
  */
 
-import { execFile } from 'child_process';
+import { execFile, type ChildProcess } from 'child_process';
 import { accessSync, constants, realpathSync } from 'fs';
 import * as path from 'path';
 import { Config } from '../config.js';
@@ -22,6 +22,13 @@ import { Config } from '../config.js';
  * `execCli` actually passes it.
  */
 export const OBSIDIAN_CLI_MAX_BUFFER = 256 * 1024 * 1024;
+export const OBSIDIAN_CLI_KILL_GRACE_MS = 250;
+
+export interface CliProcessOutcome {
+  error: Error | null;
+  stdout: string;
+  stderr: string;
+}
 
 export type ObsidianCliProbeStatus =
   | 'available'
@@ -105,16 +112,14 @@ function buildVaultNameMap(config: Config): Map<string, string> {
   return cliVaultNameCache;
 }
 
-/**
- * Execute an Obsidian CLI command and return the output.
- */
-export function execCli(
+/** Execute one CLI process while bounding children that ignore graceful termination. */
+export function executeCliProcess(
+  executable: string,
   args: string[],
   timeoutMs: number = 10000,
   signal?: AbortSignal
-): Promise<string> {
+): Promise<CliProcessOutcome> {
   return new Promise((resolve, reject) => {
-    const candidates = obsidianCliCandidatesForPlatform();
     const options = {
       timeout: timeoutMs,
       encoding: 'utf8',
@@ -122,63 +127,116 @@ export function execCli(
       env: process.env,
       signal
     } as const;
-
-    const run = (candidateIndex: number): void => {
-      execFile(candidates[candidateIndex], args, options, (error, stdout, stderr) => {
-      if (error) {
-        const code = (error as NodeJS.ErrnoException).code;
-        if (signal?.aborted || code === 'ABORT_ERR') {
-          reject(error);
-          return;
-        }
-        if (code === 'ENOENT' && candidateIndex + 1 < candidates.length) {
-          run(candidateIndex + 1);
-          return;
-        }
-        if (code === 'ENOENT') {
-          reject(new ObsidianCliError('cli_unavailable', 'Obsidian CLI is not installed or registered.'));
-          return;
-        }
-        if (isAppUnavailableText(`${error.message}\n${stdout || ''}\n${stderr || ''}`)) {
-          reject(new ObsidianCliError(
-            'obsidian_unavailable',
-            'Obsidian app is not running. Start Obsidian to use CLI-based tools.'
-          ));
-          return;
-        }
-        reject(new ObsidianCliError('unknown', `CLI error: ${error.message}\n${stderr || ''}`));
-        return;
+    let child: ChildProcess | undefined;
+    let childExited = false;
+    let timeoutEscalation: NodeJS.Timeout | undefined;
+    let abortEscalation: NodeJS.Timeout | undefined;
+    const forceKill = (): void => {
+      if (
+        child &&
+        !childExited &&
+        typeof child.kill === 'function'
+      ) {
+        child.kill('SIGKILL');
       }
-      if (isAppUnavailableText(stderr || '')) {
-        reject(new ObsidianCliError(
-          'obsidian_unavailable',
-          'Obsidian app is not running. Start Obsidian to use CLI-based tools.'
-        ));
-        return;
+    };
+    const scheduleAbortEscalation = (): void => {
+      if (!abortEscalation) {
+        abortEscalation = setTimeout(forceKill, OBSIDIAN_CLI_KILL_GRACE_MS);
       }
-      // Filter out installer warning and loading messages
-      const lines = stdout.split('\n').filter(line =>
-        !line.includes('installer is out of date') &&
-        !line.includes('Loading updated app package') &&
-        !line.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} Loading/)
-      );
-      const result = lines.join('\n').trim();
-
-      // Obsidian CLI exits 0 even on errors — check for Error: prefix in output
-      if (result.startsWith('Error:')) {
-        reject(new ObsidianCliError(
-          isAppUnavailableText(result) ? 'obsidian_unavailable' : 'unknown',
-          result
-        ));
-        return;
-      }
-
-      resolve(result);
-      });
+    };
+    const processExited = (): void => {
+      childExited = true;
+      if (timeoutEscalation) clearTimeout(timeoutEscalation);
+      if (abortEscalation) clearTimeout(abortEscalation);
+      signal?.removeEventListener('abort', scheduleAbortEscalation);
     };
 
-    run(0);
+    signal?.addEventListener('abort', scheduleAbortEscalation, { once: true });
+    try {
+      child = execFile(executable, args, options, (error, stdout, stderr) => {
+        signal?.removeEventListener('abort', scheduleAbortEscalation);
+        resolve({
+          error,
+          stdout: stdout || '',
+          stderr: stderr || '',
+        });
+      });
+    } catch (error) {
+      signal?.removeEventListener('abort', scheduleAbortEscalation);
+      if (abortEscalation) clearTimeout(abortEscalation);
+      reject(error);
+      return;
+    }
+
+    child.once('exit', processExited);
+    child.once('close', processExited);
+    if (timeoutMs > 0) {
+      timeoutEscalation = setTimeout(
+        forceKill,
+        timeoutMs + OBSIDIAN_CLI_KILL_GRACE_MS
+      );
+    }
+    if (signal?.aborted) scheduleAbortEscalation();
   });
+}
+
+/**
+ * Execute an Obsidian CLI command and return the output.
+ */
+export async function execCli(
+  args: string[],
+  timeoutMs: number = 10000,
+  signal?: AbortSignal
+): Promise<string> {
+  const candidates = obsidianCliCandidatesForPlatform();
+  for (let candidateIndex = 0; candidateIndex < candidates.length; candidateIndex += 1) {
+    const { error, stdout, stderr } = await executeCliProcess(
+      candidates[candidateIndex],
+      args,
+      timeoutMs,
+      signal
+    );
+    if (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (signal?.aborted || code === 'ABORT_ERR') throw error;
+      if (code === 'ENOENT' && candidateIndex + 1 < candidates.length) continue;
+      if (code === 'ENOENT') {
+        throw new ObsidianCliError(
+          'cli_unavailable',
+          'Obsidian CLI is not installed or registered.'
+        );
+      }
+      if (isAppUnavailableText(`${error.message}\n${stdout}\n${stderr}`)) {
+        throw new ObsidianCliError(
+          'obsidian_unavailable',
+          'Obsidian app is not running. Start Obsidian to use CLI-based tools.'
+        );
+      }
+      throw new ObsidianCliError('unknown', `CLI error: ${error.message}\n${stderr}`);
+    }
+    if (isAppUnavailableText(stderr)) {
+      throw new ObsidianCliError(
+        'obsidian_unavailable',
+        'Obsidian app is not running. Start Obsidian to use CLI-based tools.'
+      );
+    }
+
+    const lines = stdout.split('\n').filter(line =>
+      !line.includes('installer is out of date') &&
+      !line.includes('Loading updated app package') &&
+      !line.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} Loading/)
+    );
+    const result = lines.join('\n').trim();
+    if (result.startsWith('Error:')) {
+      throw new ObsidianCliError(
+        isAppUnavailableText(result) ? 'obsidian_unavailable' : 'unknown',
+        result
+      );
+    }
+    return result;
+  }
+  throw new ObsidianCliError('cli_unavailable', 'Obsidian CLI is not installed or registered.');
 }
 
 /**

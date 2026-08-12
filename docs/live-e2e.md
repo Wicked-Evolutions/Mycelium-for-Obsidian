@@ -55,16 +55,19 @@ full headless-suite run.
 `npm run test:package` creates and removes one isolated temporary root. It stages
 the package build inputs there, packs the current npm/server candidate, rejects
 files outside the declared package boundary, installs the tarball with lifecycle
-scripts enabled and npm's automatic audit disabled, loads `better-sqlite3` from
-that installed tree, and runs an MCP stdio smoke test against a synthetic read-only
-vault. The installed server version and ordered tool names must match the staged
-build. Lifecycle scripts execute normally and are not an operating-system sandbox;
+scripts enabled and npm's automatic audit disabled, loads both `better-sqlite3`
+and Koffi from that installed tree, and runs the installed descriptor-relative
+filesystem adapter against a parent-directory swap on supported platforms. It
+also runs an MCP stdio smoke test against a synthetic read-only vault. The installed
+server version and ordered tool names must match the staged build. Lifecycle scripts
+execute normally and are not an operating-system sandbox;
 the verifier supplies only the system/compiler/network settings needed by npm and
 does not forward vault, live-test, or unrelated secret environment variables.
 
 Record the command's sanitized receipt: Node/npm/platform/architecture, package
-identity and integrity, package entry count, normalized native-binding path, server
-identity, tool count, and marker-file result. Production audit evidence is captured
+identity and integrity, package entry count, normalized native-binding paths,
+secure-filesystem execution state, server identity, tool count, and marker-file
+result. Production audit evidence is captured
 separately because registry advisory data is time-varying and detailed triage is
 private. This lane does not validate Obsidian, Ollama, MCPB, publication, or platforms
 outside the CI runners on which it executes.
@@ -138,7 +141,10 @@ npm run test:live
 - `test/live/semantic.live.mjs` — `index_vault` then `semantic_search` returns
   a non-empty, exactly reconciled index summary with zero per-file errors, then
   ranked hits carrying a `path`, a numeric `similarity` + `fusionScore`,
-  `fusionMethod: "rrf"`, and the additive `graph` block. `LIVE_TEST_DIRECTORY`
-  may bound the indexing pass without changing the exact whole-vault graph lane.
+  `fusionMethod: "rrf"`, one complete exact model/dimension index cohort, and the
+  additive `graph` block. `LIVE_TEST_DIRECTORY`
+  may bound the selected-vault indexing pass without changing the exact whole-vault
+  graph lane. A separate temporary long-note fixture verifies against real Ollama
+  that model-context chunking completes without truncation or note mutation.
 
 Extend this lane whenever a behavior can only be proven against real Obsidian/Ollama.

@@ -16,6 +16,7 @@
 
 import { test, describe, mock } from 'node:test';
 import assert from 'node:assert/strict';
+import { EventEmitter } from 'node:events';
 
 const canMock = typeof mock.module === 'function';
 
@@ -26,6 +27,7 @@ let stderrToReturn = '';
 let errorToReturn = null;
 let execPlan = [];
 let capturedFiles = [];
+let capturedKillSignals = [];
 
 if (canMock) {
   await mock.module('node:child_process', {
@@ -38,12 +40,51 @@ if (canMock) {
         // options.maxBuffer; our mock instead just hands it back, and we assert the
         // option that WOULD prevent that throw is present and large.
         const action = execPlan.shift();
-        queueMicrotask(() => cb(
-          action?.error ?? errorToReturn,
-          action?.stdout ?? stdoutToReturn,
-          action?.stderr ?? stderrToReturn
-        ));
-        return { pid: 1234 };
+        const child = Object.assign(new EventEmitter(), {
+          pid: 1234,
+          exitCode: null,
+          signalCode: null,
+          kill(signal) {
+            capturedKillSignals.push(signal);
+            if (action?.waitForForceKill && signal === 'SIGKILL') {
+              child.signalCode = 'SIGKILL';
+              queueMicrotask(() => {
+                child.emit('exit', null, 'SIGKILL');
+                child.emit('close', null, 'SIGKILL');
+                if (!action?.callbackOnAbort) {
+                  cb(
+                    Object.assign(new Error('command timed out'), { code: 'ETIMEDOUT' }),
+                    '',
+                    ''
+                  );
+                }
+              });
+            }
+            return true;
+          },
+        });
+        if (action?.callbackOnAbort) {
+          options.signal?.addEventListener('abort', () => {
+            queueMicrotask(() => cb(
+              Object.assign(new Error('operation aborted'), { code: 'ABORT_ERR' }),
+              '',
+              ''
+            ));
+          }, { once: true });
+        }
+        if (!action?.waitForForceKill) {
+          queueMicrotask(() => {
+            child.exitCode = action?.error || errorToReturn ? 1 : 0;
+            child.emit('exit', child.exitCode, null);
+            child.emit('close', child.exitCode, null);
+            cb(
+              action?.error ?? errorToReturn,
+              action?.stdout ?? stdoutToReturn,
+              action?.stderr ?? stderrToReturn
+            );
+          });
+        }
+        return child;
       },
     },
   });
@@ -56,6 +97,7 @@ const {
   obsidianCliCandidatesForPlatform,
   probeObsidianCli,
   OBSIDIAN_CLI_MAX_BUFFER,
+  OBSIDIAN_CLI_KILL_GRACE_MS,
 } = bridge;
 
 function resetExecResult() {
@@ -64,6 +106,7 @@ function resetExecResult() {
   errorToReturn = null;
   execPlan = [];
   capturedFiles = [];
+  capturedKillSignals = [];
 }
 
 describe('bridge maxBuffer (#32)', { skip: !canMock ? 'requires --experimental-test-module-mocks' : false }, () => {
@@ -93,6 +136,30 @@ describe('bridge maxBuffer (#32)', { skip: !canMock ? 'requires --experimental-t
     stdoutToReturn = 'x'.repeat(1_172_413);
     const out = await execCli(['vault=v', 'eval', 'code=1']);
     assert.equal(out.length, 1_172_413, 'large payload returned intact, no ENOBUFS');
+  });
+
+  test('a CLI child that ignores graceful timeout is force-stopped after a bounded grace period', async () => {
+    resetExecResult();
+    execPlan = [{ waitForForceKill: true }];
+
+    await assert.rejects(
+      execCli(['vault=v', 'eval', 'code=1'], 1),
+      /CLI error: command timed out/i,
+    );
+    assert.deepEqual(capturedKillSignals, ['SIGKILL']);
+    assert.equal(OBSIDIAN_CLI_KILL_GRACE_MS, 250);
+  });
+
+  test('an abort callback cannot cancel escalation before the child exits', async () => {
+    resetExecResult();
+    execPlan = [{ waitForForceKill: true, callbackOnAbort: true }];
+    const controller = new AbortController();
+    const execution = execCli(['vault=v', 'eval', 'code=1'], 10_000, controller.signal);
+
+    controller.abort();
+    await assert.rejects(execution, error => error?.code === 'ABORT_ERR');
+    await new Promise(resolve => setTimeout(resolve, OBSIDIAN_CLI_KILL_GRACE_MS + 25));
+    assert.deepEqual(capturedKillSignals, ['SIGKILL']);
   });
 
   test('macOS candidates prefer the bundled CLI and never use the bare GUI name', () => {

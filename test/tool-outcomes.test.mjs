@@ -1446,6 +1446,42 @@ test('fallback classification ignores path and credential values but accepts err
   }
 });
 
+test('generic unavailable prose is not invented as CLI evidence', () => {
+  const normalized = normalizeToolResponse(
+    readTool('search_content', 'Search vault files.'),
+    {
+      content: [{ type: 'text', text: 'Error searching: Search root directory is unavailable' }],
+      isError: true,
+    },
+    context,
+  );
+  const payload = body(normalized);
+
+  assert.equal(payload.status, 'failed');
+  assert.equal(payload.code, 'tool_execution_failed');
+  assert.deepEqual(payload.sideEffects, { state: 'none' });
+
+  const client = body(normalizeToolResponse(
+    readTool('list_known_vaults', 'List known vaults.'),
+    {
+      content: [{ type: 'text', text: 'Obsidian client unavailable' }],
+      isError: true,
+    },
+    context,
+  ));
+  assert.equal(client.code, 'obsidian_unavailable');
+
+  const cli = body(normalizeToolResponse(
+    readTool('list_known_vaults', 'List known vaults.'),
+    {
+      content: [{ type: 'text', text: 'Obsidian CLI unavailable' }],
+      isError: true,
+    },
+    context,
+  ));
+  assert.equal(cli.code, 'cli_unavailable');
+});
+
 test('fallback classification uses diagnostics, not payload data or ordinary URLs', () => {
   const structuredCases = [
     { error: 'provider_failed', details: 'cancelled' },

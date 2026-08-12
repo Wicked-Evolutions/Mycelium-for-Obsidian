@@ -18,7 +18,7 @@ Download the [v1.4.0 mcp-obsidian.mcpb](https://github.com/Wicked-Evolutions/Myc
 
 > The MCPB channel remains on v1.4.0 and does not include the 1.5.0 npm/server changes. MCPB work is deferred to a separate release track.
 >
-> The one-click bundle is built and tested on **macOS (Apple Silicon)** only — it ships a prebuilt native module for that platform. On Intel Mac, Windows, or Linux, install via **npm** below instead; it compiles the native module for your platform at install time. (A cross-platform bundle is tracked for a later release.)
+> The one-click bundle is built and tested on **macOS (Apple Silicon)** only — it ships a prebuilt native module for that platform. On Intel Mac, Windows, or Linux, install via **npm** below instead. The npm server and semantic-index-independent tools remain cross-platform; the hardened derived semantic index described below currently requires macOS or Linux. (A cross-platform bundle is tracked for a later release.)
 
 ### npm
 
@@ -259,11 +259,13 @@ High-volume JSON readers report what they actually evaluated instead of treating
 - `limit_reached: true` means a configured result or provider bound is proven to have withheld at least one eligible candidate while the exact total remains unknown. The field is omitted when that fact is not proven; it is never emitted as `false`.
 - `completeness: { state: "partial", scanned, skipped, reasons }` appears only when required files, descendant subtrees, or vaults could not be evaluated. `scanned` and `skipped` are operational units, not a mathematical coverage denominator: one inaccessible descendant directory is one skipped unknown-subtree unit. Caller-limit-unvisited work, hidden/non-Markdown exclusions, and successful fallback representations are not skipped.
 
-Reasons are stable, bounded codes such as `file_unreadable`, `file_unparseable`, `directory_unavailable`, `vault_unindexed`, and `vault_search_failed`. They never contain exception text, file paths, or vault-derived prose.
+Reasons are stable, bounded codes such as `file_unreadable`, `file_unparseable`, `directory_unavailable`, `vault_unindexed`, `embedding_index_incompatible`, and `vault_search_failed`. They never contain exception text, file paths, or vault-derived prose.
 
 Composite reports place independently bounded arrays under `resultMetadata`. `get_broken_links` describes `brokenLinks` and `uniqueUnresolvedTargetStrings`; `get_vault_health` describes all four `top*` arrays; and `index_status` describes `staleIndexedFileSamples`. The stale-sample `total` counts all stale index records, while unsafe absolute or platform-specific path samples remain suppressed from the returned array.
 
-`semantic_search`, `semantic_search_all`, and `get_similar` cannot claim an exact note total from capped embedding and FTS providers. For these tools, `limit_reached` means at least one eligible provider candidate row was withheld; that candidate can be another indexed block from a note already represented in the results. For `get_similar`, self-note chunks are excluded from the returned list, and extra self chunks inspected only to establish the bound do not change its historical result pool. Evidence-only sentinel rows never enter ranking, RRF scores, graph annotation, reranker input, or returned ordering. Cross-vault semantic search also returns configured-order `resultMetadataByVault` entries with `searched`, `unindexed`, or `failed` state so one vault failure does not erase successful results from another.
+`semantic_search`, `semantic_search_all`, and `get_similar` cannot claim an exact note total from capped embedding and FTS providers. For these tools, `limit_reached` means at least one eligible provider candidate row was withheld; that candidate can be another indexed block from a note already represented in the results. For `get_similar`, self-note chunks are excluded from the returned list, and extra self chunks inspected only to establish the bound do not change its historical result pool. Evidence-only sentinel rows never enter ranking, RRF scores, graph annotation, reranker input, or returned ordering.
+
+Semantic results include `indexCompatibility`, which identifies the exact model generation and vector dimension searched and counts compatible versus excluded rows. Rows from another model digest, malformed legacy metadata, another vector dimension, or an empty/nonfinite vector cannot enter semantic or keyword ranking. Invalid provider vectors fail before retrieval begins. `state: "partial"` and `reindexRequired: true` say that a full re-index is needed. Cross-vault semantic search returns the same receipt globally and per vault. Its configured-order `resultMetadataByVault` entries use `searched`, `unindexed`, `incompatible`, or `failed` so one vault's stale or failed index does not erase successful results from another.
 
 Legacy newline/tab readers such as `search_with_context` keep their established text responses. They do not yet receive machine-readable completeness metadata because adding metadata-only `structuredContent` would hide their text body on the HTTP surface, while converting them to a success envelope would be a broader compatibility migration. Their absence of completeness fields is not a claim that a swallowed read failure could not occur.
 
@@ -282,6 +284,7 @@ Legacy newline/tab readers such as `search_with_context` keep their established 
 **CLI tools** access Obsidian's runtime API (`app.vault`, `app.metadataCache`, `app.fileManager`, etc.) via the Obsidian CLI. They provide access to features that only exist in the running app — metadata cache, daily notes configuration, task parsing, property types, backlink index, version history, and more.
 
 If Obsidian is not running, CLI tools return a structured unavailable outcome with a corrective hint. All filesystem tools continue to work normally.
+CLI subprocesses are time-bounded; a process that ignores the normal timeout signal is force-stopped after a short grace period so it cannot strand the MCP request or server shutdown.
 
 ### Enabling the Obsidian CLI
 
@@ -617,7 +620,77 @@ These tools access Obsidian's runtime state, plugin systems, or internal databas
 
 ## Semantic Search (Optional)
 
-Semantic search requires [Ollama](https://ollama.ai/) running locally. All other tools work without Ollama.
+Semantic search requires [Ollama](https://ollama.ai/) running locally and the
+hardened semantic-storage backend currently available on macOS and Linux. On an
+unsupported platform, the server still starts, auto-indexing stays off, and tools
+that require the derived semantic index return the structured
+`semantic_storage_unavailable` outcome. Filesystem and Obsidian tools remain
+available without the semantic index or Ollama.
+
+Indexing reads the installed embedding model's architecture-specific context
+window from Ollama, splits long Markdown deterministically without dropping source
+content, and replaces each file's embeddings and keyword-search rows only after
+the complete new index is ready. A provider failure leaves the previous file
+index intact. If a note changes once during indexing, the first attempt is
+discarded and retried; cache hits receive the same post-read verification. A
+second change aborts without replacing the prior rows. Watcher events that arrive
+during an active batch are drained after that batch completes, and single-file
+indexing waits behind the same per-vault mutation boundary. Deleted notes are
+removed from both semantic and keyword indexes even while Ollama is unavailable;
+live notes receive bounded, exponentially delayed provider retries. A fresh
+filesystem event resets that file's retry budget, and one delayed retry cannot
+strand a newer event for another note.
+
+Exact model cohorts are guarded against mutable Ollama tags. After each embedding,
+Mycelium verifies the digest of the model Ollama actually loaded and confirms that
+the requested tag still resolves to that digest. It repeats the tag check before
+an index commit or exact query. A retag during any of those boundaries aborts the
+operation; unverified vectors are not stored or searched as an exact cohort.
+
+The derived SQLite index is bound to the physical vault root, storage directory,
+and database identity. Existing symlinked or hard-linked storage files and SQLite
+sidecars are rejected before SQLite runs. The canonical database is read through
+a verified file handle into a private in-memory SQLite working copy. When an older
+WAL-format main file needs normalization, its verified bytes are opened only in a
+private temporary directory outside the vault, serialized into memory, and the
+temporary directory is removed in a `finally` cleanup. SQLite never opens the
+vault's database or sidecar paths. Successful mutations replace the canonical
+database with a securely created atomic snapshot. Publication is
+serialized across processes. Temporary and rollback files are created privately;
+the rollback snapshot is copied from a retained verified database handle.
+Creation, copying, replacement, and removal are relative to one pinned storage-
+directory descriptor, so swapping the parent
+pathname cannot redirect publication or recovery into another directory. The
+implementation verifies the temporary file through the rename, records a durable
+commit marker only after the renamed database is synced, and refuses a stale
+database generation instead of silently overwriting a newer one. On startup, a
+dead publisher's transaction is recovered only when its lock, canonical
+generation, temporary snapshot, and rollback inode relationships all match the
+recorded transaction. A crash before the commit marker restores the prior
+generation, including a crash after rename; a crash after the marker preserves the
+new generation. Missing or unverified recovery state fails closed. Authority
+verification and SQLite snapshot acquisition are inside the same rejection
+boundary as journal publication. A publication that reports failure restores both
+the prior on-disk generation and the last successfully published in-memory state,
+so later work or `close()` cannot commit a rejected mutation. If authority was
+lost, the stale connection is closed and removed from the shared cache instead.
+Once the marker is durable, a cleanup failure keeps the commit, invalidates that
+connection, and requires a clean reopen. Full-vault indexing
+publishes one snapshot at its
+operation-owned batch boundary. Replacing a vault at the same path invalidates
+the old connection instead of reusing its index. The native adapter exposes only
+the fixed filesystem operations required by this protocol; arbitrary libraries,
+symbols, and vault-supplied paths are not accepted.
+
+When upgrading from an earlier WAL-mode build, stop the older Mycelium server
+process before starting the new build. Live or stale WAL/SHM/journal sidecars fail
+closed rather than being recovered through user-controlled paths; a normal Codex
+restart removes live sidecars and supplies this process boundary. If sidecars
+remain after every older process has stopped, remove only the derived
+`.mcp-obsidian/embeddings.db*`, `.mcp-obsidian/embeddings.publish.lock`,
+`.mcp-obsidian/.embeddings.db.*.tmp`, and
+`.mcp-obsidian/.embeddings.db.*.rollback` files and run `index_vault` again;
+notes are not part of that derived cache.
 
 ```bash
 # Install (macOS)
