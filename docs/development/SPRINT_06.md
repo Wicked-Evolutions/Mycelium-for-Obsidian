@@ -21,6 +21,7 @@ Public npm/GitHub remain 1.5.0 at `a27b147674300b3836693bee471082fbb0d68a73`.
 | --- | --- | --- |
 | 1 | #89 Unicode keywords, explicit zero thresholds, sorting and precision | Scoped Astra writer; existing behavior and schemas preserved beyond the defects |
 | 1 | #90 cached-target truth and source-grounded orientation | Next focused writer; no automatic link repair or assumed vault taxonomy |
+| 1 | #94 source availability and distinct similar files | Scoped writer; bounded candidate reads, no general freshness claim or reference-policy change |
 | 1 | #86/#87 index recovery and source availability | Separate alignment review before storage changes; preserve normal safety and rollback |
 | 2 | #91 scoped retrieval and compact source evidence | Concrete additive contract before implementation; no universal tool rewrite |
 | 3 | #92 retrieval evaluation and integration | Existing metrics plus generic fixtures; retain defaults without demonstrated benefit |

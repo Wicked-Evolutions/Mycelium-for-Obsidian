@@ -342,7 +342,7 @@ test('semantic query generation rejects a producer digest mismatch before exact 
   assert.equal(retrievalCalls, 0);
 });
 
-test('get_similar accounts for every self chunk without changing the historical returned pool', async () => {
+test('get_similar applies its file limit after excluding all self chunks', async () => {
   const vault = makeVault({
     'Self.md': '# Self',
     'OtherA.md': '# Other A',
@@ -380,8 +380,8 @@ test('get_similar accounts for every self chunk without changing the historical 
     vault: 'Similar', path: 'Self.md', limit: 2,
   }));
 
-  assert.deepEqual(requestedLimits, [6], 'limit + all self chunks + one evidence row');
-  assert.deepEqual(result.similarFiles.map(row => row.path), ['OtherA.md']);
+  assert.deepEqual(requestedLimits, [Infinity], 'no fixed chunk cap can guarantee a file limit');
+  assert.deepEqual(result.similarFiles.map(row => row.path), ['OtherA.md', 'OtherB.md']);
   assert.equal(result.limit_reached, true);
 });
 

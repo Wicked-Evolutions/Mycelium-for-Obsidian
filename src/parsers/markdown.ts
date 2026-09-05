@@ -4,6 +4,7 @@
  */
 
 import matter from 'gray-matter';
+import { constants } from 'fs';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { ParsedFile } from '../types/index.js';
@@ -19,9 +20,10 @@ const MAX_FILE_SIZE = parseInt(process.env.OBSIDIAN_MAX_FILE_SIZE || '', 10) || 
 async function readVerifiedTextFile(filePath: string, vaultPath: string): Promise<string> {
   let handle: Awaited<ReturnType<typeof fs.open>> | undefined;
   try {
-    handle = await fs.open(filePath, 'r');
+    handle = await fs.open(filePath, constants.O_RDONLY | constants.O_NONBLOCK);
     await verifyFileHandleInVault(handle, filePath, vaultPath);
     const fileStat = await handle.stat();
+    if (!fileStat.isFile()) throw new Error('Markdown source is not a regular file.');
     if (fileStat.size > MAX_FILE_SIZE) {
       const sizeMB = (fileStat.size / (1024 * 1024)).toFixed(1);
       const limitMB = (MAX_FILE_SIZE / (1024 * 1024)).toFixed(0);
