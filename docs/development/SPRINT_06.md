@@ -65,3 +65,28 @@ The live-session observations of 3 searchable semantic vaults out of 22 describe
 availability, not the cause of every failure or the quality of ecosystem-wide
 retrieval. Diagnose distinct states and validate recovery using controlled
 fixtures before touching live derived data.
+
+## Implementation and Evidence
+
+Focused, independently reviewed PRs #93, #95, #96, #97 and #98 delivered #89,
+#90, #94, #86 and #91 with required Node 20/22 checks. The optional evaluation
+and its limitations are recorded in [RETRIEVAL_EVALUATION_S06.md](RETRIEVAL_EVALUATION_S06.md).
+The final local build and coverage runs each executed 1,303 tests: 1,300 passed,
+0 failed, 3 skipped. The distinct NFC/NFD directory case cannot execute on the
+local normalization-insensitive filesystem; it passed on both Linux CI jobs.
+The other skips are the optional Obsidian headless lane and the unavailable-Ollama
+case when Ollama is running.
+
+An isolated real-Ollama recovery check passed four checks without configured-vault
+changes. The final generic evaluation executed 120 observations with 168 valid
+requested excerpts. Read-only validation against an already-open Obsidian vault
+passed four checks, with app opening explicitly prohibited and no note/index writes.
+This is not a pass of the separate strict closed-vault pre-release gate, which
+remains unexecuted for this development sprint.
+
+#87 remains open: typed diagnosis and an explicit operator procedure do not prove
+automatic recovery across filesystem identity changes or prevent recurrence of an
+unexplained publication interruption. The founder boundary decision remains
+pending; do not close this gap by relabeling it complete. Existing legacy indexes
+also require an explicit maintained offline upgrade window, not an automatic
+migration during status or search. No release or publication is authorized.

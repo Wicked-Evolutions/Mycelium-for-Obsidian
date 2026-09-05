@@ -4,6 +4,10 @@ All notable changes to mcp-obsidian are documented here.
 
 ## [Unreleased]
 
+### Retrieval Evaluation
+- Add an optional isolated, fictional-vault Ollama benchmark with frozen labels, paired relevance measurements, indexed-evidence validation, response-byte/timing receipts and bounded reference-policy experiments. Existing ranking defaults remain unchanged. (#92)
+- Correct evaluation DCG/NDCG so repeated relevant IDs occupy ranks without earning duplicate relevance gain. (#92)
+
 ### Selective Retrieval
 - Add explicit vault selection to cross-vault text and semantic search, and directory-scoped candidates to single-vault semantic search before provider limits and fusion. No vault taxonomy or property convention is required. (#91)
 - Add opt-in compact semantic/link responses and exact indexed-passage evidence with generation checks, bounded excerpts and explicit non-freshness provenance. Default ranking and full responses are preserved; internal file/block identities no longer collide on colon-bearing names. (#91)
