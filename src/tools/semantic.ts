@@ -365,7 +365,7 @@ export function createSemanticHandlers(
 
         const limit = args.limit || 10;
         const returnLimit = Math.max(0, Math.ceil(limit));
-        const minSimilarity = args.minSimilarity || 0.5;
+        const minSimilarity = args.minSimilarity ?? 0.5;
 
         // Optionally expand query into multiple variants
         const queries = args.expand

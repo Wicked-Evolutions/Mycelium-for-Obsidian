@@ -2191,7 +2191,7 @@ export class EmbeddingStorage {
       const words = query
         .replace(/['"]/g, '')
         .split(/\s+/)
-        .map(w => w.replace(/[^a-zA-Z0-9_\-]/g, ''))  // strip special chars
+        .map(w => w.replace(/[^\p{L}\p{M}\p{N}_\-]/gu, ''))  // strip special chars
         .filter(w => w.length > 0 && w.length < 100);  // drop empty/absurd tokens
       if (words.length === 0) return [];
       // Each word quoted as literal — FTS5 operators like NEAR/AND/OR are neutralized
@@ -2239,7 +2239,7 @@ export class EmbeddingStorage {
       const words = query
         .replace(/['"]/g, '')
         .split(/\s+/)
-        .map(word => word.replace(/[^a-zA-Z0-9_\-]/g, ''))
+        .map(word => word.replace(/[^\p{L}\p{M}\p{N}_\-]/gu, ''))
         .filter(word => word.length > 0 && word.length < 100);
       if (words.length === 0) return [];
       const sanitizedQuery = words.map(word => `"${word}"`).join(' ');

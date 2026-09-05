@@ -267,6 +267,8 @@ Composite reports place independently bounded arrays under `resultMetadata`. `ge
 
 Semantic results include `indexCompatibility`, which identifies the exact model generation and vector dimension searched and counts compatible versus excluded rows. Rows from another model digest, malformed legacy metadata, another vector dimension, or an empty/nonfinite vector cannot enter semantic or keyword ranking. Invalid provider vectors fail before retrieval begins. `state: "partial"` and `reindexRequired: true` say that a full re-index is needed. Cross-vault semantic search returns the same receipt globally and per vault. Its configured-order `resultMetadataByVault` entries use `searched`, `unindexed`, `incompatible`, or `failed` so one vault's stale or failed index does not erase successful results from another.
 
+An explicit `minSimilarity: 0` is honored; omitting it retains the tool's default. This threshold applies to vector similarity, not the hybrid fusion score. Hybrid keyword matching preserves Unicode letters, combining marks and numbers while treating query words as literals with the existing all-words (AND) policy. Cross-vault semantic results are ranked at full precision before their displayed similarity is rounded.
+
 Legacy newline/tab readers such as `search_with_context` keep their established text responses. They do not yet receive machine-readable completeness metadata because adding metadata-only `structuredContent` would hide their text body on the HTTP surface, while converting them to a success envelope would be a broader compatibility migration. Their absence of completeness fields is not a claim that a swallowed read failure could not occur.
 
 ## Capability Tiers
@@ -363,6 +365,8 @@ DB path count and all stored embedding chunks.
 | `query_notes` | Dataview-like query engine for frontmatter fields |
 
 Filter operators: `equals`, `not_equals`, `contains`, `not_contains`, `in`, `not_in`, `exists`, `not_exists`, `greater_than`, `less_than`
+
+`fields` selects returned properties only. Sorting uses the original properties before applying `limit`, so `sort_by` does not need to appear in `fields`.
 
 Example:
 ```json
