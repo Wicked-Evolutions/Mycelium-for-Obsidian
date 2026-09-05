@@ -4,6 +4,10 @@ All notable changes to mcp-obsidian are documented here.
 
 ## [Unreleased]
 
+### Index Recovery
+- Inspect index status without initialization or recovery writes; report typed storage prerequisites and preserve available cross-vault statistics when another index cannot be inspected. Unknown dependent counts are null, not zero. (#86, #87)
+- Add an explicit offline legacy-index normalizer with a retained original bundle, SQLite checkpoint/integrity verification, and conservative interruption handling. Replace unsafe blanket-deletion upgrade guidance. No automatic identity-drift acceptance or recurrence-prevention claim. (#86)
+
 ### Added
 
 - Added `open_vault`, an explicit app-state tool that opens one configured vault only when needed and prepares a session-only exact Obsidian base-graph snapshot. Targeting is bound to one canonical configured path and one registered 16-character Obsidian vault ID; basename, active-window, default-vault, arbitrary-URI, and batch targeting are not used. (#45)

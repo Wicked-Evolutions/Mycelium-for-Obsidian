@@ -79,7 +79,6 @@ test('unsupported semantic storage returns one structured outcome without blocki
     unsupportedSemantic.get_similar({ vault: 'RecoveryVault', path: 'Note.md' }),
     unsupportedSemantic.index_status({ vault: 'RecoveryVault' }),
     unsupportedCrossVault.semantic_search_all({ query: 'topic' }),
-    unsupportedCrossVault.get_ecosystem_stats(),
   ];
 
   for (const response of await Promise.all(calls)) {
@@ -94,6 +93,13 @@ test('unsupported semantic storage returns one structured outcome without blocki
   const filesystemSearch = await unsupportedCrossVault.search_all_vaults({ query: 'Content' });
   assert.equal(filesystemSearch.isError, false);
   assert.equal(JSON.parse(filesystemSearch.content[0].text).totalResults, 1);
+  const ecosystem = await unsupportedCrossVault.get_ecosystem_stats();
+  assert.equal(ecosystem.isError, false);
+  const stats = JSON.parse(ecosystem.content[0].text);
+  assert.equal(stats.totalFiles, 1);
+  assert.equal(stats.totalEmbeddings, null);
+  assert.equal(stats.vaults[0].storageDiagnostic.code, 'semantic_storage_unavailable');
+  assert.equal(stats.completeness.skipped, 1);
 });
 
 test('semantic search distinguishes unavailable Ollama from a missing model', async () => {

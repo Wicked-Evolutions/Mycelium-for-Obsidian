@@ -75,6 +75,50 @@ export interface CompatibleSearchResults {
   compatibility: EmbeddingIndexCompatibility;
 }
 
+const STORAGE_DIAGNOSES = {
+  legacy_index_upgrade_required: {
+    message: 'Embedding storage has legacy SQLite WAL state requiring an explicit offline upgrade.',
+    hint: 'Stop all index writers and preserve the database and sidecars. Use the documented offline legacy-index recovery; re-index afterward if exact model identity is unavailable.',
+  },
+  index_recovery_required: {
+    message: 'Embedding index publication or journal state requires recovery before inspection.',
+    hint: 'Stop all index writers and preserve the database and publication artifacts for explicit recovery. Do not delete locks, journals, or rollback snapshots.',
+  },
+  index_recovery_identity_mismatch: {
+    message: 'Committed embedding recovery found an unknown database generation.',
+    hint: 'Stop all index writers and preserve the database, lock, and rollback evidence for operator review. Do not ignore device identity or replace the committed database with its rollback.',
+  },
+  index_storage_unsafe: {
+    message: 'Embedding storage has an invalid physical identity or unsupported database state.',
+    hint: 'Stop all index writers and inspect the storage files and link identities. Preserve the original artifacts; do not retry by removing safety checks.',
+  },
+  index_publication_in_progress: {
+    message: 'Embedding snapshot publication is already in progress.',
+    hint: 'Wait for the active index publisher to finish, then retry. Do not remove its publication lock.',
+  },
+} as const;
+
+export type EmbeddingStorageErrorCode = keyof typeof STORAGE_DIAGNOSES;
+
+export class EmbeddingStorageError extends Error {
+  readonly hint: string;
+
+  constructor(
+    readonly code: EmbeddingStorageErrorCode,
+    // False means unknown, not proof that a mutation occurred.
+    readonly noMutation = false
+  ) {
+    super(STORAGE_DIAGNOSES[code].message);
+    this.name = 'EmbeddingStorageError';
+    this.hint = STORAGE_DIAGNOSES[code].hint;
+  }
+}
+
+export interface EmbeddingIndexInspection {
+  stats: { totalEmbeddings: number; uniqueFiles: number; lastUpdated: number | null };
+  pathStats: EmbeddingPathStat[];
+}
+
 export interface EmbeddingStorageDependencies {
   openDatabase?: (
     source: string | Buffer
@@ -153,39 +197,41 @@ function verifiedIdentity(
 ): FileIdentity {
   const stat = fs.lstatSync(targetPath, { bigint: true });
   if (stat.isSymbolicLink()) {
-    throw new Error(`Embedding storage ${expectedType} must not be a symbolic link.`);
+    throw new EmbeddingStorageError('index_storage_unsafe');
   }
   const hasExpectedType = expectedType === 'directory'
     ? stat.isDirectory()
     : stat.isFile();
   if (!hasExpectedType || fs.realpathSync(targetPath) !== targetPath) {
-    throw new Error(`Embedding storage ${expectedType} has an invalid physical identity.`);
+    throw new EmbeddingStorageError('index_storage_unsafe');
   }
   if (expectedType === 'file' && stat.nlink !== 1n) {
-    throw new Error('Embedding storage files must have exactly one hard link.');
+    throw new EmbeddingStorageError('index_storage_unsafe');
   }
   return identityOf(stat);
 }
 
 function assertNoSqliteSidecarsAt(
   storageDirectoryDescriptor: number,
-  databasePath: string
+  databasePath: string,
+  noMutation = false
 ): void {
+  let walPresent = false;
+  let journalPresent = false;
   for (const suffix of ['-journal', '-wal', '-shm']) {
     let descriptor: number;
     try {
       descriptor = openFileAt(
         storageDirectoryDescriptor,
         `embeddings.db${suffix}`,
-        fs.constants.O_RDONLY
+        fs.constants.O_RDONLY | fs.constants.O_NONBLOCK
       );
     } catch (error) {
       if (isSecureFsCode(error, 'ENOENT')) continue;
-      throw new Error(
-        isSecureFsCode(error, 'ELOOP')
-          ? 'Embedding storage SQLite sidecars must not be symbolic links.'
-          : 'Embedding storage SQLite sidecar has an invalid physical identity.'
-      );
+      if (isSecureFsCode(error, 'ELOOP') || isSecureFsCode(error, 'ENOTDIR')) {
+        throw new EmbeddingStorageError('index_storage_unsafe', noMutation);
+      }
+      throw error;
     }
     try {
       const stat = fs.fstatSync(descriptor, { bigint: true });
@@ -194,15 +240,65 @@ function assertNoSqliteSidecarsAt(
         stat.nlink !== 1n ||
         fs.realpathSync(`${databasePath}${suffix}`) !== `${databasePath}${suffix}`
       ) {
-        throw new Error('Embedding storage SQLite sidecar has an invalid physical identity.');
+        throw new EmbeddingStorageError('index_storage_unsafe', noMutation);
       }
-      throw new Error(
-        'Embedding storage has a live or stale SQLite sidecar; stop older Mycelium processes before retrying.'
-      );
+      if (suffix === '-journal') journalPresent = true;
+      else walPresent = true;
     } finally {
       fs.closeSync(descriptor);
     }
   }
+  if (journalPresent || walPresent) {
+    // Classify mixed publication evidence without allowing recovery to clean it up.
+    try {
+      assertNoInspectionPublication(storageDirectoryDescriptor, path.dirname(databasePath));
+    } catch (error) {
+      if (error instanceof EmbeddingStorageError) throw new EmbeddingStorageError(error.code, noMutation);
+      throw error;
+    }
+  }
+  if (journalPresent) throw new EmbeddingStorageError('index_recovery_required', noMutation);
+  if (walPresent) {
+    const header = readVerifiedDatabaseHeaderAt(storageDirectoryDescriptor);
+    if (!header) throw new EmbeddingStorageError('index_recovery_required', noMutation);
+    if (header.length !== 100 || header.subarray(0, 16).toString('binary') !== 'SQLite format 3\0') {
+      throw new EmbeddingStorageError('index_storage_unsafe', noMutation);
+    }
+    if (header[18] === 2 && header[19] === 2) {
+      throw new EmbeddingStorageError('legacy_index_upgrade_required', noMutation);
+    }
+    if (header[18] === 1 && header[19] === 1) {
+      throw new EmbeddingStorageError('index_recovery_required', noMutation);
+    }
+    throw new EmbeddingStorageError('index_storage_unsafe', noMutation);
+  }
+}
+
+function readVerifiedDatabaseHeaderAt(storageDescriptor: number): Buffer | null {
+  const before = statArtifactAtIfPresent(storageDescriptor, 'embeddings.db');
+  if (!before) return null;
+  const descriptor = openFileAt(storageDescriptor, 'embeddings.db', fs.constants.O_RDONLY | fs.constants.O_NONBLOCK);
+  try {
+    const opened = fs.fstatSync(descriptor, { bigint: true });
+    if (!opened.isFile() || opened.nlink !== 1n || !sameIdentity(identityOf(before), identityOf(opened))) {
+      throw new EmbeddingStorageError('index_storage_unsafe');
+    }
+    const header = Buffer.alloc(100);
+    let offset = 0;
+    while (offset < header.length) {
+      const read = fs.readSync(descriptor, header, offset, header.length - offset, offset);
+      if (read === 0) break;
+      offset += read;
+    }
+    const after = fs.fstatSync(descriptor, { bigint: true });
+    const current = statArtifactAtIfPresent(storageDescriptor, 'embeddings.db');
+    if ([after, current].some(stat => !stat || !stat.isFile() || stat.nlink !== 1n ||
+      !sameIdentity(identityOf(before), identityOf(stat)) || stat.size !== before.size ||
+      stat.mtimeNs !== before.mtimeNs || stat.ctimeNs !== before.ctimeNs)) {
+      throw new EmbeddingStorageError('index_storage_unsafe');
+    }
+    return header.subarray(0, offset);
+  } finally { fs.closeSync(descriptor); }
 }
 
 function readPinnedDatabase(
@@ -218,7 +314,7 @@ function readPinnedDatabase(
       before.nlink !== 1n ||
       !sameIdentity(identityOf(before), authority.databaseIdentity)
     ) {
-      throw new Error('Opened embedding database does not match the pinned file identity.');
+      throw new EmbeddingStorageError('index_storage_unsafe');
     }
     const content = fs.readFileSync(descriptor);
     const after = fs.fstatSync(descriptor, { bigint: true });
@@ -226,9 +322,12 @@ function readPinnedDatabase(
       !after.isFile() ||
       after.nlink !== 1n ||
       after.size !== BigInt(content.length) ||
+      before.size !== after.size ||
+      before.mtimeNs !== after.mtimeNs ||
+      before.ctimeNs !== after.ctimeNs ||
       !sameIdentity(identityOf(after), authority.databaseIdentity)
     ) {
-      throw new Error('Embedding database changed while its snapshot was read.');
+      throw new EmbeddingStorageError('index_storage_unsafe');
     }
     return content;
   } finally {
@@ -381,6 +480,7 @@ function prepareStorageAuthority(vaultRoot: PinnedVaultRoot): StorageAuthority {
     inode: vaultRoot.inode,
   });
   let storageDescriptor: number | null = null;
+  let noMutation = true;
   try {
     try {
       storageDescriptor = openDirectoryAt(vaultDescriptor, '.mcp-obsidian');
@@ -390,6 +490,7 @@ function prepareStorageAuthority(vaultRoot: PinnedVaultRoot): StorageAuthority {
           'Embedding storage directory must not be a symbolic link and must have a valid physical identity.'
         );
       }
+      noMutation = false;
       mkdirAt(vaultDescriptor, '.mcp-obsidian', 0o700);
       fsyncDirectory(vaultDescriptor);
       storageDescriptor = openDirectoryAt(vaultDescriptor, '.mcp-obsidian');
@@ -407,11 +508,15 @@ function prepareStorageAuthority(vaultRoot: PinnedVaultRoot): StorageAuthority {
       throw new Error('Embedding storage directory changed while it was pinned.');
     }
 
-    recoverStalePublication(
+    // Diagnose sidecars before recovery can remove any publication evidence.
+    assertNoSqliteSidecarsAt(storageDescriptor, databasePath, noMutation);
+    const recovery = recoverStalePublication(
       storageDirectoryIdentity,
-      storageDescriptor
+      storageDescriptor,
+      noMutation
     );
-    assertNoSqliteSidecarsAt(storageDescriptor, databasePath);
+    if (recovery !== 'none') noMutation = false;
+    assertNoSqliteSidecarsAt(storageDescriptor, databasePath, noMutation);
 
     let databaseDescriptor: number;
     try {
@@ -428,6 +533,7 @@ function prepareStorageAuthority(vaultRoot: PinnedVaultRoot): StorageAuthority {
             : 'Embedding storage file must have a valid physical identity.'
         );
       }
+      noMutation = false;
       databaseDescriptor = openFileAt(
         storageDescriptor,
         'embeddings.db',
@@ -449,7 +555,7 @@ function prepareStorageAuthority(vaultRoot: PinnedVaultRoot): StorageAuthority {
       fs.closeSync(databaseDescriptor);
     }
 
-    assertNoSqliteSidecarsAt(storageDescriptor, databasePath);
+    assertNoSqliteSidecarsAt(storageDescriptor, databasePath, noMutation);
     assertPinnedVaultRootSync(vaultRoot);
     if (!sameIdentity(
       verifiedIdentity(storageDirectory, 'directory'),
@@ -484,10 +590,13 @@ function assertStorageAuthority(authority: StorageAuthority): void {
     databaseDescriptor = openFileAt(
       storageDescriptor,
       'embeddings.db',
-      fs.constants.O_RDONLY
+      fs.constants.O_RDONLY | fs.constants.O_NONBLOCK
     );
     const databaseStat = fs.fstatSync(databaseDescriptor, { bigint: true });
-    if (!databaseStat.isFile() || databaseStat.nlink !== 1n) {
+    if (!databaseStat.isFile()) {
+      throw new EmbeddingStorageError('index_storage_unsafe');
+    }
+    if (databaseStat.nlink !== 1n) {
       throw new Error('Embedding storage files must have exactly one hard link.');
     }
     databaseIdentity = identityOf(databaseStat);
@@ -530,13 +639,14 @@ function assertOpenAtIdentity(
   const currentDescriptor = openFileAt(
     storageDirectoryDescriptor,
     name,
-    fs.constants.O_RDONLY
+    fs.constants.O_RDONLY | fs.constants.O_NONBLOCK
   );
   try {
     const current = fs.fstatSync(currentDescriptor, { bigint: true });
+    if (!opened.isFile() || !current.isFile()) {
+      throw new EmbeddingStorageError('index_storage_unsafe');
+    }
     if (
-      !opened.isFile() ||
-      !current.isFile() ||
       opened.nlink !== expectedLinks ||
       current.nlink !== expectedLinks ||
       !sameIdentity(identityOf(opened), expectedIdentity) ||
@@ -555,15 +665,18 @@ function statArtifactAtIfPresent(
 ): fs.BigIntStats | null {
   let descriptor: number;
   try {
-    descriptor = openFileAt(storageDirectoryDescriptor, name, fs.constants.O_RDONLY);
+    descriptor = openFileAt(storageDirectoryDescriptor, name, fs.constants.O_RDONLY | fs.constants.O_NONBLOCK);
   } catch (error) {
     if (isSecureFsCode(error, 'ENOENT')) return null;
+    if (isSecureFsCode(error, 'ELOOP') || isSecureFsCode(error, 'ENOTDIR')) {
+      throw new EmbeddingStorageError('index_storage_unsafe');
+    }
     throw error;
   }
   try {
     const stat = fs.fstatSync(descriptor, { bigint: true });
-    if (!stat.isFile()) {
-      throw new Error('Embedding publication artifact has an invalid physical type.');
+    if (!stat.isFile() || stat.nlink !== 1n) {
+      throw new EmbeddingStorageError('index_storage_unsafe');
     }
     return stat;
   } finally {
@@ -590,12 +703,12 @@ function readPublishLockOwner(
   const descriptor = openFileAt(
     storageDirectoryDescriptor,
     'embeddings.publish.lock',
-    fs.constants.O_RDONLY
+    fs.constants.O_RDONLY | fs.constants.O_NONBLOCK
   );
   try {
     const initial = fs.fstatSync(descriptor, { bigint: true });
     if (!initial.isFile() || initial.nlink !== 1n) {
-      throw new Error('Embedding publication lock has an invalid physical identity.');
+      throw new EmbeddingStorageError('index_storage_unsafe');
     }
     const identity = identityOf(initial);
     assertOpenAtIdentity(
@@ -607,6 +720,10 @@ function readPublishLockOwner(
       'Embedding publication lock'
     );
     const raw = fs.readFileSync(descriptor, 'utf8');
+    const afterRead = fs.fstatSync(descriptor, { bigint: true });
+    if (initial.size !== afterRead.size || initial.mtimeNs !== afterRead.mtimeNs || initial.ctimeNs !== afterRead.ctimeNs) {
+      throw new EmbeddingStorageError('index_recovery_required');
+    }
     assertOpenAtIdentity(
       storageDirectoryDescriptor,
       'embeddings.publish.lock',
@@ -620,10 +737,18 @@ function readPublishLockOwner(
       ? raw.slice(0, -PUBLISH_COMMIT_SUFFIX.length)
       : raw;
     if (!record || record.includes('\n')) {
-      throw new Error('Embedding publication lock owner is invalid.');
+      throw new EmbeddingStorageError('index_recovery_required');
     }
-    const owner = JSON.parse(record) as Partial<PublicationTransaction>;
+    let owner: Partial<PublicationTransaction> | null;
+    try {
+      owner = JSON.parse(record) as Partial<PublicationTransaction> | null;
+    } catch (error) {
+      if (error instanceof SyntaxError) throw new EmbeddingStorageError('index_recovery_required');
+      throw error;
+    }
     if (
+      !owner ||
+      typeof owner !== 'object' ||
       owner.version !== 3 ||
       !Number.isSafeInteger(owner.pid) ||
       (owner.pid as number) <= 0 ||
@@ -633,7 +758,7 @@ function readPublishLockOwner(
       !isValidIdentity(owner.temporaryIdentity) ||
       !isValidIdentity(owner.rollbackIdentity)
     ) {
-      throw new Error('Embedding publication lock owner is invalid.');
+      throw new EmbeddingStorageError('index_recovery_required');
     }
     return {
       transaction: owner as PublicationTransaction,
@@ -717,7 +842,8 @@ function unlinkVerifiedArtifact(
 
 function recoverStalePublication(
   storageDirectoryIdentity: FileIdentity,
-  storageDirectoryDescriptor: number
+  storageDirectoryDescriptor: number,
+  noMutation = false
 ): 'none' | 'previous' | 'published' {
   const pinnedDirectory = fs.fstatSync(storageDirectoryDescriptor, { bigint: true });
   if (
@@ -735,7 +861,7 @@ function recoverStalePublication(
     throw error;
   }
   if (processIsAlive(owner.transaction.pid)) {
-    throw new Error('Embedding snapshot publication is already in progress.');
+    throw new EmbeddingStorageError('index_publication_in_progress', noMutation);
   }
 
   const { transaction } = owner;
@@ -761,7 +887,7 @@ function recoverStalePublication(
   let recovered: 'previous' | 'published';
   if (owner.committed) {
     if (!sameIdentity(canonicalIdentity, transaction.temporaryIdentity)) {
-      throw new Error('Committed embedding recovery found an unknown database generation.');
+      throw new EmbeddingStorageError('index_recovery_identity_mismatch', noMutation);
     }
     assertArtifactIdentityAt(
       storageDirectoryDescriptor,
@@ -909,7 +1035,7 @@ function acquirePublishLock(
     );
   } catch (error) {
     if (isSecureFsCode(error, 'EEXIST')) {
-      throw new Error('Embedding snapshot publication is already in progress.');
+      throw new EmbeddingStorageError('index_publication_in_progress');
     }
     throw error;
   }
@@ -1082,6 +1208,134 @@ function authorityKey(authority: StorageAuthority): string {
   ].join('\u0000');
 }
 
+function queryIndexStats(db: Database.Database): EmbeddingIndexInspection['stats'] {
+  const count = db.prepare('SELECT COUNT(*) as count FROM embeddings').get() as { count: number };
+  const files = db.prepare('SELECT COUNT(DISTINCT file_path) as count FROM embeddings').get() as { count: number };
+  const last = db.prepare('SELECT MAX(updated_at) as last FROM embeddings').get() as { last: number | null };
+  return { totalEmbeddings: count.count, uniqueFiles: files.count, lastUpdated: last.last };
+}
+
+function queryIndexPathStats(db: Database.Database): EmbeddingPathStat[] {
+  return db.prepare(`
+    SELECT file_path as filePath, COUNT(*) as embeddingChunks
+    FROM embeddings
+    GROUP BY file_path
+    ORDER BY file_path
+  `).all() as EmbeddingPathStat[];
+}
+
+function assertNoInspectionPublication(storageDescriptor: number, storageDirectory: string): void {
+  let owner: ReturnType<typeof readPublishLockOwner> | null = null;
+  try {
+    owner = readPublishLockOwner(storageDescriptor);
+  } catch (error) {
+    if (!isSecureFsCode(error, 'ENOENT')) throw error;
+  }
+  if (owner && processIsAlive(owner.transaction.pid)) {
+    throw new EmbeddingStorageError('index_publication_in_progress');
+  }
+  const artifacts = fs.readdirSync(storageDirectory)
+    .filter(name => /^\.embeddings\.db\..*\.(tmp|rollback)$/.test(name));
+  for (const name of artifacts) {
+    if (!statArtifactAtIfPresent(storageDescriptor, name)) {
+      throw new EmbeddingStorageError('index_storage_unsafe');
+    }
+  }
+  if (owner?.committed) {
+    const canonical = statArtifactAtIfPresent(storageDescriptor, 'embeddings.db');
+    if (canonical && !sameIdentity(identityOf(canonical), owner.transaction.temporaryIdentity)) {
+      throw new EmbeddingStorageError('index_recovery_identity_mismatch');
+    }
+  }
+  if (owner || artifacts.length > 0) throw new EmbeddingStorageError('index_recovery_required');
+}
+
+/** Read existing index bytes only; never initialize, normalize, recover, or publish. */
+export function inspectEmbeddingIndex(vault: string | PinnedVaultRoot): EmbeddingIndexInspection {
+  let vaultDescriptor: number | null = null;
+  let storageDescriptor: number | null = null;
+  let db: Database.Database | null = null;
+  const empty: EmbeddingIndexInspection = {
+    stats: { totalEmbeddings: 0, uniqueFiles: 0, lastUpdated: null },
+    pathStats: [],
+  };
+  try {
+    const vaultRoot = normalizeVaultRoot(vault);
+    assertPinnedVaultRootSync(vaultRoot);
+    vaultDescriptor = openPinnedDirectory(vaultRoot.path, vaultRoot);
+    const storageDirectory = path.join(vaultRoot.path, '.mcp-obsidian');
+    const databasePath = path.join(storageDirectory, 'embeddings.db');
+    try {
+      storageDescriptor = openDirectoryAt(vaultDescriptor, '.mcp-obsidian');
+    } catch (error) {
+      if (!isSecureFsCode(error, 'ENOENT')) throw error;
+      assertPinnedVaultRootSync(vaultRoot);
+      return empty;
+    }
+    const storageDirectoryIdentity = identityOf(fs.fstatSync(storageDescriptor, { bigint: true }));
+    const assertLocation = () => {
+      assertPinnedVaultRootSync(vaultRoot);
+      if (!sameIdentity(verifiedIdentity(storageDirectory, 'directory'), storageDirectoryIdentity)) {
+        throw new EmbeddingStorageError('index_storage_unsafe');
+      }
+    };
+    assertLocation();
+    assertNoInspectionPublication(storageDescriptor, storageDirectory);
+    assertNoSqliteSidecarsAt(storageDescriptor, databasePath);
+    const databaseStat = statArtifactAtIfPresent(storageDescriptor, 'embeddings.db');
+    if (!databaseStat) {
+      assertLocation();
+      return empty;
+    }
+    const authority: StorageAuthority = {
+      vaultRoot, storageDirectory, storageDirectoryIdentity, databasePath,
+      databaseIdentity: identityOf(databaseStat),
+    };
+    const content = readPinnedDatabase(authority, (_databasePath, flags) =>
+      openFileAt(storageDescriptor!, 'embeddings.db', flags | fs.constants.O_NONBLOCK)
+    );
+    assertLocation();
+    if (content.length < 100 || content.subarray(0, 16).toString('binary') !== 'SQLite format 3\0') {
+      throw new EmbeddingStorageError('index_storage_unsafe');
+    }
+    if (content[18] === 2 && content[19] === 2) {
+      throw new EmbeddingStorageError('legacy_index_upgrade_required');
+    }
+    if (content[18] !== 1 || content[19] !== 1) throw new EmbeddingStorageError('index_storage_unsafe');
+    db = new Database(content, { readonly: true });
+    const columns = db.pragma('table_info(embeddings)') as Array<{ name: string }>;
+    if (!['file_path', 'updated_at'].every(name => columns.some(column => column.name === name))) {
+      throw new EmbeddingStorageError('index_storage_unsafe');
+    }
+    const result = { stats: queryIndexStats(db), pathStats: queryIndexPathStats(db) };
+    assertLocation();
+    assertNoInspectionPublication(storageDescriptor, storageDirectory);
+    assertStorageAuthority(authority);
+    return result;
+  } catch (error) {
+    if (error instanceof EmbeddingStorageError) {
+      throw new EmbeddingStorageError(error.code, true);
+    }
+    if (
+      isErrorCode(error, 'ENOENT') || isErrorCode(error, 'ELOOP') || isErrorCode(error, 'ENOTDIR') ||
+      (error instanceof Database.SqliteError && ['SQLITE_NOTADB', 'SQLITE_CORRUPT'].includes(error.code))
+    ) {
+      throw new EmbeddingStorageError('index_storage_unsafe', true);
+    }
+    throw error;
+  } finally {
+    try {
+      db?.close();
+    } finally {
+      try {
+        if (storageDescriptor !== null) fs.closeSync(storageDescriptor);
+      } finally {
+        if (vaultDescriptor !== null) fs.closeSync(vaultDescriptor);
+      }
+    }
+  }
+}
+
 // Shared storage instances across the process — prevents duplicate DB connections
 // between semantic.ts, watcher.ts, and crossvault.ts
 const sharedInstances = new Map<string, EmbeddingStorage>();
@@ -1100,7 +1354,14 @@ export function getSharedStorage(vault: string | PinnedVaultRoot): EmbeddingStor
     return existing;
   }
 
-  const storage = new EmbeddingStorage(vaultRoot);
+  let storage: EmbeddingStorage;
+  try {
+    storage = new EmbeddingStorage(vaultRoot);
+  } catch (error) {
+    // The first preparation above may already have created or recovered storage.
+    if (error instanceof EmbeddingStorageError) throw new EmbeddingStorageError(error.code);
+    throw error;
+  }
   const storageKey = storage.getAuthorityKey();
   storage.bindSharedKey(storageKey);
   sharedInstances.set(storageKey, storage);
@@ -2313,19 +2574,7 @@ export class EmbeddingStorage {
    */
   getStats(): { totalEmbeddings: number; uniqueFiles: number; lastUpdated: number | null } {
     this.ensureAuthority();
-    const countStmt = this.db.prepare('SELECT COUNT(*) as count FROM embeddings');
-    const filesStmt = this.db.prepare('SELECT COUNT(DISTINCT file_path) as count FROM embeddings');
-    const lastUpdatedStmt = this.db.prepare('SELECT MAX(updated_at) as last FROM embeddings');
-
-    const count = (countStmt.get() as { count: number }).count;
-    const files = (filesStmt.get() as { count: number }).count;
-    const lastUpdated = (lastUpdatedStmt.get() as { last: number | null }).last;
-
-    return {
-      totalEmbeddings: count,
-      uniqueFiles: files,
-      lastUpdated
-    };
+    return queryIndexStats(this.db);
   }
 
   /**
@@ -2333,17 +2582,7 @@ export class EmbeddingStorage {
    */
   getPathStats(): EmbeddingPathStat[] {
     this.ensureAuthority();
-    const rows = this.db.prepare(`
-      SELECT file_path as filePath, COUNT(*) as embeddingChunks
-      FROM embeddings
-      GROUP BY file_path
-      ORDER BY file_path
-    `).all() as Array<{ filePath: string; embeddingChunks: number }>;
-
-    return rows.map(row => ({
-      filePath: row.filePath,
-      embeddingChunks: row.embeddingChunks
-    }));
+    return queryIndexPathStats(this.db);
   }
 
   /**

@@ -696,13 +696,26 @@ symbols, and vault-supplied paths are not accepted.
 
 When upgrading from an earlier WAL-mode build, stop the older Mycelium server
 process before starting the new build. Live or stale WAL/SHM/journal sidecars fail
-closed rather than being recovered through user-controlled paths; a normal Codex
-restart removes live sidecars and supplies this process boundary. If sidecars
-remain after every older process has stopped, remove only the derived
-`.mcp-obsidian/embeddings.db*`, `.mcp-obsidian/embeddings.publish.lock`,
-`.mcp-obsidian/.embeddings.db.*.tmp`, and
-`.mcp-obsidian/.embeddings.db.*.rollback` files and run `index_vault` again;
-notes are not part of that derived cache.
+closed. A client restart alone does not establish that every writer has stopped
+or remove stale artifacts. Do not delete database companions or publication locks
+to bypass a failure. The optional [offline recovery procedure](docs/semantic-index-recovery.md)
+preserves the original database/WAL/SHM bundle and validates a normalized copy
+before publication. It requires an explicitly maintained offline window and does
+not change note content or model identity.
+
+`index_status` inspects an existing index without creating one, normalizing its
+schema, or cleaning up publication state. Storage prerequisites have specific
+recovery codes: `legacy_index_upgrade_required`, `index_recovery_required`,
+`index_recovery_identity_mismatch`, `index_storage_unsafe`, and
+`index_publication_in_progress`. Only an active publication is automatically
+retryable. A diagnosis is not a claim that the underlying cause has been fixed.
+Cross-vault semantic search retains successful vault results and supplies a
+sanitized `storageDiagnostic` for recognized storage failures.
+
+`get_ecosystem_stats` also uses nonmutating inspection. When one index is
+unavailable, its filesystem counts remain available; unknown index-dependent
+fields and aggregates are `null`, not zero. Partial-completeness metadata uses
+vault units. Healthy responses retain their existing fields and meanings.
 
 ```bash
 # Install (macOS)

@@ -33,7 +33,9 @@ import {
 } from '../embeddings/ollama.js';
 import {
   getSharedStorage,
+  inspectEmbeddingIndex,
   type EmbeddingIndexCompatibility,
+  type EmbeddingIndexInspection,
 } from '../embeddings/storage.js';
 import { pinVaultRoot, type PinnedVaultRoot } from '../embeddings/vault-root.js';
 import { calculateIndexCoverage, coveragePercent, ratio } from '../embeddings/index-stats.js';
@@ -47,8 +49,9 @@ import {
   limitReachedMetadata,
   partialCompletenessMetadata,
 } from '../result-metadata.js';
-import { secureMutationSupported } from '../embeddings/secure-fs.js';
+import { SecureFilesystemUnavailableError, secureMutationSupported } from '../embeddings/secure-fs.js';
 import { SemanticSources } from './semantic-source.js';
+import { indexRecoveryResponse, storageDiagnostic } from './index-recovery.js';
 
 /**
  * Tool definitions for cross-vault operations
@@ -325,6 +328,7 @@ export function createCrossVaultHandlers(
           vault: string;
           state: 'searched' | 'unindexed' | 'incompatible' | 'failed';
           indexCompatibility?: EmbeddingIndexCompatibility;
+          storageDiagnostic?: ReturnType<typeof storageDiagnostic>;
           limit_reached?: true;
           completeness?: {
             state: 'partial';
@@ -412,12 +416,14 @@ export function createCrossVaultHandlers(
               indexCompatibility: compatibility,
               ...limitReachedMetadata(providerLimitReached),
             });
-          } catch {
+          } catch (error) {
             skippedVaults += 1;
             semanticReasons.push('vault_search_failed');
+            const diagnostic = storageDiagnostic(error);
             resultMetadataByVault.push({
               vault: vault.name,
               state: 'failed',
+              ...(diagnostic ? { storageDiagnostic: diagnostic } : {}),
               ...partialCompletenessMetadata(0, 1, ['vault_search_failed']),
             });
           }
@@ -489,6 +495,8 @@ export function createCrossVaultHandlers(
           isError: false
         };
       } catch (error) {
+        const recovery = indexRecoveryResponse(error);
+        if (recovery) return recovery;
         return {
           content: [{ type: 'text', text: `Cross-vault semantic search error: ${error}` }],
           isError: true
@@ -550,72 +558,114 @@ export function createCrossVaultHandlers(
     },
 
     get_ecosystem_stats: async (): Promise<ToolResponse> => {
-      const storageUnavailable = semanticStorageUnavailable();
-      if (storageUnavailable) return storageUnavailable;
       try {
         const vaultStats: Array<{
           vault: string;
-          totalFiles: number;
-          totalEmbeddings: number;
-          indexedPercent: number;
-          currentMarkdownFiles: number;
-          indexedFilePathCount: number;
-          currentIndexedFiles: number;
-          staleIndexedFiles: number;
-          embeddingChunks: number;
-          currentEmbeddingChunks: number;
-          staleEmbeddingChunks: number;
-          fileCoveragePercent: number;
-          embeddingChunksPerCurrentIndexedFile: number;
-          embeddingChunksPerCurrentMarkdownFile: number;
+          totalFiles: number | null;
+          totalEmbeddings: number | null;
+          indexedPercent: number | null;
+          currentMarkdownFiles: number | null;
+          indexedFilePathCount: number | null;
+          currentIndexedFiles: number | null;
+          staleIndexedFiles: number | null;
+          embeddingChunks: number | null;
+          currentEmbeddingChunks: number | null;
+          staleEmbeddingChunks: number | null;
+          fileCoveragePercent: number | null;
+          embeddingChunksPerCurrentIndexedFile: number | null;
+          embeddingChunksPerCurrentMarkdownFile: number | null;
+          storageDiagnostic?: ReturnType<typeof storageDiagnostic>;
+          completeness?: {
+            state: 'partial';
+            scanned: number;
+            skipped: number;
+            reasons: CompletenessReason[];
+          };
         }> = [];
-
-        let totalFiles = 0;
-        let totalEmbeddings = 0;
-        let totalIndexedFilePathCount = 0;
-        let totalCurrentIndexedFiles = 0;
-        let totalStaleIndexedFiles = 0;
-        let totalCurrentEmbeddingChunks = 0;
-        let totalStaleEmbeddingChunks = 0;
+        const inspectionFailure = {
+          code: 'index_inspection_failed',
+          message: 'Embedding index statistics could not be inspected.',
+          hint: 'Verify vault and index access, then retry. Preserve existing index artifacts.',
+        };
 
         for (const vault of config.vaults) {
-          const vaultRoot = await pinVaultRoot(vault.path);
-          const files = await collectMarkdownFilePaths(vaultRoot.path, vaultRoot.path);
-          const storage = getStorage(vaultRoot);
-          const coverage = calculateIndexCoverage(
-            vaultRoot.path,
-            files,
-            storage.getPathStats(),
-            { staleSampleLimit: 0 }
-          );
+          let files: string[] | null = null;
+          let inspection: EmbeddingIndexInspection | null = null;
+          let diagnostic: ReturnType<typeof storageDiagnostic>;
+          const reasons: CompletenessReason[] = [];
+          let vaultRoot: PinnedVaultRoot | undefined;
+          try {
+            vaultRoot = await pinVaultRoot(vault.path);
+          } catch (error) {
+            reasons.push('vault_unavailable');
+            diagnostic = storageDiagnostic(error) ?? inspectionFailure;
+          }
 
-          totalFiles += coverage.currentMarkdownFiles;
-          totalEmbeddings += coverage.embeddingChunks;
-          totalIndexedFilePathCount += coverage.indexedFilePathCount;
-          totalCurrentIndexedFiles += coverage.currentIndexedFiles;
-          totalStaleIndexedFiles += coverage.staleIndexedFiles;
-          totalCurrentEmbeddingChunks += coverage.currentEmbeddingChunks;
-          totalStaleEmbeddingChunks += coverage.staleEmbeddingChunks;
+          if (vaultRoot) {
+            try {
+              files = await collectMarkdownFilePaths(vaultRoot.path, vaultRoot.path);
+            } catch {
+              reasons.push('scan_failure');
+            }
+            try {
+              const supported = dependencies.secureMutationSupported?.()
+                ?? secureMutationSupported();
+              if (!supported) throw new SecureFilesystemUnavailableError();
+              inspection = inspectEmbeddingIndex(vaultRoot);
+            } catch (error) {
+              reasons.push('vault_search_failed');
+              diagnostic = storageDiagnostic(error) ?? inspectionFailure;
+            }
+          }
+
+          let coverage: ReturnType<typeof calculateIndexCoverage> | null = null;
+          if (vaultRoot && files && inspection) {
+            try {
+              coverage = calculateIndexCoverage(vaultRoot.path, files, inspection.pathStats, { staleSampleLimit: 0 });
+            } catch (error) {
+              reasons.push('vault_search_failed');
+              diagnostic = storageDiagnostic(error) ?? inspectionFailure;
+            }
+          }
+          const currentMarkdownFiles = files?.length ?? null;
+          const embeddingChunks = inspection?.stats.totalEmbeddings ?? null;
 
           vaultStats.push({
             vault: vault.name,
-            totalFiles: coverage.currentMarkdownFiles,
-            totalEmbeddings: coverage.embeddingChunks,
-            indexedPercent: coverage.fileCoveragePercent,
-            currentMarkdownFiles: coverage.currentMarkdownFiles,
-            indexedFilePathCount: coverage.indexedFilePathCount,
-            currentIndexedFiles: coverage.currentIndexedFiles,
-            staleIndexedFiles: coverage.staleIndexedFiles,
-            embeddingChunks: coverage.embeddingChunks,
-            currentEmbeddingChunks: coverage.currentEmbeddingChunks,
-            staleEmbeddingChunks: coverage.staleEmbeddingChunks,
-            fileCoveragePercent: coverage.fileCoveragePercent,
-            embeddingChunksPerCurrentIndexedFile: coverage.embeddingChunksPerCurrentIndexedFile,
-            embeddingChunksPerCurrentMarkdownFile: coverage.embeddingChunksPerCurrentMarkdownFile
+            totalFiles: currentMarkdownFiles,
+            totalEmbeddings: embeddingChunks,
+            indexedPercent: coverage?.fileCoveragePercent ?? null,
+            currentMarkdownFiles,
+            indexedFilePathCount: inspection?.pathStats.length ?? null,
+            currentIndexedFiles: coverage?.currentIndexedFiles ?? null,
+            staleIndexedFiles: coverage?.staleIndexedFiles ?? null,
+            embeddingChunks,
+            currentEmbeddingChunks: coverage?.currentEmbeddingChunks ?? null,
+            staleEmbeddingChunks: coverage?.staleEmbeddingChunks ?? null,
+            fileCoveragePercent: coverage?.fileCoveragePercent ?? null,
+            embeddingChunksPerCurrentIndexedFile: coverage?.embeddingChunksPerCurrentIndexedFile ?? null,
+            embeddingChunksPerCurrentMarkdownFile: coverage?.embeddingChunksPerCurrentMarkdownFile ?? null,
+            ...(diagnostic ? { storageDiagnostic: diagnostic } : {}),
+            ...partialCompletenessMetadata(reasons.length === 0 ? 1 : 0, reasons.length > 0 ? 1 : 0, reasons),
           });
         }
 
-        const overallFileCoveragePercent = coveragePercent(totalCurrentIndexedFiles, totalFiles);
+        // Aggregate only complete numeric columns; an unknown row is not a zero.
+        const sum = (field: 'totalFiles' | 'totalEmbeddings' | 'indexedFilePathCount'
+          | 'currentIndexedFiles' | 'staleIndexedFiles' | 'currentEmbeddingChunks'
+          | 'staleEmbeddingChunks'): number | null =>
+          vaultStats.reduce<number | null>((total, row) =>
+            total === null || row[field] === null ? null : total + row[field], 0);
+        const totalFiles = sum('totalFiles');
+        const totalEmbeddings = sum('totalEmbeddings');
+        const totalIndexedFilePathCount = sum('indexedFilePathCount');
+        const totalCurrentIndexedFiles = sum('currentIndexedFiles');
+        const totalStaleIndexedFiles = sum('staleIndexedFiles');
+        const totalCurrentEmbeddingChunks = sum('currentEmbeddingChunks');
+        const totalStaleEmbeddingChunks = sum('staleEmbeddingChunks');
+        const overallFileCoveragePercent = totalCurrentIndexedFiles === null || totalFiles === null
+          ? null : coveragePercent(totalCurrentIndexedFiles, totalFiles);
+        const partialVaults = vaultStats.filter(row => row.completeness);
 
         // Check Ollama
         const ollama = await checkOllamaAvailability(ollamaConfig);
@@ -636,8 +686,15 @@ export function createCrossVaultHandlers(
               totalCurrentEmbeddingChunks,
               totalStaleEmbeddingChunks,
               overallFileCoveragePercent,
-              embeddingChunksPerCurrentIndexedFile: ratio(totalCurrentEmbeddingChunks, totalCurrentIndexedFiles),
-              embeddingChunksPerCurrentMarkdownFile: ratio(totalCurrentEmbeddingChunks, totalFiles),
+              embeddingChunksPerCurrentIndexedFile: totalCurrentEmbeddingChunks === null || totalCurrentIndexedFiles === null
+                ? null : ratio(totalCurrentEmbeddingChunks, totalCurrentIndexedFiles),
+              embeddingChunksPerCurrentMarkdownFile: totalCurrentEmbeddingChunks === null || totalFiles === null
+                ? null : ratio(totalCurrentEmbeddingChunks, totalFiles),
+              ...partialCompletenessMetadata(
+                vaultStats.length - partialVaults.length,
+                partialVaults.length,
+                partialVaults.flatMap(row => row.completeness!.reasons)
+              ),
               vaults: vaultStats,
               ollama: {
                 available: ollama.available,
@@ -649,6 +706,8 @@ export function createCrossVaultHandlers(
           isError: false
         };
       } catch (error) {
+        const recovery = indexRecoveryResponse(error);
+        if (recovery) return recovery;
         return {
           content: [{ type: 'text', text: `Ecosystem stats error: ${error}` }],
           isError: true
