@@ -307,6 +307,12 @@ samples. It neither validates potential links as declarations nor repairs them.
 No option changes ranking; omitted or false controls retain full output. Compact
 display is not a global response-byte limit or a bound on scan cost.
 
+The optional [Sprint 06 retrieval evaluation](docs/development/RETRIEVAL_EVALUATION_S06.md)
+records a frozen fictional corpus, exact model/recipe receipts, paired relevance
+measurements, response bytes and local timing. It is not a universal quality claim
+or a new required CI service. Similarity can still return matches when no note
+answers the question; inspect the evidence before treating a hit as an answer.
+
 ```json
 {"query":"project decisions","vaults":["Research","Operations"],"compact":true,"includeEvidence":true}
 ```

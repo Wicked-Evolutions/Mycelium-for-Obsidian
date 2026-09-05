@@ -80,6 +80,18 @@ describe('dcg / idcg / ndcg', () => {
     // relevant {a,b}, ranking puts both first
     approx(ndcgAtK(['a', 'b', 'x'], ['a', 'b'], 3), 1);
   });
+  test('duplicate relevant IDs earn gain once and keep their occupied ranks', () => {
+    approx(dcgAtK(['a', 'a', 'b'], ['a', 'b'], 3), 1 + 1 / Math.log2(4));
+    approx(ndcgAtK(['a', 'a', 'b'], ['a', 'b'], 3),
+      (1 + 1 / Math.log2(4)) / (1 + 1 / Math.log2(3)));
+    assert.equal(ndcgAtK(['a', 'a', 'a'], ['a'], 3), 1);
+    assert.ok(ndcgAtK(['a', 'a', 'b'], ['a', 'b'], 3) < 1);
+  });
+  test('duplicates do not move later relevant hits inside the cutoff', () => {
+    approx(dcgAtK(['x', 'x', 'a', 'a', 'b'], ['a', 'b'], 4), 0.5);
+    assert.equal(recallAtK(['x', 'x', 'a', 'a', 'b'], ['a', 'b'], 4), 0.5);
+    approx(reciprocalRank(['x', 'x', 'a', 'a', 'b'], ['a', 'b']), 1 / 3);
+  });
   test('ndcg with IDCG=0 (empty relevant) → 0, not NaN', () => {
     const v = ndcgAtK(['a'], [], 3);
     assert.ok(!Number.isNaN(v), 'must not be NaN');

@@ -79,12 +79,15 @@ export function reciprocalRank(ranked: string[], relevant: Iterable<string>): nu
  */
 export function dcgAtK(ranked: string[], relevant: Iterable<string>, k: number): number {
   const rel = toSet(relevant);
+  const seen = new Set<string>();
   let dcg = 0;
   const prefix = topK(ranked, k);
   for (let i = 0; i < prefix.length; i++) {
-    if (rel.has(prefix[i])) {
+    // Repeated hits occupy a rank but cannot earn another relevance gain.
+    if (rel.has(prefix[i]) && !seen.has(prefix[i])) {
       dcg += 1 / Math.log2(i + 2); // i is 0-based → rank = i+1 → log2((i+1)+1)
     }
+    seen.add(prefix[i]);
   }
   return dcg;
 }
