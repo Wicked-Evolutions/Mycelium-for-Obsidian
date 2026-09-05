@@ -26,7 +26,7 @@
 
 /** A candidate passed to a backend: a stable id, its real passage text, and the fused score. */
 export interface RerankCandidate {
-  /** Stable candidate id — the `${filePath}:${blockId}` key used through fusion. */
+  /** Opaque, stable candidate identity used through fusion. */
   id: string;
   /** The real passage text (full chunk from content_fts), not the 200-char preview. */
   text: string;

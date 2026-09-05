@@ -25,6 +25,13 @@ export const vaultParam = {
   description: 'Vault name. Defaults to first configured vault if omitted.'
 };
 
+export const vaultsParam = {
+  type: 'array' as const,
+  description: 'Configured vault names to search. Omit to use all; an explicit list must be nonempty and unambiguous.',
+  minItems: 1,
+  items: { type: 'string' as const },
+};
+
 /**
  * Factory that builds a vault param with a concrete enum of configured vault names.
  * Call this after loadConfig() and inject the result via injectVaultEnum().
@@ -73,6 +80,12 @@ export function injectVaultEnum(
     if (props && 'vault' in props) {
       const required = tool.inputSchema.required?.includes('vault') === true;
       props['vault'] = vaultParamWithEnum(names, required);
+    }
+    if (props && 'vaults' in props) {
+      const selection = props['vaults'] as Record<string, unknown> | undefined;
+      if (selection?.type === 'array' && selection.items && typeof selection.items === 'object') {
+        props['vaults'] = { ...selection, items: { ...selection.items, enum: [...names] } };
+      }
     }
   }
 }

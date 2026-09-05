@@ -14,6 +14,17 @@ import assert from 'node:assert/strict';
 
 const { vaultParam, limitParam, vaultParamWithEnum, injectVaultEnum } = await import('../dist/tools/schema-helpers.js');
 
+test('vault list enum injection preserves item constraints without mutating shared schema', async () => {
+  const { vaultsParam } = await import('../dist/tools/schema-helpers.js');
+  const tool = { inputSchema: { properties: { vaults: vaultsParam } } };
+  injectVaultEnum([tool], ['Alpha', 'Beta']);
+  assert.deepEqual(tool.inputSchema.properties.vaults.items.enum, ['Alpha', 'Beta']);
+  assert.equal(tool.inputSchema.properties.vaults.minItems, 1);
+  assert.equal(vaultsParam.items.enum, undefined);
+  injectVaultEnum([tool], ['Gamma']);
+  assert.deepEqual(tool.inputSchema.properties.vaults.items.enum, ['Gamma']);
+});
+
 // ---------------------------------------------------------------------------
 // vaultParam
 // ---------------------------------------------------------------------------

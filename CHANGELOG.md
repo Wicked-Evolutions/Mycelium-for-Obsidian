@@ -4,6 +4,10 @@ All notable changes to mcp-obsidian are documented here.
 
 ## [Unreleased]
 
+### Selective Retrieval
+- Add explicit vault selection to cross-vault text and semantic search, and directory-scoped candidates to single-vault semantic search before provider limits and fusion. No vault taxonomy or property convention is required. (#91)
+- Add opt-in compact semantic/link responses and exact indexed-passage evidence with generation checks, bounded excerpts and explicit non-freshness provenance. Default ranking and full responses are preserved; internal file/block identities no longer collide on colon-bearing names. (#91)
+
 ### Index Recovery
 - Inspect index status without initialization or recovery writes; report typed storage prerequisites and preserve available cross-vault statistics when another index cannot be inspected. Unknown dependent counts are null, not zero. (#86, #87)
 - Add an explicit offline legacy-index normalizer with a retained original bundle, SQLite checkpoint/integrity verification, and conservative interruption handling. Replace unsafe blanket-deletion upgrade guidance. No automatic identity-drift acceptance or recurrence-prevention claim. (#86)

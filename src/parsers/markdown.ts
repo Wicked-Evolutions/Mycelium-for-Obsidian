@@ -35,6 +35,11 @@ async function readVerifiedTextFile(filePath: string, vaultPath: string): Promis
   }
 }
 
+/** Read raw text through the same contained, verified handle as Markdown parsing. */
+export async function readFileInVault(filePath: string, vaultPath: string): Promise<string> {
+  return readVerifiedTextFile(resolvePathInVault(vaultPath, filePath), vaultPath);
+}
+
 /**
  * Parse a markdown file, extracting frontmatter and content
  */

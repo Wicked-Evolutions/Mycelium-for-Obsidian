@@ -13,7 +13,7 @@ import {
   verifyFileHandleInVault
 } from '../config.js';
 import { ToolResponse, SearchMatch, VaultConfig } from '../types/index.js';
-import { parseMarkdownFile, extractTitle } from '../parsers/markdown.js';
+import { parseMarkdownFile, extractTitle, readFileInVault } from '../parsers/markdown.js';
 import { extractWikilinks } from '../parsers/wikilink.js';
 import {
   extractObsidianUris,
@@ -52,6 +52,15 @@ import {
 import { SecureFilesystemUnavailableError, secureMutationSupported } from '../embeddings/secure-fs.js';
 import { SemanticSources } from './semantic-source.js';
 import { indexRecoveryResponse, storageDiagnostic } from './index-recovery.js';
+import { vaultsParam } from './schema-helpers.js';
+import { selectVaults, vaultSelectionResponse } from './vault-selection.js';
+import {
+  captureIndexedEvidence,
+  finalizeIndexedEvidence,
+  compactSemanticHit,
+  type IndexedEvidenceCapture,
+} from './retrieval-evidence.js';
+import { compactCrossVaultLinks } from './compact-cross-vault.js';
 
 /**
  * Tool definitions for cross-vault operations
@@ -63,6 +72,7 @@ const rawCrossVaultTools: Tool[] = [
     inputSchema: {
       type: 'object',
       properties: {
+        vaults: vaultsParam,
         query: {
           type: 'string',
           description: 'Text or regex pattern to search for'
@@ -87,6 +97,7 @@ const rawCrossVaultTools: Tool[] = [
     inputSchema: {
       type: 'object',
       properties: {
+        vaults: vaultsParam,
         query: {
           type: 'string',
           description: 'Natural language query'
@@ -100,6 +111,16 @@ const rawCrossVaultTools: Tool[] = [
           type: 'number',
           description: 'Minimum similarity score (0-1)',
           default: 0.3
+        },
+        includeEvidence: {
+          type: 'boolean',
+          description: 'Include bounded evidence from the exact winning indexed chunk, not a current-source freshness claim.',
+          default: false
+        },
+        compact: {
+          type: 'boolean',
+          description: 'Return compact hits while preserving identities, scores, evidence and result metadata.',
+          default: false
         }
       },
       required: ['query']
@@ -141,6 +162,11 @@ const rawCrossVaultTools: Tool[] = [
         vault: {
           type: 'string',
           description: 'Optional: only check unresolved links from this vault'
+        },
+        compact: {
+          type: 'boolean',
+          description: 'Bound candidate target samples and omit verbose URI and graph duplication while preserving identities and validation metadata.',
+          default: false
         }
       }
     }
@@ -197,10 +223,12 @@ export function createCrossVaultHandlers(
   return {
     search_all_vaults: async (args: {
       query: string;
+      vaults?: string[];
       caseSensitive?: boolean;
       maxResultsPerVault?: number;
     }): Promise<ToolResponse> => {
       try {
+        const selectedVaults = selectVaults(config, args.vaults);
         const flags = args.caseSensitive ? 'g' : 'gi';
         const regex = new RegExp(args.query, flags);
         const maxPerVault = Math.max(0, Math.ceil(args.maxResultsPerVault || 10));
@@ -228,7 +256,7 @@ export function createCrossVaultHandlers(
         let allExact = true;
         let exactTotal = 0;
 
-        for (const vault of config.vaults) {
+        for (const vault of selectedVaults) {
           const scan = await searchVault(vault.path, regex, maxPerVault);
           const results = scan.results.slice(0, maxPerVault);
           const exact = !scan.limitReached && scan.skipped === 0;
@@ -265,7 +293,7 @@ export function createCrossVaultHandlers(
             type: 'text',
             text: JSON.stringify({
               query: args.query,
-              vaultsSearched: config.vaults.length,
+              vaultsSearched: selectedVaults.length,
               totalResults,
               ...metadata,
               results: vaultResults
@@ -274,6 +302,8 @@ export function createCrossVaultHandlers(
           isError: false
         };
       } catch (error) {
+        const selection = vaultSelectionResponse(error);
+        if (selection) return selection;
         return {
           content: [{ type: 'text', text: `Cross-vault search error: ${error}` }],
           isError: true
@@ -283,12 +313,16 @@ export function createCrossVaultHandlers(
 
     semantic_search_all: async (args: {
       query: string;
+      vaults?: string[];
       limit?: number;
       minSimilarity?: number;
+      includeEvidence?: boolean;
+      compact?: boolean;
     }): Promise<ToolResponse> => {
-      const storageUnavailable = semanticStorageUnavailable();
-      if (storageUnavailable) return storageUnavailable;
       try {
+        const selectedVaults = selectVaults(config, args.vaults);
+        const storageUnavailable = semanticStorageUnavailable();
+        if (storageUnavailable) return storageUnavailable;
         // Check Ollama availability
         const ollama = await checkOllamaAvailability(ollamaConfig);
         if (!ollama.available || !ollama.hasModel || !ollama.model) {
@@ -323,6 +357,7 @@ export function createCrossVaultHandlers(
           title: string;
           similarity: number;
           preview: string;
+          evidenceCapture?: IndexedEvidenceCapture;
         }> = [];
         const resultMetadataByVault: Array<{
           vault: string;
@@ -348,7 +383,7 @@ export function createCrossVaultHandlers(
         let excludedEmbeddingCount = 0;
         let excludedFileCount = 0;
 
-        for (const vault of config.vaults) {
+        for (const vault of selectedVaults) {
           try {
             const vaultRoot = await pinVaultRoot(vault.path);
             const storage = getStorage(vaultRoot);
@@ -392,11 +427,18 @@ export function createCrossVaultHandlers(
             }
             const providerLimitReached = fetched.length > historicalCap;
             const vaultResults = fetched.slice(0, historicalCap);
+            // Capture every candidate's indexed generation before the first awaited source read.
+            const candidates = vaultResults.map(result => ({
+              result,
+              evidenceCapture: captureIndexedEvidence(
+                storage, result, exactModelIdentity, args.query, args.includeEvidence === true
+              ),
+            }));
             anyProviderLimitReached ||= providerLimitReached;
             const sources = new SemanticSources(vaultRoot.path);
             sourcesByVault.set(vault.name, sources);
 
-            for (const r of vaultResults) {
+            for (const { result: r, evidenceCapture } of candidates) {
               const source = sources.get(r.filePath) ?? await sources.read(r.filePath);
               if (!source) continue;
               const { parsed } = source;
@@ -405,7 +447,8 @@ export function createCrossVaultHandlers(
                 path: r.filePath,
                 title: extractTitle(parsed),
                 similarity: r.similarity,
-                preview: parsed.content.slice(0, 150) + (parsed.content.length > 150 ? '...' : '')
+                preview: parsed.content.slice(0, 150) + (parsed.content.length > 150 ? '...' : ''),
+                ...(evidenceCapture ? { evidenceCapture } : {}),
               });
             }
 
@@ -465,7 +508,7 @@ export function createCrossVaultHandlers(
             type: 'text',
             text: JSON.stringify({
               query: args.query,
-              vaultsSearched: config.vaults.length,
+              vaultsSearched: selectedVaults.length,
               vaultsIndexed: indexedVaults,
               resultCount: currentResults.length,
               indexCompatibility: {
@@ -486,16 +529,21 @@ export function createCrossVaultHandlers(
               ),
               resultMetadataByVault,
               graphByVault: annotated.graphByVault,
-              results: currentResults.map(result => ({
-                ...result,
-                similarity: Math.round(result.similarity * 1000) / 1000,
-              }))
+              results: currentResults.map(({ evidenceCapture, ...result }) => {
+                const evidence = finalizeIndexedEvidence(evidenceCapture);
+                const hit = {
+                  ...result,
+                  similarity: Math.round(result.similarity * 1000) / 1000,
+                  ...(evidence ? { evidence } : {}),
+                };
+                return args.compact === true ? compactSemanticHit(hit) : hit;
+              })
             }, null, 2)
           }],
           isError: false
         };
       } catch (error) {
-        const recovery = indexRecoveryResponse(error);
+        const recovery = vaultSelectionResponse(error) ?? indexRecoveryResponse(error);
         if (recovery) return recovery;
         return {
           content: [{ type: 'text', text: `Cross-vault semantic search error: ${error}` }],
@@ -717,6 +765,7 @@ export function createCrossVaultHandlers(
 
     get_cross_vault_links: async (args: {
       vault?: string;
+      compact?: boolean;
     }): Promise<ToolResponse> => {
       try {
         // Build index of all note names across all vaults
@@ -749,16 +798,17 @@ export function createCrossVaultHandlers(
         }
 
         const { nativeUriInventory, declaredCrossVaultGraph } = await inventoryNativeUris(config, vaultsToCheck);
+        const result = {
+          totalPotentialLinks: potentialCrossLinks.length,
+          links: potentialCrossLinks.slice(0, 50),
+          nativeUriInventory,
+          declaredCrossVaultGraph,
+        };
 
         return {
           content: [{
             type: 'text',
-            text: JSON.stringify({
-              totalPotentialLinks: potentialCrossLinks.length,
-              links: potentialCrossLinks.slice(0, 50), // Limit output
-              nativeUriInventory,
-              declaredCrossVaultGraph
-            }, null, 2)
+            text: JSON.stringify(args.compact === true ? compactCrossVaultLinks(result) : result, null, 2)
           }],
           isError: false
         };
@@ -1062,7 +1112,7 @@ async function searchVault(
 
       let content: string;
       try {
-        content = await fs.readFile(fullPath, 'utf-8');
+        content = await readFileInVault(path.relative(vaultPath, fullPath), vaultPath);
       } catch {
         scan.skipped += 1;
         scan.reasons.push('file_unreadable');

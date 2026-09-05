@@ -319,16 +319,57 @@ const SCHEMA_SNAPSHOT = [
     inputSchema: {
       type: 'object',
       properties: {
-        vault: { type: 'string', description: 'Vault name. Defaults to first configured vault if omitted.' },
-        query: { type: 'string', description: 'Natural language query (e.g., "notes about marketing strategy")' },
-        limit: { type: 'number', description: 'Maximum results to return', default: 10 },
-        minSimilarity: { type: 'number', description: 'Minimum similarity score (0-1)', default: 0.5 },
-        expand: { type: 'boolean', description: 'Expand query into multiple variants for better recall', default: false },
-        rerank: { type: 'boolean', description: 'Re-rank the fused top-K with the active reranker backend (default OFF). When OFF (or the backend is unavailable) ordering is unchanged and reranker_score stays null.', default: false },
-        hypotheticalAnswer: { type: 'string', description: 'Optional HyDE hypothetical answer. When set, its embedding drives the SEMANTIC ranking (keyword/BM25 stays on the original query). With expand=true it becomes one more embeddings variant.' },
+        vault: {
+          type: 'string',
+          description: 'Vault name. Defaults to first configured vault if omitted.'
+        },
+        query: {
+          type: 'string',
+          description: 'Natural language query (e.g., "notes about marketing strategy")'
+        },
+        directory: {
+          type: 'string',
+          description: 'Limit candidates to this existing vault-relative directory. Omit, empty string, or dot means the whole vault; index statistics and graph context remain vault-wide.'
+        },
+        compact: {
+          type: 'boolean',
+          default: false,
+          description: 'Return compact hits while preserving ranking, identities and request-level diagnostics.'
+        },
+        includeEvidence: {
+          type: 'boolean',
+          default: false,
+          description: 'Include a bounded excerpt from the exact indexed winning passage, with index provenance but no current-source freshness claim.'
+        },
+        limit: {
+          type: 'number',
+          description: 'Maximum results to return',
+          default: 10
+        },
+        minSimilarity: {
+          type: 'number',
+          description: 'Minimum similarity score (0-1)',
+          default: 0.5
+        },
+        expand: {
+          type: 'boolean',
+          description: 'Expand query into multiple variants for better recall',
+          default: false
+        },
+        rerank: {
+          type: 'boolean',
+          description: 'Re-rank the fused top-K with the active reranker backend (default OFF). When OFF (or the backend is unavailable) ordering is unchanged and reranker_score stays null.',
+          default: false
+        },
+        hypotheticalAnswer: {
+          type: 'string',
+          description: 'Optional HyDE hypothetical answer. When set, its embedding drives the SEMANTIC ranking (keyword/BM25 stays on the original query). With expand=true it becomes one more embeddings variant.'
+        }
       },
-      required: ['query'],
-    },
+      required: [
+        'query'
+      ]
+    }
   },
   {
     name: 'index_vault',
@@ -383,12 +424,33 @@ const SCHEMA_SNAPSHOT = [
     inputSchema: {
       type: 'object',
       properties: {
-        query: { type: 'string', description: 'Text or regex pattern to search for' },
-        caseSensitive: { type: 'boolean', description: 'Case-sensitive search', default: false },
-        maxResultsPerVault: { type: 'number', description: 'Maximum results per vault', default: 10 },
+        vaults: {
+          type: 'array',
+          description: 'Configured vault names to search. Omit to use all; an explicit list must be nonempty and unambiguous.',
+          minItems: 1,
+          items: {
+            type: 'string'
+          }
+        },
+        query: {
+          type: 'string',
+          description: 'Text or regex pattern to search for'
+        },
+        caseSensitive: {
+          type: 'boolean',
+          description: 'Case-sensitive search',
+          default: false
+        },
+        maxResultsPerVault: {
+          type: 'number',
+          description: 'Maximum results per vault',
+          default: 10
+        }
       },
-      required: ['query'],
-    },
+      required: [
+        'query'
+      ]
+    }
   },
   {
     name: 'semantic_search_all',
@@ -396,12 +458,43 @@ const SCHEMA_SNAPSHOT = [
     inputSchema: {
       type: 'object',
       properties: {
-        query: { type: 'string', description: 'Natural language query' },
-        limit: { type: 'number', description: 'Maximum total results', default: 10 },
-        minSimilarity: { type: 'number', description: 'Minimum similarity score (0-1)', default: 0.3 },
+        vaults: {
+          type: 'array',
+          description: 'Configured vault names to search. Omit to use all; an explicit list must be nonempty and unambiguous.',
+          minItems: 1,
+          items: {
+            type: 'string'
+          }
+        },
+        query: {
+          type: 'string',
+          description: 'Natural language query'
+        },
+        limit: {
+          type: 'number',
+          description: 'Maximum total results',
+          default: 10
+        },
+        minSimilarity: {
+          type: 'number',
+          description: 'Minimum similarity score (0-1)',
+          default: 0.3
+        },
+        includeEvidence: {
+          type: 'boolean',
+          description: 'Include bounded evidence from the exact winning indexed chunk, not a current-source freshness claim.',
+          default: false
+        },
+        compact: {
+          type: 'boolean',
+          description: 'Return compact hits while preserving identities, scores, evidence and result metadata.',
+          default: false
+        }
       },
-      required: ['query'],
-    },
+      required: [
+        'query'
+      ]
+    }
   },
   {
     name: 'find_note_by_name',
@@ -429,9 +522,17 @@ const SCHEMA_SNAPSHOT = [
     inputSchema: {
       type: 'object',
       properties: {
-        vault: { type: 'string', description: 'Optional: only check unresolved links from this vault' },
-      },
-    },
+        vault: {
+          type: 'string',
+          description: 'Optional: only check unresolved links from this vault'
+        },
+        compact: {
+          type: 'boolean',
+          description: 'Bound candidate target samples and omit verbose URI and graph duplication while preserving identities and validation metadata.',
+          default: false
+        }
+      }
+    }
   },
   {
     name: 'append_to_section',
@@ -1616,6 +1717,10 @@ test('{name, description, inputSchema} snapshot matches built dist/', () => {
     if (result.properties && typeof result.properties === 'object') {
       // eslint-disable-next-line no-unused-vars
       const { vault: _vault, ...rest } = result.properties;
+      if (rest.vaults?.items) {
+        const { enum: _names, ...items } = rest.vaults.items;
+        rest.vaults = { ...rest.vaults, items };
+      }
       result.properties = rest;
     }
     return result;
