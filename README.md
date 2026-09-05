@@ -736,6 +736,18 @@ the old connection instead of reusing its index. The native adapter exposes only
 the fixed filesystem operations required by this protocol; arbitrary libraries,
 symbols, and vault-supplied paths are not accepted.
 
+New saves write version-4 temporary publication records with SHA-256 fingerprints
+of the published and rollback snapshots. After a committed save is interrupted,
+recovery can tolerate a changed filesystem device number only when the recorded
+inodes, snapshot bytes, transaction state and current file/path checks verify.
+It preserves the committed database, removes the verified rollback first, and
+removes the lock last. This does not weaken ordinary physical-identity checks or
+accept arbitrary file replacements. Older version-3 records remain supported,
+but device drift in an old record without fingerprints still needs explicit
+operator recovery or rebuilding. No index-format or embedding migration is
+required for normal existing indexes; the additional evidence is written on the
+next save.
+
 When upgrading from an earlier WAL-mode build, stop the older Mycelium server
 process before starting the new build. Live or stale WAL/SHM/journal sidecars fail
 closed. A client restart alone does not establish that every writer has stopped
@@ -746,7 +758,9 @@ before publication. It requires an explicitly maintained offline window and does
 not change note content or model identity.
 
 `index_status` inspects an existing index without creating one, normalizing its
-schema, or cleaning up publication state. Storage prerequisites have specific
+schema, or cleaning up publication state. It can read a verified committed
+version-4 snapshot while its cleanup is pending; a subsequent normal storage open,
+such as semantic search, performs verified cleanup. Storage prerequisites have specific
 recovery codes: `legacy_index_upgrade_required`, `index_recovery_required`,
 `index_recovery_identity_mismatch`, `index_storage_unsafe`, and
 `index_publication_in_progress`. Only an active publication is automatically

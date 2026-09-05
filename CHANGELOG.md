@@ -13,8 +13,9 @@ All notable changes to mcp-obsidian are documented here.
 - Add opt-in compact semantic/link responses and exact indexed-passage evidence with generation checks, bounded excerpts and explicit non-freshness provenance. Default ranking and full responses are preserved; internal file/block identities no longer collide on colon-bearing names. (#91)
 
 ### Index Recovery
+- Recover interrupted committed saves after device-number changes using exact snapshot fingerprints in version-4 publication records, without rewriting the database or weakening normal identity checks. Status and ecosystem statistics can inspect the proven snapshot without cleanup; normal storage open completes cleanup. Older records without this evidence retain the explicit operator/rebuild boundary. (#87)
 - Inspect index status without initialization or recovery writes; report typed storage prerequisites and preserve available cross-vault statistics when another index cannot be inspected. Unknown dependent counts are null, not zero. (#86, #87)
-- Add an explicit offline legacy-index normalizer with a retained original bundle, SQLite checkpoint/integrity verification, and conservative interruption handling. Replace unsafe blanket-deletion upgrade guidance. No automatic identity-drift acceptance or recurrence-prevention claim. (#86)
+- Add an explicit offline legacy-index normalizer with a retained original bundle, SQLite checkpoint/integrity verification, and conservative interruption handling. Replace unsafe blanket-deletion upgrade guidance. Legacy WAL normalization is separate from publication recovery. (#86)
 
 ### Added
 
