@@ -7,6 +7,7 @@ const storageByPath = new Map();
 const embeddingModels = [];
 const ollamaSpecifier = new URL('../dist/embeddings/ollama.js', import.meta.url).href;
 const storageSpecifier = new URL('../dist/embeddings/storage.js', import.meta.url).href;
+const actualStorage = await import(storageSpecifier);
 
 await mock.module(ollamaSpecifier, {
   namedExports: {
@@ -54,6 +55,7 @@ await mock.module(ollamaSpecifier, {
 
 await mock.module(storageSpecifier, {
   namedExports: {
+    ...actualStorage,
     getSharedStorage: (vaultRoot) => {
       const vaultPath = typeof vaultRoot === 'string' ? vaultRoot : vaultRoot.path;
       const storage = storageByPath.get(vaultPath);

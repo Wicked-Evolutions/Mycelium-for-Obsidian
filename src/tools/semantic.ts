@@ -21,6 +21,7 @@ import {
 } from '../embeddings/ollama.js';
 import {
   getSharedStorage,
+  inspectEmbeddingIndex,
   type EmbeddingIndexCompatibility,
 } from '../embeddings/storage.js';
 import {
@@ -49,6 +50,7 @@ import {
 } from '../result-metadata.js';
 import { secureMutationSupported } from '../embeddings/secure-fs.js';
 import { SemanticSources } from './semantic-source.js';
+import { indexRecoveryResponse } from './index-recovery.js';
 
 // Register the built-in LLM-as-reranker backend (#27, PR-C). Registration is
 // INERT on the default path: the backend is only retrieved when the operator
@@ -732,6 +734,8 @@ export function createSemanticHandlers(
           isError: false
         };
       } catch (error) {
+        const recovery = indexRecoveryResponse(error);
+        if (recovery) return recovery;
         return {
           content: [{ type: 'text', text: `Semantic search error: ${error}` }],
           isError: true
@@ -823,6 +827,8 @@ export function createSemanticHandlers(
           isError: false
         };
       } catch (error) {
+        const recovery = indexRecoveryResponse(error);
+        if (recovery) return recovery;
         return {
           content: [{ type: 'text', text: `Index error: ${error}` }],
           isError: true
@@ -877,6 +883,8 @@ export function createSemanticHandlers(
           isError: false
         };
       } catch (error) {
+        const recovery = indexRecoveryResponse(error);
+        if (recovery) return recovery;
         return {
           content: [{ type: 'text', text: `Index file error: ${error}` }],
           isError: true
@@ -1026,6 +1034,8 @@ export function createSemanticHandlers(
           isError: false
         };
       } catch (error) {
+        const recovery = indexRecoveryResponse(error);
+        if (recovery) return recovery;
         return {
           content: [{ type: 'text', text: `Get similar error: ${error}` }],
           isError: true
@@ -1039,13 +1049,12 @@ export function createSemanticHandlers(
       try {
         const vault = resolveVault(config, args.vault);
         const vaultRoot = await pinVaultRoot(vault.path);
-        const store = getStorage(vaultRoot);
-        const stats = store.getStats();
+        const { stats, pathStats } = inspectEmbeddingIndex(vaultRoot);
         const currentMarkdownPaths = await collectMarkdownFiles(vaultRoot.path, vaultRoot.path);
         const coverage = calculateIndexCoverage(
           vaultRoot.path,
           currentMarkdownPaths,
-          store.getPathStats(),
+          pathStats,
           { staleSampleLimit: 10 }
         );
 
@@ -1090,6 +1099,8 @@ export function createSemanticHandlers(
           isError: false
         };
       } catch (error) {
+        const recovery = indexRecoveryResponse(error);
+        if (recovery) return recovery;
         return {
           content: [{ type: 'text', text: `Index status error: ${error}` }],
           isError: true

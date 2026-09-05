@@ -6,6 +6,7 @@ import { afterEach, test } from 'node:test';
 import Database from 'better-sqlite3';
 import {
   EmbeddingStorage,
+  EmbeddingStorageError,
   getSharedStorage,
 } from '../dist/embeddings/storage.js';
 import { pinVaultRootSync } from '../dist/embeddings/vault-root.js';
@@ -122,7 +123,7 @@ test('storage rejects symlinked SQLite sidecars before touching their targets', 
 
   assert.throws(
     () => getSharedStorage(pinVaultRootSync(vault)),
-    /SQLite sidecars.*symbolic links/i,
+    error => error instanceof EmbeddingStorageError && error.code === 'index_storage_unsafe' && error.noMutation,
   );
   assert.equal(fs.readFileSync(outsideWal, 'utf8'), 'external WAL sentinel');
   assert.equal(fs.existsSync(path.join(storageDirectory, 'embeddings.db')), false);
@@ -195,7 +196,7 @@ test('a swap-back race cannot feed SQLite an existing external database snapshot
         fs.renameSync(heldDatabase, candidate);
         return opened;
       },
-    }), /does not match the pinned file identity/i);
+    }), error => error instanceof EmbeddingStorageError && error.code === 'index_storage_unsafe' && !error.noMutation);
   } catch (error) {
     if (!fixtureReady) {
       t.skip('filesystem does not support the swap-back fixture');
@@ -303,7 +304,7 @@ test('post-check hard links for every SQLite sidecar remain byte-identical', (t)
           };
           return opened;
         },
-      }), /SQLite sidecar has an invalid physical identity/i);
+      }), error => error instanceof EmbeddingStorageError && error.code === 'index_storage_unsafe' && !error.noMutation);
     } catch (error) {
       if (!fixtureReady) {
         t.skip('filesystem does not support the hard-link race fixture');
