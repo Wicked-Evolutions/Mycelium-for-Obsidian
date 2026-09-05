@@ -8,7 +8,7 @@ import * as path from 'path';
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { Config, resolveVault, resolvePathInVault } from '../config.js';
 import { ToolResponse } from '../types/index.js';
-import { parseMarkdownFile, extractTitle } from '../parsers/markdown.js';
+import { extractTitle } from '../parsers/markdown.js';
 import {
   assertEmbeddingResultIdentity,
   assertOllamaModelIdentity,
@@ -48,6 +48,7 @@ import {
   limitReachedMetadata,
 } from '../result-metadata.js';
 import { secureMutationSupported } from '../embeddings/secure-fs.js';
+import { SemanticSources } from './semantic-source.js';
 
 // Register the built-in LLM-as-reranker backend (#27, PR-C). Registration is
 // INERT on the default path: the backend is only retrieved when the operator
@@ -543,11 +544,14 @@ export function createSemanticHandlers(
             perSignal: row.perSignal,
             metadata: c.metadata,
           });
-
-          if (results.length > returnLimit) break;
         }
-        const responseLimitReached = results.length > returnLimit;
-        const boundedResults = results.slice(0, returnLimit);
+        // Keep the existing fused pool and its ranks intact. Unavailable files
+        // cannot consume the response cap or reach the optional reranker.
+        const sources = new SemanticSources(vaultRoot.path);
+        for (const r of results) await sources.read(r.filePath);
+        const eligibleResults = results.filter(r => sources.getCurrent(r.filePath));
+        const responseLimitReached = eligibleResults.length > returnLimit;
+        const boundedResults = eligibleResults.slice(0, returnLimit);
 
         // ---------------------------------------------------------------
         // Reranker SEAM (#27, PR-B). The ONE stage that REORDERS.
@@ -594,6 +598,22 @@ export function createSemanticHandlers(
           rerankerUnavailableReason = reranked.rerankerUnavailableReason;
         }
 
+        // Reserves enter enrichment only when the selected top-K loses a file.
+        // They come from the original bounded provider pool, not its sentinel,
+        // and retain a null reranker score because they were not reranked.
+        let reserveIndex = returnLimit;
+        const replenishResults = async () => {
+          while (rankedResults.length < returnLimit && reserveIndex < eligibleResults.length) {
+            const reserve = eligibleResults[reserveIndex++];
+            if (await sources.read(reserve.filePath)) rankedResults.push(reserve);
+          }
+        };
+        if (args.rerank) {
+          await sources.refresh(rankedResults.map(r => r.filePath));
+          rankedResults = rankedResults.filter(r => sources.getCurrent(r.filePath));
+          await replenishResults();
+        }
+
         // Enrich results with file titles.
         // Response contract: `similarity`/`semanticScore`/`keywordScore` keep their
         // existing numeric meanings (back-compat). Additive fusion fields:
@@ -603,7 +623,7 @@ export function createSemanticHandlers(
         //   rrf_term        — per-signal 1/(k+rank) contributions + k (reconstructs fusionScore)
         //   reranker_score  — null (clean hook; cross-encoder reranker not built)
         const round3 = (n: number) => Math.round(n * 1000) / 1000;
-        const enrichedResults = await Promise.all(rankedResults.map(async r => {
+        const enrichResult = (r: typeof results[number]) => {
           const bm25 = r.perSignal.bm25 ?? { rank: null, term: 0 };
           const embeddings = r.perSignal.embeddings ?? { rank: null, term: 0 };
           const fusionFields = {
@@ -624,28 +644,19 @@ export function createSemanticHandlers(
             // null unless a working reranker backend scored this candidate.
             reranker_score: rerankerScores.get(resultKey(r)) ?? null,
           };
-          try {
-            const parsed = await parseMarkdownFile(r.filePath, vaultRoot.path);
-            return {
-              path: r.filePath,
-              title: extractTitle(parsed),
-              ...fusionFields,
-              preview: parsed.content.slice(0, 200) + (parsed.content.length > 200 ? '...' : '')
-            };
-          } catch {
-            return {
-              path: r.filePath,
-              title: path.basename(r.filePath, '.md'),
-              ...fusionFields,
-              preview: ''
-            };
-          }
-        }));
+          const parsed = sources.get(r.filePath)!.parsed;
+          return {
+            path: r.filePath,
+            title: extractTitle(parsed),
+            ...fusionFields,
+            preview: parsed.content.slice(0, 200) + (parsed.content.length > 200 ? '...' : '')
+          };
+        };
 
         // ---------------------------------------------------------------
         // Convergence (#23): graph-aware annotation (Level A + Level B).
         //
-        // ONE guarded getGraphSignals(config, vault, undefined) call (DEFAULT_EXCLUDE
+        // One guarded getGraphSignals(config, vault, undefined) call (DEFAULT_EXCLUDE
         // — so `level` means the same as analyze_link_hierarchy) enriches each hit
         // with a nested additive `graph` block (raw signals only). Ordering NEVER
         // changes (still fusionScore); zero new input params, zero existing-field
@@ -655,11 +666,28 @@ export function createSemanticHandlers(
         // Join is on the VAULT-RELATIVE path (with .md), NFC-normalized both sides.
         // A per-hit miss (path not in the map) yields that hit's `graph: null`.
         // ---------------------------------------------------------------
-        const graphAttach = await attachGraphSignals({
+        let graphAttach = await attachGraphSignals({
           config,
           vault: args.vault,
-          results: enrichedResults
+          results: rankedResults.map(enrichResult)
         });
+        while (true) {
+          await sources.refresh(rankedResults.map(r => r.filePath));
+          rankedResults = rankedResults.filter(r => sources.getCurrent(r.filePath));
+          const retainedCount = rankedResults.length;
+          await replenishResults();
+          if (rankedResults.length === retainedCount) break;
+          // A graph-time deletion can admit a reserve. Re-annotate only the
+          // resulting response pool so its graph receipt stays coherent.
+          graphAttach = await attachGraphSignals({
+            config,
+            vault: args.vault,
+            results: rankedResults.map(enrichResult)
+          });
+        }
+        const currentResults = graphAttach.results
+          .filter(r => sources.getCurrent(r.path))
+          .slice(0, returnLimit);
 
         return {
           content: [{
@@ -667,8 +695,9 @@ export function createSemanticHandlers(
             text: JSON.stringify({
               query: args.query,
               queriesUsed: queries,  // Show expanded queries if any
-              resultCount: graphAttach.results.length,
+              resultCount: currentResults.length,
               ...limitReachedMetadata(providerLimitReached || responseLimitReached),
+              ...sources.metadata(),
               searchType: args.expand ? 'hybrid+expansion' : 'hybrid',
               ...(indexCompatibility ? { indexCompatibility } : {}),
               graphAvailable: graphAttach.graphAvailable,
@@ -697,7 +726,7 @@ export function createSemanticHandlers(
                       : { rerankerUnavailableReason: rerankerUnavailableReason })
                   }
                 : {}),
-              results: graphAttach.results
+              results: currentResults
             }, null, 2)
           }],
           isError: false
@@ -867,6 +896,26 @@ export function createSemanticHandlers(
         const vaultRoot = await pinVaultRoot(vault.path);
         const store = getStorage(vaultRoot);
 
+        const sources = new SemanticSources(vaultRoot.path);
+        const referenceUnavailable = () => recoveryResponse({
+          status: 'unavailable',
+          code: 'file_unavailable',
+          message: 'The reference file is not currently a readable in-vault regular file.',
+          requested: args.path,
+          hint: 'Restore access to the reference file before retrying get_similar.',
+          retryable: true,
+          sideEffects: { state: 'none' },
+        });
+        const reference = await sources.read(args.path);
+        if (!reference) {
+          // Preserve the existing unindexed-file recovery without consulting a
+          // cached vector. An indexed but unavailable reference is an error.
+          if (!store.getPathStats().some(stat => stat.filePath === args.path)) {
+            return fileIndexRequired(vaultRoot.path, args);
+          }
+          return referenceUnavailable();
+        }
+
         // Get embedding for reference file
         const stored = store.get(args.path);
 
@@ -900,37 +949,67 @@ export function createSemanticHandlers(
 
         // Search for similar (excluding self)
         const limit = args.limit || 5;
-        const selfChunkCount = store.getPathStats()
-          .find(stat => stat.filePath === args.path)?.embeddingChunks ?? 1;
+        const returnLimit = Math.max(0, Math.trunc(limit));
+        const poolLimit = returnLimit + 1;
+        // Storage already scores/sorts the full compatible set. A chunk cap
+        // cannot guarantee a file limit, so admit distinct readable files from
+        // that ranking before applying the final file cap.
         const compatibleSearch = store.searchCompatible(
           stored.embedding,
           storedModelIdentity,
-          limit + selfChunkCount + 1,
+          Infinity,
           0
         );
-        const evidencePool = compatibleSearch.results;
-        const historicalPool = evidencePool.slice(0, limit + 1);
-        const results = historicalPool
-          .filter(r => r.filePath !== args.path)
-          .slice(0, limit);
-        const evidenceNonSelfCount = evidencePool.filter(r => r.filePath !== args.path).length;
-
-        // Enrich results
-        const enrichedResults = await Promise.all(results.map(async r => {
-          try {
-            const parsed = await parseMarkdownFile(r.filePath, vaultRoot.path);
-            return {
-              path: r.filePath,
-              title: extractTitle(parsed),
-              similarity: Math.round(r.similarity * 1000) / 1000
-            };
-          } catch {
-            return {
-              path: r.filePath,
-              title: path.basename(r.filePath, '.md'),
-              similarity: Math.round(r.similarity * 1000) / 1000
-            };
+        const seenPaths = new Set([args.path]);
+        const examinedResults: typeof compatibleSearch.results = [];
+        let currentReference = reference;
+        let cursor = 0;
+        let currentResults: typeof compatibleSearch.results = [];
+        while (true) {
+          const seenFiles = new Set([
+            currentReference.identity,
+            ...currentResults.map(r => sources.get(r.filePath)!.identity),
+          ]);
+          // Consume the sorted rows lazily: source I/O depends on the requested
+          // file pool, not the number of compatible files in a healthy vault.
+          while (currentResults.length < poolLimit && cursor < compatibleSearch.results.length) {
+            const r = compatibleSearch.results[cursor++];
+            if (seenPaths.has(r.filePath)) continue;
+            seenPaths.add(r.filePath);
+            const source = await sources.read(r.filePath);
+            if (!source) continue;
+            // Keep readable aliases in rank order for fallback if the chosen
+            // pathname disappears. They must not consume a distinct-file slot.
+            examinedResults.push(r);
+            if (seenFiles.has(source.identity)) continue;
+            seenFiles.add(source.identity);
+            // Sorted best-score first; stable ties retain the storage order.
+            currentResults.push(r);
           }
+          await sources.refresh(currentResults.map(r => r.filePath));
+          const refreshedReference = await sources.read(args.path);
+          if (!refreshedReference) return referenceUnavailable();
+          const finalReference = sources.getCurrent(args.path);
+          if (!finalReference) return referenceUnavailable();
+          currentReference = finalReference;
+          const currentFiles = new Set([currentReference.identity]);
+          currentResults = [];
+          // This synchronous sweep runs after every awaited read, including
+          // the reference reread, and can recover an already-read alias.
+          for (const r of examinedResults) {
+            const source = sources.getCurrent(r.filePath);
+            if (!source || currentFiles.has(source.identity)) continue;
+            currentFiles.add(source.identity);
+            currentResults.push(r);
+            if (currentResults.length >= poolLimit) break;
+          }
+          if (currentResults.length >= poolLimit || cursor >= compatibleSearch.results.length) break;
+          // Deletions during validation create room for the next ranked files.
+        }
+        const enrichedResults = currentResults.slice(0, returnLimit).map(r => ({
+          path: r.filePath,
+          title: extractTitle(sources.get(r.filePath)!.parsed),
+          similarity: Math.round(r.similarity * 1000) / 1000
         }));
 
         return {
@@ -939,7 +1018,8 @@ export function createSemanticHandlers(
             text: JSON.stringify({
               referencePath: args.path,
               indexCompatibility: compatibleSearch.compatibility,
-              ...limitReachedMetadata(evidenceNonSelfCount > results.length),
+              ...limitReachedMetadata(currentResults.length > enrichedResults.length),
+              ...sources.metadata(),
               similarFiles: enrichedResults
             }, null, 2)
           }],

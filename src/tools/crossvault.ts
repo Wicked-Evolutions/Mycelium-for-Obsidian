@@ -48,6 +48,7 @@ import {
   partialCompletenessMetadata,
 } from '../result-metadata.js';
 import { secureMutationSupported } from '../embeddings/secure-fs.js';
+import { SemanticSources } from './semantic-source.js';
 
 /**
  * Tool definitions for cross-vault operations
@@ -337,6 +338,7 @@ export function createCrossVaultHandlers(
         let indexedVaults = 0;
         let anyProviderLimitReached = false;
         const semanticReasons: CompletenessReason[] = [];
+        const sourcesByVault = new Map<string, SemanticSources>();
         let totalEmbeddingCount = 0;
         let compatibleEmbeddingCount = 0;
         let excludedEmbeddingCount = 0;
@@ -387,26 +389,20 @@ export function createCrossVaultHandlers(
             const providerLimitReached = fetched.length > historicalCap;
             const vaultResults = fetched.slice(0, historicalCap);
             anyProviderLimitReached ||= providerLimitReached;
+            const sources = new SemanticSources(vaultRoot.path);
+            sourcesByVault.set(vault.name, sources);
 
             for (const r of vaultResults) {
-              try {
-                const parsed = await parseMarkdownFile(r.filePath, vaultRoot.path);
-                allResults.push({
-                  vault: vault.name,
-                  path: r.filePath,
-                  title: extractTitle(parsed),
-                  similarity: r.similarity,
-                  preview: parsed.content.slice(0, 150) + (parsed.content.length > 150 ? '...' : '')
-                });
-              } catch {
-                allResults.push({
-                  vault: vault.name,
-                  path: r.filePath,
-                  title: path.basename(r.filePath, '.md'),
-                  similarity: r.similarity,
-                  preview: ''
-                });
-              }
+              const source = sources.get(r.filePath) ?? await sources.read(r.filePath);
+              if (!source) continue;
+              const { parsed } = source;
+              allResults.push({
+                vault: vault.name,
+                path: r.filePath,
+                title: extractTitle(parsed),
+                similarity: r.similarity,
+                preview: parsed.content.slice(0, 150) + (parsed.content.length > 150 ? '...' : '')
+              });
             }
 
             searchedVaults += 1;
@@ -445,7 +441,19 @@ export function createCrossVaultHandlers(
         // This does NOT add RRF/fusion to cross-vault (no scope creep).
         // ---------------------------------------------------------------
         const annotated = await annotateCrossVault({ config, results: topResults });
-
+        for (const sources of sourcesByVault.values()) await sources.refresh();
+        const currentResults = annotated.results.filter(r => sourcesByVault.get(r.vault)?.getCurrent(r.path));
+        for (const [vaultName, sources] of sourcesByVault) {
+          const metadata = sources.metadata();
+          if (metadata.completeness) {
+            const vaultMetadata = resultMetadataByVault.find(row => row.vault === vaultName)!;
+            Object.assign(vaultMetadata, metadata);
+            // Top-level counts retain vault units; per-vault counts describe
+            // source files. A searched vault can have partial source evidence.
+            skippedVaults += 1;
+            semanticReasons.push(...metadata.completeness.reasons);
+          }
+        }
         return {
           content: [{
             type: 'text',
@@ -453,7 +461,7 @@ export function createCrossVaultHandlers(
               query: args.query,
               vaultsSearched: config.vaults.length,
               vaultsIndexed: indexedVaults,
-              resultCount: annotated.results.length,
+              resultCount: currentResults.length,
               indexCompatibility: {
                 state: excludedEmbeddingCount === 0 ? 'complete' : 'partial',
                 modelIdentity: exactModelIdentity,
@@ -472,7 +480,7 @@ export function createCrossVaultHandlers(
               ),
               resultMetadataByVault,
               graphByVault: annotated.graphByVault,
-              results: annotated.results.map(result => ({
+              results: currentResults.map(result => ({
                 ...result,
                 similarity: Math.round(result.similarity * 1000) / 1000,
               }))

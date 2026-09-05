@@ -21,6 +21,7 @@ All notable changes to mcp-obsidian are documented here.
 
 ### Fixed
 
+- Omit unavailable semantic sources with partial-result accounting instead of returning blank successful matches. Validate similar-file references, exclude self and aliases, and apply the file limit after distinct readable target selection without eagerly parsing the entire index. Retain the existing reference-vector policy and healthy hybrid ordering. (#94)
 - Revalidate cached wikilink targets before reporting them as existing, preserving fallback and duplicate-name ordering; resolve complete links and heading/alias targets without dropping colon-bearing local titles. Orientation prompts now require bounded source-note reads and distinguish evidence, inference and unknowns; graph exclusion is no longer described as note archival. (#90)
 - Preserved Unicode letters, combining marks and numbers in literal hybrid keyword queries without changing the all-words matching policy. Semantic searches now honor an explicit zero similarity threshold; cross-vault results sort before display rounding; and frontmatter queries sort on original properties before output projection and limiting. (#89)
 - A missing `search_content` directory now returns a directory-specific structured recovery outcome instead of being misclassified as an unavailable Obsidian CLI. Generic unavailable prose no longer invents CLI evidence. (#84)
