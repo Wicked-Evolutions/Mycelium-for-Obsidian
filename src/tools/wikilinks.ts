@@ -207,7 +207,7 @@ export function createWikilinkHandlers(config: Config) {
         if (args.resolveLinks !== false) {
           const fileIndex = await getFileIndex(vault.path);
           for (const link of links) {
-            const resolved = await resolveWikilink(link.target, vault.path, fileIndex);
+            const resolved = await resolveWikilink(link.rawTarget ?? link.target, vault.path, fileIndex);
             if (resolved) {
               link.resolved = path.relative(vault.path, resolved);
               link.exists = true;

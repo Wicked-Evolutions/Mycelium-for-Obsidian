@@ -4,9 +4,10 @@
  */
 
 import * as fs from 'fs/promises';
+import { constants } from 'fs';
 import * as path from 'path';
 import { WikiLink } from '../types/index.js';
-import { resolvePathInVault } from '../config.js';
+import { resolvePathInVault, verifyFileHandleInVault } from '../config.js';
 import {
   abortableYield,
   isAbortError,
@@ -200,6 +201,23 @@ export function parseCrossVaultLink(link: string): { vault?: string; note: strin
   return { note: link };
 }
 
+async function validateWikilinkPath(vaultPath: string, relativePath: string): Promise<string | null> {
+  let handle: Awaited<ReturnType<typeof fs.open>> | undefined;
+  try {
+    const candidate = resolvePathInVault(vaultPath, relativePath);
+    if (!(await fs.stat(candidate)).isFile()) return null;
+    // A regular file can be replaced by a FIFO between stat and open.
+    handle = await fs.open(candidate, constants.O_RDONLY | constants.O_NONBLOCK);
+    await verifyFileHandleInVault(handle, candidate, vaultPath);
+    return (await handle.stat()).isFile() ? candidate : null;
+  } catch {
+    // Stale, unreadable, or unsafe candidates must not suppress the fallback.
+    return null;
+  } finally {
+    await handle?.close();
+  }
+}
+
 /**
  * Resolve a wikilink target to an actual file path
  * Handles:
@@ -214,29 +232,34 @@ export async function resolveWikilink(
   sourcePath?: string,             // Absolute path of the file containing the link (for same-folder tiebreak)
   multiIndex?: Map<string, string[]> // Multi-candidate index (basename -> [abs paths]) for duplicate-basename resolution
 ): Promise<string | null> {
-  // Normalize target
-  let normalizedTarget = target;
+  // Parse one complete link or bare target, retaining colons as part of the
+  // local name: this resolver never selects another vault from a link prefix.
+  const input = target.trim();
+  const wrapped = input.startsWith('[[') && input.endsWith(']]') ? input : `[[${input}]]`;
+  const links = extractWikilinks(wrapped);
+  if (links.length !== 1 || links[0].raw !== wrapped) return null;
+  let normalizedTarget = (links[0].rawTarget ?? links[0].target).split('#')[0].trim();
+  if (!normalizedTarget) return null;
 
   // Add .md extension if not present
   if (!normalizedTarget.endsWith('.md')) {
     normalizedTarget += '.md';
   }
 
-  // Try exact path first (with boundary check)
-  try {
-    const exactPath = resolvePathInVault(vaultPath, normalizedTarget);
-    await fs.access(exactPath);
-    return exactPath;
-  } catch {
-    // Not found at exact path, or path traversal blocked
-  }
+  // Exact paths and cached hits must still name a current, contained file.
+  const exactPath = await validateWikilinkPath(vaultPath, normalizedTarget);
+  if (exactPath) return exactPath;
 
   // If we have a multi-candidate index, apply Obsidian tiebreak rules:
   // 1. Same folder as source  2. Shortest relative path  3. Alphabetical
   if (multiIndex) {
     const targetName = path.basename(normalizedTarget).toLowerCase();
-    const candidates = multiIndex.get(targetName);
-    if (candidates && candidates.length > 0) {
+    const candidates: string[] = [];
+    for (const candidate of multiIndex.get(targetName) ?? []) {
+      const valid = await validateWikilinkPath(vaultPath, path.relative(vaultPath, candidate));
+      if (valid) candidates.push(valid);
+    }
+    if (candidates.length > 0) {
       if (candidates.length === 1) return candidates[0];
       const sourceDir = sourcePath ? path.dirname(sourcePath) : null;
       // Prefer same-folder as source
@@ -260,7 +283,8 @@ export async function resolveWikilink(
     const targetName = path.basename(normalizedTarget).toLowerCase();
     const found = fileIndex.get(targetName);
     if (found) {
-      return found;
+      const valid = await validateWikilinkPath(vaultPath, path.relative(vaultPath, found));
+      if (valid) return valid;
     }
   }
 
@@ -281,7 +305,8 @@ async function searchVaultForFile(
   const targetBaseName = path.basename(targetName).toLowerCase();
 
   try {
-    const entries = await fs.readdir(dirPath, { withFileTypes: true });
+    const safeDirectory = resolvePathInVault(basePath, path.relative(basePath, dirPath));
+    const entries = await fs.readdir(safeDirectory, { withFileTypes: true });
 
     for (const entry of entries) {
       const fullPath = path.join(dirPath, entry.name);
@@ -293,7 +318,8 @@ async function searchVaultForFile(
         const found = await searchVaultForFile(fullPath, targetName, basePath);
         if (found) return found;
       } else if (entry.isFile() && entry.name.toLowerCase() === targetBaseName) {
-        return fullPath;
+        const valid = await validateWikilinkPath(basePath, path.relative(basePath, fullPath));
+        if (valid) return valid;
       }
     }
   } catch {
@@ -401,7 +427,7 @@ export async function resolveAllWikilinks(
   const links = extractWikilinks(content);
 
   for (const link of links) {
-    const resolved = await resolveWikilink(link.target, vaultPath, fileIndex);
+    const resolved = await resolveWikilink(link.rawTarget ?? link.target, vaultPath, fileIndex);
     if (resolved) {
       link.resolved = resolved;
       link.exists = true;

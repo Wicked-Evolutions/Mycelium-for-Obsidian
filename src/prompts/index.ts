@@ -99,7 +99,13 @@ export function getPromptMessages(
   let text: string;
 
   switch (name) {
-    case 'orient':
+    case 'orient': {
+      const sourceGrounding =
+        `Before drawing conclusions about the vault's business, purpose, or current priorities, use \`read_file\` to read a small bounded set of actual source notes (at most 4 notes, fewer if fewer are available). ` +
+        `Use the same explicitly named or user-selected vault for every discovery and read call. Discover existing guidance, entry-point, and current-work notes from returned paths and, if needed, \`list_files\` with recursive false; do not assume filenames, folders, taxonomy, or local properties. ` +
+        `Graph hubs are discovery candidates, not evidence of purpose. Cite the note paths and supporting passages you actually read for conclusions and starting-note recommendations. ` +
+        `Separate observations from labeled inference and unknowns; if source notes are missing, unreadable, or insufficient, state the evidence gap instead of guessing. ` +
+        `Do not infer importance, business purpose, or current priority from PageRank or levels. `;
       if (vault) {
         // WITH vault: start with side-effect-free exact intent. A closed or
         // unprepared target returns the consent choices instead of opening or
@@ -109,13 +115,14 @@ export function getPromptMessages(
           `If it returns decision_required, present its message and actions exactly and wait for my choice. ` +
           `If I choose filesystem, call \`analyze_link_hierarchy\`${VAULT_ARG} with providerMode "filesystem". ` +
           `If I choose exact, call \`open_vault\`${VAULT_ARG}; only after it reports a prepared snapshot, call \`analyze_link_hierarchy\`${VAULT_ARG} with providerMode "exact" again. ` +
-          `Using both results, give me a plain-language orientation: (1) the SHAPE of the vault (total notes, the level histogram L0→L5, ` +
+          sourceGrounding +
+          `Using the tool results and source-note evidence, give me a plain-language orientation: (1) the SHAPE of the vault (total notes, the level histogram L0→L5, ` +
           `which provider built the graph — obsidian or filesystem); (2) the CENTRAL notes — list the top hubs (L0–L1 nodes, highest PageRank) by name; ` +
           `(3) what was EXCLUDED from ranking and why (the excludedNodes count and the active exclusion rule); ` +
-          `(4) WHERE TO BEGIN — 2–4 concrete starting notes or entry points based on the hubs. ` +
+          `(4) WHERE TO BEGIN — up to 4 concrete starting notes or entry points supported by the source notes read. ` +
           `If the resolved graph is edgeless/sparse (resolvedEdgeCount 0 or low) but unresolvedLinkCount is high, ` +
-          `explain that the vault has many UNRESOLVED concept-links (unresolvedLinkCount occurrences across distinctUnresolvedTargets targets) ` +
-          `with no resolved note-graph yet — this is NOT 'no structure' or 'standalone docs' — and offer to call \`get_broken_links\` for the top concepts. ` +
+          `report UNRESOLVED link targets (unresolvedLinkCount occurrences across distinctUnresolvedTargets targets), without inferring concepts merely from unresolved links. ` +
+          `A sparse resolved note-graph is NOT 'no structure' or 'standalone docs'; offer to call \`get_broken_links\` to inspect unresolved targets. ` +
           `Keep it opinionated and oriented toward action, not a raw data dump. Remember: levels are structural orientation, not importance.`;
       } else {
         // WITHOUT vault: analyze_link_hierarchy now REQUIRES a vault (#33-B), so do
@@ -125,16 +132,18 @@ export function getPromptMessages(
           `First call the \`get_started\` tool to list the configured vaults, then ASK me which vault to orient. ` +
           `Once I pick one, call \`analyze_link_hierarchy\` with that vault and providerMode "exact". ` +
           `If it returns decision_required, present its message and actions exactly and wait for my choice; use providerMode "filesystem" only if I choose approximation, or call \`open_vault\` only if I choose exact preparation. ` +
+          sourceGrounding +
           `After a graph result, give me a plain-language orientation: ` +
           `(1) the SHAPE of the vault (total notes, the level histogram L0→L5, which provider built the graph — obsidian or filesystem); ` +
           `(2) the CENTRAL notes — the top hubs (L0–L1 nodes, highest PageRank) by name; ` +
-          `(3) what was EXCLUDED from ranking and why; (4) WHERE TO BEGIN — 2–4 concrete starting notes based on the hubs. ` +
+          `(3) what was EXCLUDED from ranking and why; (4) WHERE TO BEGIN — up to 4 concrete starting notes supported by the source notes read. ` +
           `If the resolved graph is edgeless/sparse (resolvedEdgeCount 0 or low) but unresolvedLinkCount is high, ` +
-          `explain that the vault has many UNRESOLVED concept-links with no resolved note-graph yet — NOT 'no structure' — ` +
-          `and offer to call \`get_broken_links\` for the top concepts. ` +
+          `report UNRESOLVED link targets without inferring concepts merely from unresolved links. A sparse resolved note-graph is NOT 'no structure'; ` +
+          `offer to call \`get_broken_links\` to inspect unresolved targets. ` +
           `Keep it opinionated and oriented toward action. Remember: levels are structural orientation, not importance.`;
       }
       break;
+    }
 
     case 'search': {
       const query = String(args.query);
@@ -143,6 +152,7 @@ export function getPromptMessages(
         `Present the results in the order the tool returns them — that IS the relevance/fusion ranking (reranked only when reranking is explicitly enabled). ` +
         `Do NOT silently reorder hits by centrality. Each hit carries an additive \`graph\` block with raw structural signals ` +
         `{ level (L0–L5, or null if pruned), pagerank, inDegree, outDegree, inOutRatio, archived, excluded }. ` +
+        `\`graph.archived\` is a legacy alias for graph exclusion (\`graph.excluded\`), not a note lifecycle or archival-status claim. ` +
         `Use that block to EXPLAIN each hit's structural ROLE next to it, using ONLY these honest labels: HUB = level L0–L1; MID = L2–L3; ` +
         `PERIPHERAL = level L4–L5; EXCLUDED = the \`graph\` block is PRESENT and its \`excluded\` is true (its level and pagerank will be null). ` +
         `A null \`graph\` block is NOT the same as excluded — it means this hit did not join to graph signals, so its structural role is UNAVAILABLE; say so for that hit and do NOT label it excluded. ` +

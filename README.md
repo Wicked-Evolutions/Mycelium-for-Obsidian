@@ -8,6 +8,8 @@ In 1.5.0: **validated cross-vault declarations** from native Obsidian links; **t
 
 On current `main` (unreleased): exact vault orientation uses an explicit consent flow. `analyze_link_hierarchy` never opens Obsidian or silently approximates; `open_vault` is the separate, explicit app-contact step that opens one configured vault if needed and prepares a session-only exact graph snapshot.
 
+The `orient` prompt requires reading up to four actual source notes before interpreting a vault's purpose or current priorities. Graph hubs guide discovery, not business conclusions; unresolved links alone do not establish concepts. Source gaps and inferences remain explicit. In search annotations, `graph.archived` is a legacy alias for `graph.excluded`, not a note's lifecycle status.
+
 **Runtime:** npm and source installs require Node.js 20 or newer.
 
 ## Install
@@ -338,6 +340,8 @@ To use the 28 CLI-only tools, you need Obsidian 1.12+ installed with installer 1
 | `get_backlinks` | Get all notes that link to a given note |
 | `follow_link` | Resolve a wikilink and read the target file |
 | `rebuild_link_index` | Rebuild the wikilink resolution index |
+
+Resolution accepts a bare target or one complete `[[target#heading|alias]]` and checks that cached targets still name current readable files inside the requested vault. It does not automatically select another vault from a colon-bearing title. Use validated `obsidian://open` links for cross-vault relationships.
 
 #### Semantic Search (5)
 
