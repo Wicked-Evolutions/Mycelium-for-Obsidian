@@ -75,11 +75,38 @@ fresh-process status and semantic query.
 
 ## Publication Identity Mismatch
 
-Current publication records use physical identities. If an interrupted committed
-publication later has different filesystem identity, inode equality or a valid
-SQLite integrity check alone cannot establish historical generation provenance.
-Do not rewrite recorded device IDs, remove the lock blindly, or overwrite a
-committed database with its older rollback snapshot.
+New saves write version-4 publication records containing SHA-256 fingerprints of
+the published snapshot and its verified rollback copy before the commit marker
+becomes durable. After an interrupted committed save, a normal storage open can
+verify these bytes even when the filesystem device number has changed. Recovery
+still requires a dead publisher, matching inodes, regular single-link files,
+pinned directory/path checks and unchanged transaction evidence. Unknown state,
+changed bytes, replaced files, sidecars or unexpected temporary artifacts are
+not accepted. Hashes establish recorded-byte continuity, not authentication of
+the publisher.
+
+The canonical database is not rewritten or re-indexed. Recovery removes only the
+verified rollback, syncs the directory, and removes the verified lock last. A
+restart after rollback cleanup can finish from the remaining valid record.
+`index_status` and `get_ecosystem_stats` use the same verification to inspect a
+proven committed snapshot without modifying any artifacts; normal storage open
+(for example, semantic search) completes cleanup.
+
+This fixes recovery of the specified interrupted committed-save/device-change
+case for new records. It does not prevent process interruption, explain the
+original incident's interruption, or accept uncommitted transactions after
+identity drift. Normal physical-identity checks remain unchanged. Existing
+healthy indexes need no database or embedding migration: the next save writes
+the new temporary record.
+
+### Older or Unverifiable Records
+
+Version-3 records remain supported when physical identities match. They contain
+no snapshot fingerprints, so an already interrupted version-3 transaction with
+changed device identity cannot acquire retrospective proof from this upgrade.
+Inode equality or a valid SQLite integrity check alone is insufficient. Do not
+rewrite recorded device IDs, remove the lock blindly, or overwrite a committed
+database with its older rollback snapshot.
 
 An operator-assisted recovery requires an independently justified, explicitly
 accepted generation, a maintained offline window and verified private copies of
@@ -88,9 +115,9 @@ verified rollback first while the lock still blocks publication, revalidate the
 database and lock, and quarantine the lock last. Stop if identities, bytes,
 transaction state or provenance cannot be established.
 
-This describes a constrained manual procedure, not automatic identity-drift
-acceptance or proof of recurrence prevention. The cause of the reported cleanup
-interruption remains unconfirmed. The separate scope decision is tracked in #87.
+That procedure is the explicit fallback for old or otherwise unverifiable
+records, not the automatic version-4 recovery path. Preserve the refusal if an
+operator cannot justify which generation is authoritative.
 
 ## Explicit Rebuild Fallback
 

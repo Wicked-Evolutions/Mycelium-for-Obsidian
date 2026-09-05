@@ -22,7 +22,7 @@ Public npm/GitHub remain 1.5.0 at `a27b147674300b3836693bee471082fbb0d68a73`.
 | 1 | #89 Unicode keywords, explicit zero thresholds, sorting and precision | Scoped Astra writer; existing behavior and schemas preserved beyond the defects |
 | 1 | #90 cached-target truth and source-grounded orientation | Next focused writer; no automatic link repair or assumed vault taxonomy |
 | 1 | #94 source availability and distinct similar files | Scoped writer; bounded candidate reads, no general freshness claim or reference-policy change |
-| 1 | #86/#87 index recovery | Typed nonmutating inspection and explicit offline normalization; preserve normal checks and original artifacts; no automatic identity-drift acceptance |
+| 1 | #86/#87 index recovery | Typed nonmutating inspection, explicit offline normalization and verified committed-save recovery; preserve normal checks and refuse unverifiable generations |
 | 2 | #91 scoped retrieval and compact source evidence | Concrete additive contract before implementation; no universal tool rewrite |
 | 3 | #92 retrieval evaluation and integration | Existing metrics plus generic fixtures; retain defaults without demonstrated benefit |
 
@@ -84,9 +84,46 @@ passed four checks, with app opening explicitly prohibited and no note/index wri
 This is not a pass of the separate strict closed-vault pre-release gate, which
 remains unexecuted for this development sprint.
 
-#87 remains open: typed diagnosis and an explicit operator procedure do not prove
-automatic recovery across filesystem identity changes or prevent recurrence of an
-unexplained publication interruption. The founder boundary decision remains
-pending; do not close this gap by relabeling it complete. Existing legacy indexes
-also require an explicit maintained offline upgrade window, not an automatic
-migration during status or search. No release or publication is authorized.
+## Recovery Follow-Up (#87)
+
+J explicitly required the functional recovery defect fixed before completion,
+superseding the proposed deferral. Independent Astra/max alignment review approved
+the smallest identified mechanism: fingerprints in the existing temporary
+publication record, with no SQLite schema, dependency, public tool schema, native
+adapter or embedding-recipe change. Cleanup-only changes cannot remove the crash
+window; platform-specific stable-volume identity would add unnecessary coupling.
+
+Version-4 records retain physical identities and add published/rollback snapshot
+fingerprints before commit. Recovery of a dead committed publisher after a device
+number change requires matching inodes, verified bytes and unchanged current
+file/path/transaction checks. Status inspects the proven committed snapshot
+without writes. Normal storage open performs rollback-first, lock-last cleanup.
+Old version-3 records without byte evidence retain their explicit operator/rebuild
+boundary; an upgrade cannot invent proof for an already interrupted old save.
+
+The source writer owns storage recovery and existing compatibility tests; an
+independent test engineer owns new interruption/restart regressions. The principal
+owns integration, documentation and isolated real-Ollama/stdio verification.
+Independent implementation review and current verification receipts are required
+before merge. The earlier counts above describe the pre-follow-up candidate.
+
+Follow-up implementation received independent Astra/max approval after correcting
+one review finding and proving its regression failed before the correction.
+The complete focused recovery/compatibility command executed 134 tests with
+134 passed, 0 failed and 0 skipped. Final `npm test` and `npm run test:coverage`
+each executed 1,340 tests: 1,337 passed, 0 failed and 3 reported local skips.
+Coverage was 92.79% lines/statements, 85.74% branches and 95.74% functions.
+Five isolated real-Ollama/fresh-stdio checks passed, preserving the committed
+database bytes through status, search cleanup, another process restart and
+similar-note retrieval. Device drift was simulated in the recorded identities,
+not by physically remounting a filesystem. No actual-Obsidian release gate is
+claimed by this storage-only check. Required PR CI remains tracked in #88.
+
+Earlier full-gate/native-call and live-timeout observations did not recur in the
+final runs. Their cause was not established; [#100](https://github.com/Wicked-Evolutions/Mycelium-for-Obsidian/issues/100)
+retains the bounded investigation. Passing reruns are not a claim that this
+separate validation issue is fixed.
+
+Existing legacy WAL indexes still require an explicit maintained offline upgrade
+window, not an automatic migration during status or search. No configured index
+repair, release or publication is authorized by this follow-up.

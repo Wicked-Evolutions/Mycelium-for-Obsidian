@@ -99,6 +99,17 @@ function interruptPublisher(vault, phase) {
   assert.equal(child.status, 77, child.stderr);
 }
 
+function downgradePublicationToV3(vault) {
+  const lock = path.join(directoryOf(vault), 'embeddings.publish.lock');
+  const raw = fs.readFileSync(lock, 'utf8');
+  const record = JSON.parse(raw.split('\n')[0]);
+  assert.equal(record.version, 4);
+  record.version = 3;
+  delete record.publishedSha256;
+  delete record.rollbackSha256;
+  fs.writeFileSync(lock, JSON.stringify(record) + (raw.endsWith('\nCOMMITTED\n') ? '\nCOMMITTED\n' : ''));
+}
+
 function legacyWal(vault) {
   fs.mkdirSync(directoryOf(vault));
   const database = databaseOf(vault);
@@ -282,20 +293,22 @@ test('inspection refuses a sidecar-free WAL header without normalizing it', () =
 });
 
 for (const phase of ['prepared', 'renamed', 'committed']) {
-  test(`inspection preserves interrupted ${phase} publication evidence`, () => {
+  test(`inspection preserves interrupted legacy v3 ${phase} publication evidence`, () => {
     const vault = makeVault();
     seed(vault);
     interruptPublisher(vault, phase);
+    downgradePublicationToV3(vault);
     unchanged(vault, () => assert.throws(
       () => inspectEmbeddingIndex(vault), diagnostic('index_recovery_required'),
     ));
   });
 }
 
-test('committed device identity drift is typed and never accepted or cleaned up', () => {
+test('legacy v3 committed device identity drift is typed and never accepted or cleaned up', () => {
   const vault = makeVault();
   seed(vault);
   interruptPublisher(vault, 'committed');
+  downgradePublicationToV3(vault);
   const lock = path.join(directoryOf(vault), 'embeddings.publish.lock');
   const record = JSON.parse(fs.readFileSync(lock, 'utf8').split('\n')[0]);
   assert.equal(record.temporaryIdentity.inode, fs.statSync(databaseOf(vault), { bigint: true }).ino.toString());
@@ -341,6 +354,7 @@ for (const state of ['orphan.tmp', 'orphan.rollback', 'prepared', 'renamed', 'co
       const phase = state === 'active' || state === 'malformed' ? 'prepared'
         : state === 'identity-drift' ? 'committed' : state;
       interruptPublisher(vault, phase);
+      if (state === 'identity-drift') downgradePublicationToV3(vault);
     }
     // Keep the publication's canonical inode while introducing genuine legacy WAL bytes.
     for (const suffix of ['', '-wal', '-shm']) {

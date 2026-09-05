@@ -7,7 +7,7 @@ import Database from 'better-sqlite3';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
-import { randomUUID } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import { AsyncLocalStorage } from 'async_hooks';
 import {
   assertValidEmbeddingVector,
@@ -153,14 +153,18 @@ interface PublishLock {
   record: string;
 }
 
-interface PublicationTransaction {
-  version: 3;
+interface PublicationTransactionFields {
   pid: number;
   nonce: string;
   previousDatabaseIdentity: FileIdentity;
   temporaryIdentity: FileIdentity;
   rollbackIdentity: FileIdentity;
 }
+
+type PublicationTransaction = PublicationTransactionFields & (
+  { version: 3 } |
+  { version: 4; publishedSha256: string; rollbackSha256: string }
+);
 
 const PUBLISH_COMMIT_SUFFIX = '\nCOMMITTED\n';
 
@@ -173,6 +177,13 @@ function identityOf(stat: fs.BigIntStats): FileIdentity {
 
 function sameIdentity(left: FileIdentity, right: FileIdentity): boolean {
   return left.device === right.device && left.inode === right.inode;
+}
+
+function sameFileVersion(expected: fs.BigIntStats, current: fs.BigIntStats | null): boolean {
+  return current !== null && current.isFile() && current.nlink === 1n &&
+    sameIdentity(identityOf(expected), identityOf(current)) &&
+    expected.size === current.size && expected.mtimeNs === current.mtimeNs &&
+    expected.ctimeNs === current.ctimeNs;
 }
 
 function lstatIfPresent(targetPath: string): fs.BigIntStats | null {
@@ -339,7 +350,7 @@ function copyVerifiedSnapshot(
   sourceDescriptor: number,
   destinationDescriptor: number,
   expectedSourceIdentity: FileIdentity
-): FileIdentity {
+): { identity: FileIdentity; sha256: string } {
   const sourceBefore = fs.fstatSync(sourceDescriptor, { bigint: true });
   const destinationBefore = fs.fstatSync(destinationDescriptor, { bigint: true });
   if (
@@ -361,6 +372,7 @@ function copyVerifiedSnapshot(
   }
 
   const buffer = Buffer.allocUnsafe(1024 * 1024);
+  const hash = createHash('sha256');
   const totalBytes = Number(sourceBefore.size);
   let offset = 0;
   while (offset < totalBytes) {
@@ -374,6 +386,7 @@ function copyVerifiedSnapshot(
     if (bytesRead <= 0) {
       throw new Error('Embedding database ended while its rollback snapshot was copied.');
     }
+    hash.update(buffer.subarray(0, bytesRead));
     let bytesWritten = 0;
     while (bytesWritten < bytesRead) {
       bytesWritten += fs.writeSync(
@@ -407,7 +420,7 @@ function copyVerifiedSnapshot(
   ) {
     throw new Error('Embedding rollback snapshot copy is incomplete.');
   }
-  return identityOf(destinationAfter);
+  return { identity: identityOf(destinationAfter), sha256: hash.digest('hex') };
 }
 
 function normalizeDatabaseSnapshot(content: Buffer): {
@@ -513,6 +526,13 @@ function prepareStorageAuthority(vaultRoot: PinnedVaultRoot): StorageAuthority {
     const recovery = recoverStalePublication(
       storageDirectoryIdentity,
       storageDescriptor,
+      storageDirectory,
+      () => {
+        assertPinnedVaultRootSync(vaultRoot);
+        if (!sameIdentity(verifiedIdentity(storageDirectory, 'directory'), storageDirectoryIdentity)) {
+          throw new EmbeddingStorageError('index_storage_unsafe');
+        }
+      },
       noMutation
     );
     if (recovery !== 'none') noMutation = false;
@@ -699,6 +719,8 @@ function readPublishLockOwner(
   transaction: PublicationTransaction;
   identity: FileIdentity;
   committed: boolean;
+  stat: fs.BigIntStats;
+  raw: string;
 } {
   const descriptor = openFileAt(
     storageDirectoryDescriptor,
@@ -719,7 +741,10 @@ function readPublishLockOwner(
       1n,
       'Embedding publication lock'
     );
-    const raw = fs.readFileSync(descriptor, 'utf8');
+    if (initial.size > 16_384n) {
+      throw new EmbeddingStorageError('index_recovery_required');
+    }
+    const raw = readDescriptorText(descriptor, Number(initial.size));
     const afterRead = fs.fstatSync(descriptor, { bigint: true });
     if (initial.size !== afterRead.size || initial.mtimeNs !== afterRead.mtimeNs || initial.ctimeNs !== afterRead.ctimeNs) {
       throw new EmbeddingStorageError('index_recovery_required');
@@ -732,6 +757,9 @@ function readPublishLockOwner(
       1n,
       'Embedding publication lock'
     );
+    if (!sameFileVersion(initial, statArtifactAtIfPresent(storageDirectoryDescriptor, 'embeddings.publish.lock'))) {
+      throw new EmbeddingStorageError('index_recovery_required');
+    }
     const committed = raw.endsWith(PUBLISH_COMMIT_SUFFIX);
     const record = committed
       ? raw.slice(0, -PUBLISH_COMMIT_SUFFIX.length)
@@ -749,7 +777,11 @@ function readPublishLockOwner(
     if (
       !owner ||
       typeof owner !== 'object' ||
-      owner.version !== 3 ||
+      (owner.version !== 3 && owner.version !== 4) ||
+      (owner.version === 4 && (
+        typeof owner.publishedSha256 !== 'string' || !/^[0-9a-f]{64}$/.test(owner.publishedSha256) ||
+        typeof owner.rollbackSha256 !== 'string' || !/^[0-9a-f]{64}$/.test(owner.rollbackSha256)
+      )) ||
       !Number.isSafeInteger(owner.pid) ||
       (owner.pid as number) <= 0 ||
       typeof owner.nonce !== 'string' ||
@@ -764,7 +796,14 @@ function readPublishLockOwner(
       transaction: owner as PublicationTransaction,
       identity,
       committed,
+      stat: initial,
+      raw,
     };
+  } catch (error) {
+    if (isSecureFsCode(error, 'ENOENT')) {
+      throw new EmbeddingStorageError('index_recovery_required');
+    }
+    throw error;
   } finally {
     fs.closeSync(descriptor);
   }
@@ -789,7 +828,7 @@ function assertArtifactIdentityAt(
   const descriptor = openFileAt(
     storageDirectoryDescriptor,
     name,
-    fs.constants.O_RDONLY
+    fs.constants.O_RDONLY | fs.constants.O_NONBLOCK
   );
   try {
     const stat = fs.fstatSync(descriptor, { bigint: true });
@@ -810,12 +849,13 @@ function unlinkVerifiedArtifact(
   name: string,
   expectedIdentity: FileIdentity,
   expectedLinks: bigint,
-  label: string
+  label: string,
+  beforeUnlink?: (descriptor: number) => void
 ): void {
   const descriptor = openFileAt(
     storageDirectoryDescriptor,
     name,
-    fs.constants.O_RDONLY
+    fs.constants.O_RDONLY | fs.constants.O_NONBLOCK
   );
   try {
     assertOpenAtIdentity(
@@ -826,6 +866,7 @@ function unlinkVerifiedArtifact(
       expectedLinks,
       label
     );
+    beforeUnlink?.(descriptor);
     unlinkAt(storageDirectoryDescriptor, name);
     const after = fs.fstatSync(descriptor, { bigint: true });
     if (
@@ -840,9 +881,137 @@ function unlinkVerifiedArtifact(
   }
 }
 
+function readHashedArtifactAt(
+  storageDescriptor: number,
+  name: string,
+  expected: fs.BigIntStats,
+  sha256: string,
+  retainContent = false
+): Buffer | undefined {
+  const descriptor = openFileAt(storageDescriptor, name, fs.constants.O_RDONLY | fs.constants.O_NONBLOCK);
+  try {
+    const opened = fs.fstatSync(descriptor, { bigint: true });
+    if (!opened.isFile() || opened.nlink !== 1n) {
+      throw new EmbeddingStorageError('index_storage_unsafe');
+    }
+    if (!sameFileVersion(expected, opened) ||
+      !sameFileVersion(expected, statArtifactAtIfPresent(storageDescriptor, name)) ||
+      expected.size > BigInt(Number.MAX_SAFE_INTEGER)) {
+      throw new EmbeddingStorageError('index_recovery_identity_mismatch');
+    }
+    const hash = createHash('sha256');
+    const content = retainContent ? Buffer.alloc(Number(expected.size)) : undefined;
+    const chunk = Buffer.allocUnsafe(1024 * 1024);
+    let offset = 0;
+    while (offset < Number(expected.size)) {
+      const read = fs.readSync(descriptor, chunk, 0,
+        Math.min(chunk.length, Number(expected.size) - offset), offset);
+      if (read <= 0) throw new EmbeddingStorageError('index_recovery_identity_mismatch');
+      const bytes = chunk.subarray(0, read);
+      hash.update(bytes);
+      content?.set(bytes, offset);
+      offset += read;
+    }
+    if (hash.digest('hex') !== sha256 ||
+      !sameFileVersion(expected, fs.fstatSync(descriptor, { bigint: true })) ||
+      !sameFileVersion(expected, statArtifactAtIfPresent(storageDescriptor, name))) {
+      throw new EmbeddingStorageError('index_recovery_identity_mismatch');
+    }
+    return content;
+  } finally { fs.closeSync(descriptor); }
+}
+
+interface CommittedPublicationProof {
+  owner: ReturnType<typeof readPublishLockOwner>;
+  canonical: fs.BigIntStats;
+  rollback: fs.BigIntStats | null;
+  content?: Buffer;
+}
+
+/** Hashes establish byte continuity, not authentication of local publication records. */
+function verifyCommittedPublication(
+  storageDescriptor: number,
+  storageDirectory: string,
+  assertLocation: () => void,
+  owner: ReturnType<typeof readPublishLockOwner>,
+  previous?: CommittedPublicationProof,
+  retainContent = false
+): CommittedPublicationProof {
+  const { transaction } = owner;
+  if (!owner.committed || transaction.version !== 4) {
+    throw new EmbeddingStorageError('index_recovery_required');
+  }
+  const rollbackName = `.embeddings.db.${transaction.pid}.${transaction.nonce}.rollback`;
+  const assertOwner = () => {
+    const current = readPublishLockOwner(storageDescriptor);
+    if (!sameFileVersion(owner.stat, current.stat) || current.raw !== owner.raw) {
+      throw new EmbeddingStorageError('index_recovery_required');
+    }
+    if (processIsAlive(current.transaction.pid)) {
+      throw new EmbeddingStorageError('index_publication_in_progress');
+    }
+  };
+  const assertEnvironment = () => {
+    assertLocation();
+    const artifacts = fs.readdirSync(storageDirectory)
+      .filter(name => /^\.embeddings\.db\..*\.(tmp|rollback)$/.test(name));
+    for (const name of artifacts) {
+      if (!statArtifactAtIfPresent(storageDescriptor, name)) {
+        throw new EmbeddingStorageError('index_recovery_required');
+      }
+      if (name !== rollbackName) throw new EmbeddingStorageError('index_recovery_required');
+    }
+    assertNoSqliteSidecarsAt(storageDescriptor, path.join(storageDirectory, 'embeddings.db'));
+    assertLocation();
+  };
+  try {
+    assertEnvironment();
+    assertOwner();
+    const canonical = statArtifactAtIfPresent(storageDescriptor, 'embeddings.db');
+    const rollback = statArtifactAtIfPresent(storageDescriptor, rollbackName);
+    const currentDevice = fs.fstatSync(storageDescriptor, { bigint: true }).dev.toString();
+    // All three recorded files came from the same directory. A device transition
+    // must apply to the entire current artifact set, never only one identity.
+    if (!canonical || canonical.ino.toString() !== transaction.temporaryIdentity.inode ||
+      (rollback && rollback.ino.toString() !== transaction.rollbackIdentity.inode) ||
+      transaction.previousDatabaseIdentity.device !== transaction.temporaryIdentity.device ||
+      transaction.rollbackIdentity.device !== transaction.temporaryIdentity.device ||
+      [canonical, rollback, owner.stat].some(stat => stat && stat.dev.toString() !== currentDevice)) {
+      throw new EmbeddingStorageError('index_recovery_identity_mismatch');
+    }
+    if (previous && (!sameFileVersion(previous.canonical, canonical) ||
+      (previous.rollback === null ? rollback !== null : !sameFileVersion(previous.rollback, rollback)))) {
+      throw new EmbeddingStorageError('index_recovery_identity_mismatch');
+    }
+    const content = readHashedArtifactAt(storageDescriptor, 'embeddings.db', canonical,
+      transaction.publishedSha256, retainContent);
+    if (rollback) {
+      readHashedArtifactAt(storageDescriptor, rollbackName, rollback, transaction.rollbackSha256);
+    }
+    assertEnvironment();
+    assertOwner();
+    if (!sameFileVersion(canonical, statArtifactAtIfPresent(storageDescriptor, 'embeddings.db')) ||
+      (rollback === null
+        ? statArtifactAtIfPresent(storageDescriptor, rollbackName) !== null
+        : !sameFileVersion(rollback, statArtifactAtIfPresent(storageDescriptor, rollbackName)))) {
+      throw new EmbeddingStorageError('index_recovery_identity_mismatch');
+    }
+    assertLocation();
+    return { owner, canonical, rollback, content };
+  } catch (error) {
+    if (isSecureFsCode(error, 'ENOENT')) throw new EmbeddingStorageError('index_recovery_required');
+    if (isSecureFsCode(error, 'ELOOP') || isSecureFsCode(error, 'ENOTDIR')) {
+      throw new EmbeddingStorageError('index_storage_unsafe');
+    }
+    throw error;
+  }
+}
+
 function recoverStalePublication(
   storageDirectoryIdentity: FileIdentity,
   storageDirectoryDescriptor: number,
+  storageDirectory: string,
+  assertLocation: () => void,
   noMutation = false
 ): 'none' | 'previous' | 'published' {
   const pinnedDirectory = fs.fstatSync(storageDirectoryDescriptor, { bigint: true });
@@ -862,6 +1031,33 @@ function recoverStalePublication(
   }
   if (processIsAlive(owner.transaction.pid)) {
     throw new EmbeddingStorageError('index_publication_in_progress', noMutation);
+  }
+
+  if (owner.committed && owner.transaction.version === 4) {
+    try {
+      let proof = verifyCommittedPublication(storageDirectoryDescriptor, storageDirectory, assertLocation, owner);
+      if (proof.rollback) {
+        noMutation = false;
+        unlinkVerifiedArtifact(storageDirectoryDescriptor,
+          `.embeddings.db.${owner.transaction.pid}.${owner.transaction.nonce}.rollback`,
+          identityOf(proof.rollback), 1n, 'Verified committed rollback snapshot', () => {
+            verifyCommittedPublication(storageDirectoryDescriptor, storageDirectory, assertLocation, owner, proof);
+          });
+        proof = { ...proof, rollback: null };
+      }
+      fsyncDirectory(storageDirectoryDescriptor);
+      verifyCommittedPublication(storageDirectoryDescriptor, storageDirectory, assertLocation, owner, proof);
+      noMutation = false;
+      unlinkVerifiedArtifact(storageDirectoryDescriptor, 'embeddings.publish.lock', owner.identity, 1n,
+        'Verified committed publication lock', () => {
+          verifyCommittedPublication(storageDirectoryDescriptor, storageDirectory, assertLocation, owner, proof);
+        });
+      fsyncDirectory(storageDirectoryDescriptor);
+      return 'published';
+    } catch (error) {
+      if (error instanceof EmbeddingStorageError) throw new EmbeddingStorageError(error.code, noMutation);
+      throw error;
+    }
   }
 
   const { transaction } = owner;
@@ -1132,7 +1328,9 @@ function markPublishCommitted(
   const recordBytes = Buffer.byteLength(lock.record, 'utf8');
   const commitBytes = Buffer.from(PUBLISH_COMMIT_SUFFIX, 'utf8');
   const before = fs.fstatSync(lock.descriptor, { bigint: true });
-  if (before.size !== BigInt(recordBytes)) {
+  if (before.size !== BigInt(recordBytes) ||
+    readDescriptorText(lock.descriptor, recordBytes) !== lock.record ||
+    !sameFileVersion(before, fs.fstatSync(lock.descriptor, { bigint: true }))) {
     throw new Error('Embedding publication lock changed before commit.');
   }
   let written = 0;
@@ -1224,7 +1422,11 @@ function queryIndexPathStats(db: Database.Database): EmbeddingPathStat[] {
   `).all() as EmbeddingPathStat[];
 }
 
-function assertNoInspectionPublication(storageDescriptor: number, storageDirectory: string): void {
+function assertNoInspectionPublication(
+  storageDescriptor: number,
+  storageDirectory: string,
+  assertLocation?: () => void
+): CommittedPublicationProof | undefined {
   let owner: ReturnType<typeof readPublishLockOwner> | null = null;
   try {
     owner = readPublishLockOwner(storageDescriptor);
@@ -1233,6 +1435,9 @@ function assertNoInspectionPublication(storageDescriptor: number, storageDirecto
   }
   if (owner && processIsAlive(owner.transaction.pid)) {
     throw new EmbeddingStorageError('index_publication_in_progress');
+  }
+  if (owner?.committed && owner.transaction.version === 4 && assertLocation) {
+    return verifyCommittedPublication(storageDescriptor, storageDirectory, assertLocation, owner, undefined, true);
   }
   const artifacts = fs.readdirSync(storageDirectory)
     .filter(name => /^\.embeddings\.db\..*\.(tmp|rollback)$/.test(name));
@@ -1280,9 +1485,12 @@ export function inspectEmbeddingIndex(vault: string | PinnedVaultRoot): Embeddin
       }
     };
     assertLocation();
-    assertNoInspectionPublication(storageDescriptor, storageDirectory);
+    const publication = assertNoInspectionPublication(storageDescriptor, storageDirectory, assertLocation);
     assertNoSqliteSidecarsAt(storageDescriptor, databasePath);
     const databaseStat = statArtifactAtIfPresent(storageDescriptor, 'embeddings.db');
+    if (publication && !sameFileVersion(publication.canonical, databaseStat)) {
+      throw new EmbeddingStorageError('index_recovery_identity_mismatch');
+    }
     if (!databaseStat) {
       assertLocation();
       return empty;
@@ -1291,7 +1499,7 @@ export function inspectEmbeddingIndex(vault: string | PinnedVaultRoot): Embeddin
       vaultRoot, storageDirectory, storageDirectoryIdentity, databasePath,
       databaseIdentity: identityOf(databaseStat),
     };
-    const content = readPinnedDatabase(authority, (_databasePath, flags) =>
+    const content = publication?.content ?? readPinnedDatabase(authority, (_databasePath, flags) =>
       openFileAt(storageDescriptor!, 'embeddings.db', flags | fs.constants.O_NONBLOCK)
     );
     assertLocation();
@@ -1309,8 +1517,12 @@ export function inspectEmbeddingIndex(vault: string | PinnedVaultRoot): Embeddin
     }
     const result = { stats: queryIndexStats(db), pathStats: queryIndexPathStats(db) };
     assertLocation();
-    assertNoInspectionPublication(storageDescriptor, storageDirectory);
     assertStorageAuthority(authority);
+    if (publication) {
+      verifyCommittedPublication(storageDescriptor, storageDirectory, assertLocation, publication.owner, publication);
+    } else {
+      assertNoInspectionPublication(storageDescriptor, storageDirectory);
+    }
     return result;
   } catch (error) {
     if (error instanceof EmbeddingStorageError) {
@@ -1508,10 +1720,12 @@ export class EmbeddingStorage {
       if (!Buffer.isBuffer(snapshot)) {
         throw new Error('Embedding snapshot serialization returned invalid bytes.');
       }
+      snapshot = Buffer.from(snapshot);
     } catch (error) {
       this.rejectUncommittedMutation(error);
     }
     const transactionNonce = randomUUID();
+    const publishedSha256 = createHash('sha256').update(snapshot).digest('hex');
     const temporaryName = `.embeddings.db.${process.pid}.${transactionNonce}.tmp`;
     const temporaryPath = path.join(
       this.authority.storageDirectory,
@@ -1525,6 +1739,7 @@ export class EmbeddingStorage {
     let publicationLock: PublishLock | null = null;
     let rollbackDescriptor: number | null = null;
     let rollbackIdentity: FileIdentity | null = null;
+    let rollbackSha256: string | null = null;
     let rollbackPresent = false;
     let renamed = false;
     let publicationCommitted = false;
@@ -1585,14 +1800,15 @@ export class EmbeddingStorage {
       rollbackIdentity = identityOf(rollbackStat);
       rollbackPresent = true;
       this.dependencies.beforeRollbackSnapshotCopy?.();
-      const copiedRollbackIdentity = copyVerifiedSnapshot(
+      const copiedRollback = copyVerifiedSnapshot(
         canonicalDescriptor,
         rollbackDescriptor,
         previousIdentity
       );
-      if (!sameIdentity(copiedRollbackIdentity, rollbackIdentity)) {
+      if (!sameIdentity(copiedRollback.identity, rollbackIdentity)) {
         throw new Error('Embedding rollback snapshot changed while it was copied.');
       }
+      rollbackSha256 = copiedRollback.sha256;
       assertOpenAtIdentity(
         storageDirectoryDescriptor,
         rollbackName,
@@ -1613,12 +1829,14 @@ export class EmbeddingStorage {
 
       publicationLock = acquirePublishLock(
         {
-          version: 3,
+          version: 4,
           pid: process.pid,
           nonce: transactionNonce,
           previousDatabaseIdentity: previousIdentity,
           temporaryIdentity,
           rollbackIdentity,
+          publishedSha256,
+          rollbackSha256,
         },
         storageDirectoryDescriptor
       );
@@ -1675,6 +1893,15 @@ export class EmbeddingStorage {
         1n,
         'Embedding rollback snapshot'
       );
+      const publishedBeforeCommit = fs.fstatSync(descriptor, { bigint: true });
+      const rollbackBeforeCommit = fs.fstatSync(rollbackDescriptor, { bigint: true });
+      readHashedArtifactAt(storageDirectoryDescriptor, 'embeddings.db', publishedBeforeCommit, publishedSha256);
+      readHashedArtifactAt(storageDirectoryDescriptor, rollbackName, rollbackBeforeCommit, rollbackSha256);
+      assertStorageAuthority(this.authority);
+      if (!sameFileVersion(publishedBeforeCommit, statArtifactAtIfPresent(storageDirectoryDescriptor, 'embeddings.db')) ||
+        !sameFileVersion(rollbackBeforeCommit, statArtifactAtIfPresent(storageDirectoryDescriptor, rollbackName))) {
+        throw new EmbeddingStorageError('index_recovery_identity_mismatch');
+      }
       markPublishCommitted(publicationLock, storageDirectoryDescriptor);
       publicationCommitted = true;
       this.persistedSnapshot = Buffer.from(snapshot);
@@ -1707,6 +1934,16 @@ export class EmbeddingStorage {
               rollbackIdentity,
               1n,
               'Embedding rollback snapshot'
+            );
+            if (rollbackSha256 === null) throw new EmbeddingStorageError('index_recovery_required');
+            readHashedArtifactAt(storageDirectoryDescriptor, rollbackName,
+              fs.fstatSync(rollbackDescriptor!, { bigint: true }), rollbackSha256);
+            assertArtifactIdentityAt(
+              storageDirectoryDescriptor,
+              'embeddings.db',
+              temporaryIdentity,
+              1n,
+              'Failed published embedding snapshot before rollback'
             );
             renameAt(storageDirectoryDescriptor, rollbackName, 'embeddings.db');
             rollbackPresent = false;
