@@ -129,17 +129,16 @@ test('orient interpolates the named-vault clause and arg (vault given)', () => {
   assert.ok(!text.includes('default configured vault'), 'no default-vault wording when vault given');
 });
 
-// #37: WITH-vault branch primes analyze_link_hierarchy AND the concept-link
-// interpretation (edgeless resolved graph + high unresolved links ≠ no structure).
-test('orient WITH vault primes analyze_link_hierarchy + concept-link interpretation (#37)', () => {
+// A sparse resolved graph does not establish the meaning of unresolved targets.
+test('orient WITH vault primes analyze_link_hierarchy + unresolved-target inspection (#90)', () => {
   const text = textOf(getPromptMessages('orient', { vault: 'Foo' }));
   assert.ok(text.includes('`analyze_link_hierarchy` with vault "Foo"'), 'primes the tool WITH the vault');
-  // Concept-link honesty wording.
+  // Unresolved-target honesty wording.
   assert.ok(text.includes('resolvedEdgeCount'), 'names resolvedEdgeCount signal');
   assert.ok(text.includes('unresolvedLinkCount'), 'names unresolvedLinkCount signal');
-  assert.ok(text.includes('UNRESOLVED concept-links'), 'explains the unresolved concept-link case');
+  assert.ok(text.includes('UNRESOLVED link targets'), 'describes unresolved targets without assigning meaning');
   assert.ok(text.includes("NOT 'no structure'"), "must reject the 'no structure' misnarration");
-  assert.ok(text.includes('get_broken_links'), 'offers get_broken_links for the top concepts');
+  assert.ok(text.includes('get_broken_links'), 'offers get_broken_links to inspect targets');
 });
 
 test('orient WITH vault preserves the explicit exact-graph consent sequence (#45)', () => {
@@ -150,6 +149,10 @@ test('orient WITH vault preserves the explicit exact-graph consent sequence (#45
   assert.ok(text.includes('providerMode "filesystem"'), 'approximation is an explicit choice');
   assert.ok(text.includes('`open_vault` with vault "Foo"'), 'opening is a separate explicit tool');
   assert.ok(text.includes('only after it reports a prepared snapshot'));
+  const preparation = 'If I choose exact, call `open_vault` with vault "Foo"; only after it reports a prepared snapshot, call `analyze_link_hierarchy` with vault "Foo" with providerMode "exact" again.';
+  assert.ok(text.includes('If I choose filesystem, call `analyze_link_hierarchy` with vault "Foo" with providerMode "filesystem".'));
+  assert.ok(text.includes(preparation));
+  assert.ok(text.indexOf(preparation) < text.indexOf('`read_file`'));
 });
 
 // #33-B + #37: WITHOUT a vault, analyze_link_hierarchy now REQUIRES a vault, so
@@ -176,16 +179,46 @@ test('orient WITHOUT vault asks which vault; does NOT call the tool blind (#33-B
   assert.ok(!text.includes('with vault ""'), 'no dangling empty vault arg');
 });
 
-// #37: the "resolved graph empty, unresolved concept-links present" wording is
-// present in BOTH branches (checklist item 9).
+// Both branches distinguish missing resolved edges from missing structure.
 test('orient explains edgeless-resolved-but-unresolved-present in both branches (#37)', () => {
   for (const args of [{ vault: 'Foo' }, {}]) {
     const text = textOf(getPromptMessages('orient', args));
     assert.ok(
       text.includes('resolvedEdgeCount 0 or low') && text.includes('unresolvedLinkCount'),
-      'must describe the edgeless-resolved-graph + unresolved-concept-links case'
+      'must describe the edgeless-resolved-graph + unresolved-targets case'
     );
     assert.ok(text.includes("NOT 'no structure'"), "must reject the 'no structure' framing");
+  }
+});
+
+test('orient WITHOUT vault preserves the selected-vault exact-provider decision gate', () => {
+  const text = textOf(getPromptMessages('orient'));
+  const selection = 'Once I pick one, call `analyze_link_hierarchy` with that vault and providerMode "exact".';
+  const consent = 'If it returns decision_required, present its message and actions exactly and wait for my choice; use providerMode "filesystem" only if I choose approximation, or call `open_vault` only if I choose exact preparation.';
+  assert.ok(text.includes(selection));
+  assert.ok(text.includes(consent));
+  assert.ok(text.indexOf('ASK me which vault') < text.indexOf(selection));
+  assert.ok(text.indexOf(selection) < text.indexOf(consent));
+  assert.ok(text.indexOf(consent) < text.indexOf('`read_file`'));
+});
+
+test('orient grounds conclusions in bounded source-note reads in both vault branches', () => {
+  for (const args of [{ vault: 'Foo' }, {}]) {
+    const text = textOf(getPromptMessages('orient', args));
+    assert.match(text, /Before drawing conclusions about the vault's business, purpose, or current priorities, use `read_file`/);
+    assert.match(text, /actual source notes \(at most 4 notes, fewer if fewer are available\)/);
+    assert.match(text, /same explicitly named or user-selected vault for every discovery and read call/);
+    assert.match(text, /existing guidance, entry-point, and current-work notes from returned paths/);
+    assert.match(text, /do not assume filenames, folders, taxonomy, or local properties/);
+    assert.match(text, /Cite the note paths and supporting passages you actually read/);
+    assert.match(text, /labeled inference and unknowns/);
+    assert.match(text, /missing, unreadable, or insufficient.*evidence gap/);
+    assert.match(text, /starting notes.*supported by the source notes read/);
+    assert.match(text, /Do not infer importance, business purpose, or current priority from PageRank or levels/);
+    assert.match(text, /without inferring concepts merely from unresolved links/);
+    assert.ok(!text.includes('UNRESOLVED concept-links'));
+    assert.ok(!text.includes('based on the hubs'));
+    assert.ok(text.indexOf('`read_file`') < text.indexOf('WHERE TO BEGIN'));
   }
 });
 
@@ -279,6 +312,13 @@ test("honesty: /search distinguishes a null graph block from excluded", () => {
     !text.includes('flag is true (or graph is null)'),
     "search must NOT equate 'graph is null' with the excluded role"
   );
+});
+
+test('honesty: /search archived is only a legacy graph-exclusion alias', () => {
+  const text = textOf(getPromptMessages('search', { query: 'x' }));
+  assert.match(text, /`graph.archived` is a legacy alias for graph exclusion \(`graph.excluded`\), not a note lifecycle or archival-status claim/);
+  assert.ok(text.includes('Present the results in the order the tool returns them'));
+  assert.ok(text.includes('Do NOT silently reorder hits by centrality'));
 });
 
 test("honesty: /excluded uses the high limit (1000)", () => {

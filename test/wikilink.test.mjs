@@ -147,6 +147,63 @@ test('resolveWikilink — accepts .md extension in target', async () => {
   assert.ok(resolved.endsWith('Note C.md'));
 });
 
+test('resolveWikilink accepts bare and complete heading/alias links', async () => {
+  const index = await buildFileIndex(vaultDir);
+  for (const link of [
+    'Note B', 'Note B.md', 'Note B#Heading', 'Note B|Alias',
+    'Note B#Heading|Alias', '[[Note B]]', '[[Note B#Heading|Alias]]',
+    '[[Note B#^block|Alias]]', '  [[Note B#Heading|Alias]]  ',
+  ]) {
+    assert.equal(await resolveWikilink(link, vaultDir, index), path.join(vaultDir, 'Note B.md'), link);
+  }
+  for (const link of ['', '[[Note B]] [[Note C]]', 'See [[Note B]]', '[[#Heading]]']) {
+    assert.equal(await resolveWikilink(link, vaultDir, index), null, link);
+  }
+});
+
+test('link handlers preserve colon-bearing titles and explicit vault targeting', async (t) => {
+  const local = createTempVault({
+    'nested/Topic: Detail.md': '# Literal colon title',
+    'nested/Principle Keywords: Breathe.md': '# Spaced colon title',
+    'Target.md': '# Local target',
+    'Source.md': '[[Topic: Detail#Heading|Alias]] [[Remote:Target#Heading|Alias]]',
+  });
+  const remote = createTempVault({ 'Target.md': '# Remote target' });
+  t.after(() => cleanup(local));
+  t.after(() => cleanup(remote));
+  const handlers = createWikilinkHandlers({
+    ...makeConfig(local),
+    mode: 'multi',
+    vaults: [{ name: 'Local', path: local }, { name: 'Remote', path: remote }],
+  });
+  for (const title of ['Topic: Detail', 'Principle Keywords: Breathe']) {
+    for (const link of [title, `${title}#Heading|Alias`, `[[${title}#Heading|Alias]]`]) {
+      const result = payload(await handlers.resolve_wikilink({ vault: 'Local', link }));
+      assert.equal(result.resolved, `nested/${title}.md`, link);
+      assert.equal(result.link, link);
+      const followed = payload(await handlers.follow_link({ vault: 'Local', link }));
+      assert.equal(followed.found, true);
+      assert.equal(followed.path, `nested/${title}.md`);
+    }
+  }
+  for (const link of ['Remote:Target', '[[Remote:Target#Heading|Alias]]']) {
+    assert.equal(payload(await handlers.resolve_wikilink({ vault: 'Local', link })).exists, false);
+    assert.equal(payload(await handlers.follow_link({ vault: 'Local', link })).found, false);
+  }
+  const localTarget = payload(await handlers.follow_link({ vault: 'Local', link: '[[Target#Heading|Alias]]' }));
+  assert.equal(localTarget.content, '# Local target');
+  const remoteTarget = payload(await handlers.follow_link({ vault: 'Remote', link: 'Target' }));
+  assert.equal(remoteTarget.content, '# Remote target');
+  assert.equal((await handlers.resolve_wikilink({ vault: 'Missing', link: 'Target' })).isError, true);
+
+  const links = payload(await handlers.get_outlinks({ vault: 'Local', path: 'Source.md' })).links;
+  assert.equal(links[0].resolved, 'nested/Topic: Detail.md');
+  assert.equal(links[1].exists, false, 'a prefixed link must not become a local Target link');
+  const all = await resolveAllWikilinks('[[Topic: Detail#Heading|Alias]] [[Remote:Target]]', local);
+  assert.equal(all[0].resolved, path.join(local, 'nested/Topic: Detail.md'));
+  assert.equal(all[1].exists, false);
+});
+
 // ─── Parser: resolveAllWikilinks ─────────────────────────────────────────────
 
 test('resolveAllWikilinks — marks existing links exists:true with resolved path', async () => {
