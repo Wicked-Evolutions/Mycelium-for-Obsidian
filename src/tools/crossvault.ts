@@ -310,7 +310,7 @@ export function createCrossVaultHandlers(
         await assertOllamaModelIdentity(ollamaConfig, ollama.model);
         const exactModelIdentity = `${ollama.model.name}@${ollama.model.digest}`;
         const limit = args.limit || 10;
-        const minSimilarity = args.minSimilarity || 0.3;
+        const minSimilarity = args.minSimilarity ?? 0.3;
 
         // Collect results from all vaults
         const allResults: Array<{
@@ -395,7 +395,7 @@ export function createCrossVaultHandlers(
                   vault: vault.name,
                   path: r.filePath,
                   title: extractTitle(parsed),
-                  similarity: Math.round(r.similarity * 1000) / 1000,
+                  similarity: r.similarity,
                   preview: parsed.content.slice(0, 150) + (parsed.content.length > 150 ? '...' : '')
                 });
               } catch {
@@ -403,7 +403,7 @@ export function createCrossVaultHandlers(
                   vault: vault.name,
                   path: r.filePath,
                   title: path.basename(r.filePath, '.md'),
-                  similarity: Math.round(r.similarity * 1000) / 1000,
+                  similarity: r.similarity,
                   preview: ''
                 });
               }
@@ -472,7 +472,10 @@ export function createCrossVaultHandlers(
               ),
               resultMetadataByVault,
               graphByVault: annotated.graphByVault,
-              results: annotated.results
+              results: annotated.results.map(result => ({
+                ...result,
+                similarity: Math.round(result.similarity * 1000) / 1000,
+              }))
             }, null, 2)
           }],
           isError: false

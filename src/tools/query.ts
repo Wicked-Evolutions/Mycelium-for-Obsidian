@@ -216,7 +216,7 @@ export function createQueryHandlers(config: Config) {
             results.push({
               path: filePath,
               title: extractTitle(parsed),
-              frontmatter: projectFields(parsed.frontmatter, args.fields)
+              frontmatter: parsed.frontmatter
             });
           } catch {
             skipped += 1;
@@ -255,7 +255,10 @@ export function createQueryHandlers(config: Config) {
               totalMatches: results.length,
               returned: limited.length,
               ...metadata,
-              results: limited
+              results: limited.map(result => ({
+                ...result,
+                frontmatter: projectFields(result.frontmatter, args.fields),
+              }))
             }, null, 2)
           }],
           isError: false
