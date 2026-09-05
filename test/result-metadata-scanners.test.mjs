@@ -37,7 +37,8 @@ await mock.module('fs/promises', {
     },
     open: async (target, flags, mode) => {
       const handle = await realFs.open(target, flags, mode);
-      if (!parserReadFailures.has(path.basename(String(target)))) return handle;
+      if (!parserReadFailures.has(path.basename(String(target))) &&
+          !readFailures.has(path.basename(String(target)))) return handle;
       return {
         stat: handle.stat.bind(handle),
         readFile: async () => {

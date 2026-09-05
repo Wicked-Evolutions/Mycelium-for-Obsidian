@@ -275,6 +275,42 @@ Semantic results include `indexCompatibility`, which identifies the exact model 
 
 An explicit `minSimilarity: 0` is honored; omitting it retains the tool's default. This threshold applies to vector similarity, not the hybrid fusion score. Hybrid keyword matching preserves Unicode letters, combining marks and numbers while treating query words as literals with the existing all-words (AND) policy. Cross-vault semantic results are ranked at full precision before their displayed similarity is rounded.
 
+#### Selective Search and Indexed Evidence
+
+`search_all_vaults` and `semantic_search_all` accept an optional `vaults` list.
+Omit it for all configured vaults. An explicit list must be nonempty and resolve
+unambiguously; duplicates are removed and configured order is retained. The whole
+selection is validated before any vault scan or embedding request.
+
+`semantic_search` accepts `directory` for an existing contained directory. Empty
+string, `.` and omission mean the vault root. Filtering precedes eligible vector
+and keyword limits and fusion, so unrelated folders cannot consume the candidate
+budget. Compatibility counts, BM25 corpus statistics and graph context remain
+vault-wide; this is candidate scope, not an I/O isolation guarantee.
+
+Both semantic search tools accept `includeEvidence: true`. Each hit then includes
+an excerpt of at most 600 Unicode code points from its exact winning indexed
+block, with content hash, model identity, timestamp and truncation flags. Optional
+heading display is limited to 160 code points with `headingTruncated`. The
+excerpt centers on the first literal query-token match when present. It is
+`indexed_embedding_text`, not a promise that the note is unchanged: the response
+explicitly says `currentSourceVerified: false`. Generated block IDs are not native
+Obsidian anchors. Missing text, unverified identity or a changed index generation
+returns a fixed unavailable reason, never a replacement passage.
+
+`compact: true` removes verbose per-hit details from semantic search while keeping
+complete identities, scores, requested evidence and request-level diagnostics.
+Titles are limited to 160 code points. `get_cross_vault_links` also supports compact
+output: at most five potential targets per link with exact counts, concise URI
+diagnostics, and declared-edge identities/counts without repeated URI or subpath
+samples. It neither validates potential links as declarations nor repairs them.
+No option changes ranking; omitted or false controls retain full output. Compact
+display is not a global response-byte limit or a bound on scan cost.
+
+```json
+{"query":"project decisions","vaults":["Research","Operations"],"compact":true,"includeEvidence":true}
+```
+
 Legacy newline/tab readers such as `search_with_context` keep their established text responses. They do not yet receive machine-readable completeness metadata because adding metadata-only `structuredContent` would hide their text body on the HTTP surface, while converting them to a success envelope would be a broader compatibility migration. Their absence of completeness fields is not a claim that a swallowed read failure could not occur.
 
 ## Capability Tiers

@@ -1380,6 +1380,7 @@ export class EmbeddingStorage {
   private dirty = false;
   private persistedSnapshot: Buffer | null = null;
   private batchOwner: symbol | null = null;
+  private evidenceRevision = 0;
 
   constructor(
     vault: string | PinnedVaultRoot,
@@ -1421,6 +1422,13 @@ export class EmbeddingStorage {
 
   getAuthorityKey(): string {
     return authorityKey(this.authority);
+  }
+
+  /** Request-local evidence identity, unavailable during an unpublished batch. */
+  getEvidenceGeneration(): string | null {
+    this.ensureAuthority();
+    if (this.dirty || this.batchOwner !== null) return null;
+    return `${authorityKey(this.authority)}\u0000${this.evidenceRevision}`;
   }
 
   isClosed(): boolean {
@@ -1874,6 +1882,7 @@ export class EmbeddingStorage {
   }
 
   private recordMutation(): void {
+    this.evidenceRevision += 1;
     this.dirty = true;
     if (this.batchOwner === null) this.persistSnapshot();
   }
@@ -2335,7 +2344,8 @@ export class EmbeddingStorage {
     queryEmbedding: number[],
     modelIdentity: string,
     limit: number = 10,
-    minSimilarity: number = 0
+    minSimilarity: number = 0,
+    includeFile?: (filePath: string) => boolean
   ): CompatibleSearchResults {
     this.ensureAuthority();
     assertValidEmbeddingVector(queryEmbedding, 'Query embedding');
@@ -2398,7 +2408,7 @@ export class EmbeddingStorage {
         similarity: cosineSimilarity(queryEmbedding, stored.embedding),
         metadata: stored.metadata,
       }))
-      .filter(result => result.similarity >= minSimilarity)
+      .filter(result => result.similarity >= minSimilarity && (!includeFile || includeFile(result.filePath)))
       .sort((left, right) => right.similarity - left.similarity)
       .slice(0, limit);
     const excludedEmbeddingCount = rows.length - compatible.length;
@@ -2486,7 +2496,8 @@ export class EmbeddingStorage {
     query: string,
     modelIdentity: string,
     embeddingDimension: number,
-    limit: number = 10
+    limit: number = 10,
+    includeFile?: (filePath: string) => boolean
   ): Array<{
     filePath: string;
     blockId: string | null;
@@ -2551,7 +2562,7 @@ export class EmbeddingStorage {
             row.embedding.byteOffset,
             row.embedding.length / Float32Array.BYTES_PER_ELEMENT
           ));
-          if (!isValidEmbeddingVector(embedding)) continue;
+          if (!isValidEmbeddingVector(embedding) || (includeFile && !includeFile(row.file_path))) continue;
           results.push({
             filePath: row.file_path,
             blockId: row.block_id || null,

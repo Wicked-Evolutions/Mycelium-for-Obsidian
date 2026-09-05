@@ -51,6 +51,8 @@ import {
 import { secureMutationSupported } from '../embeddings/secure-fs.js';
 import { SemanticSources } from './semantic-source.js';
 import { indexRecoveryResponse } from './index-recovery.js';
+import { captureIndexedEvidence, finalizeIndexedEvidence, compactSemanticHit,
+  type IndexedEvidenceCapture } from './retrieval-evidence.js';
 
 // Register the built-in LLM-as-reranker backend (#27, PR-C). Registration is
 // INERT on the default path: the backend is only retrieved when the operator
@@ -120,6 +122,18 @@ const rawSemanticTools: Tool[] = [
         query: {
           type: 'string',
           description: 'Natural language query (e.g., "notes about marketing strategy")'
+        },
+        directory: {
+          type: 'string',
+          description: 'Limit candidates to this existing vault-relative directory. Omit, empty string, or dot means the whole vault; index statistics and graph context remain vault-wide.'
+        },
+        compact: {
+          type: 'boolean', default: false,
+          description: 'Return compact hits while preserving ranking, identities and request-level diagnostics.'
+        },
+        includeEvidence: {
+          type: 'boolean', default: false,
+          description: 'Include a bounded excerpt from the exact indexed winning passage, with index provenance but no current-source freshness claim.'
         },
         limit: {
           type: 'number',
@@ -325,6 +339,9 @@ export function createSemanticHandlers(
       expand?: boolean;
       rerank?: boolean;
       hypotheticalAnswer?: string;
+      directory?: string;
+      compact?: boolean;
+      includeEvidence?: boolean;
       // Injectable reranker backend — for tests ONLY (mirrors graph-annotate's
       // injectable getSignals). Production resolves the active backend from the
       // registry. Never part of the public input schema.
@@ -335,6 +352,32 @@ export function createSemanticHandlers(
       try {
         const vault = resolveVault(config, args.vault);
         const vaultRoot = await pinVaultRoot(vault.path);
+
+        let includeFile: ((filePath: string) => boolean) | undefined;
+        if (args.directory !== undefined && args.directory !== '' && args.directory !== '.') {
+          try {
+            if (typeof args.directory !== 'string') throw new Error('Invalid directory');
+            const directory = resolvePathInVault(vaultRoot.path, args.directory);
+            if (!(await fs.stat(directory)).isDirectory()) throw new Error('Not a directory');
+            const physicalDirectory = await fs.realpath(directory);
+            const physicalRelative = path.relative(vaultRoot.path, physicalDirectory);
+            resolvePathInVault(vaultRoot.path, physicalRelative);
+            const relative = physicalRelative;
+            if (relative) {
+              const prefix = relative + path.sep;
+              includeFile = filePath => !path.isAbsolute(filePath) &&
+                path.relative(vaultRoot.path, path.resolve(vaultRoot.path, filePath))
+                  .startsWith(prefix);
+            }
+          } catch {
+            return recoveryResponse({
+              status: 'refused', code: 'invalid_directory',
+              message: 'Search directory must be an existing directory contained in the selected vault.',
+              hint: 'Use a vault-relative directory, or omit directory to search the whole vault.',
+              retryable: false, sideEffects: { state: 'none' },
+            });
+          }
+        }
 
         // Check Ollama availability
         const ollama = await checkOllamaAvailability(ollamaConfig);
@@ -405,6 +448,14 @@ export function createSemanticHandlers(
         const exactModelIdentity = `${ollama.model.name}@${ollama.model.digest}`;
         let indexCompatibility: EmbeddingIndexCompatibility | null = null;
         let embeddingDimension: number | null = null;
+        const captures = new WeakMap<object, IndexedEvidenceCapture>();
+        const captureRows = (rows: Array<{ filePath: string; blockId: string | null }>) => {
+          if (!args.includeEvidence) return;
+          for (const row of rows) {
+            const capture = captureIndexedEvidence(store, row, exactModelIdentity, args.query, true);
+            if (capture) captures.set(row, capture);
+          }
+        };
 
         // Embeddings pass (includes the HyDE hypothetical when present).
         for (const q of embeddingTexts) {
@@ -429,12 +480,15 @@ export function createSemanticHandlers(
             queryResult.embedding,
             exactModelIdentity,
             historicalCandidateCap + 1,
-            minSimilarity  // Embeddings candidate-floor (cosine cutoff)
+            minSimilarity, // Embeddings candidate-floor (cosine cutoff)
+            includeFile
           );
           const semResults = compatibleSearch.results;
           indexCompatibility = compatibleSearch.compatibility;
           providerLimitReached ||= semResults.length > historicalCandidateCap;
-          allSemanticResults.push(...semResults.slice(0, historicalCandidateCap));
+          const admitted = semResults.slice(0, historicalCandidateCap);
+          captureRows(admitted);
+          allSemanticResults.push(...admitted);
         }
 
         await assertOllamaModelIdentity(ollamaConfig, ollama.model);
@@ -445,16 +499,19 @@ export function createSemanticHandlers(
             q,
             exactModelIdentity,
             embeddingDimension ?? 0,
-            historicalCandidateCap + 1
+            historicalCandidateCap + 1,
+            includeFile
           );
           providerLimitReached ||= kwResults.length > historicalCandidateCap;
-          allKeywordResults.push(...kwResults.slice(0, historicalCandidateCap));
+          const admitted = kwResults.slice(0, historicalCandidateCap);
+          captureRows(admitted);
+          allKeywordResults.push(...admitted);
         }
 
         // ---------------------------------------------------------------
         // Fusion via Reciprocal Rank Fusion (RRF, k=60 const).
         //
-        // Each candidate is keyed by `${filePath}:${blockId}`. We first collapse
+        // Each candidate is keyed by its structured file/block identity. We collapse
         // the (possibly multi-variant, when expand=true) raw lists into exactly
         // ONE embeddings ranking and ONE bm25 ranking — unique docs, best signal
         // value first — then RRF the two. This avoids double-counting a doc that
@@ -469,6 +526,9 @@ export function createSemanticHandlers(
         // keyword score seen across all query variants.
         const bestSemantic = new Map<string, number>();
         const bestKeyword = new Map<string, number>();
+        const candidateKey = (r: { filePath: string; blockId: string | null }) =>
+          JSON.stringify([r.filePath, r.blockId]);
+        const evidenceByCandidate = new Map<string, IndexedEvidenceCapture>();
         const candidate = new Map<string, {
           filePath: string;
           blockId: string | null;
@@ -476,21 +536,29 @@ export function createSemanticHandlers(
         }>();
 
         for (const r of allSemanticResults) {
-          const key = `${r.filePath}:${r.blockId || ''}`;
+          const key = candidateKey(r);
           if (!candidate.has(key)) {
             candidate.set(key, { filePath: r.filePath, blockId: r.blockId, metadata: r.metadata });
           }
           const prev = bestSemantic.get(key);
-          if (prev === undefined || r.similarity > prev) bestSemantic.set(key, r.similarity);
+          if (prev === undefined || r.similarity > prev) {
+            bestSemantic.set(key, r.similarity);
+            const capture = captures.get(r);
+            if (capture) evidenceByCandidate.set(key, capture);
+          }
         }
 
         for (const r of allKeywordResults) {
-          const key = `${r.filePath}:${r.blockId || ''}`;
+          const key = candidateKey(r);
           if (!candidate.has(key)) {
             candidate.set(key, { filePath: r.filePath, blockId: r.blockId, metadata: {} });
           }
           const prev = bestKeyword.get(key);
-          if (prev === undefined || r.score > prev) bestKeyword.set(key, r.score);
+          if (prev === undefined || r.score > prev) {
+            bestKeyword.set(key, r.score);
+            const capture = captures.get(r);
+            if (!bestSemantic.has(key) && capture) evidenceByCandidate.set(key, capture);
+          }
         }
 
         // Normalize keyword (BM25) scores to 0-1 for the informational keywordScore.
@@ -508,6 +576,15 @@ export function createSemanticHandlers(
           { name: 'bm25', ranked: bm25Ranking },
           { name: 'embeddings', ranked: embeddingsRanking },
         ]);
+        // Preserve historical tie order while keeping tuple identities distinct.
+        fused.sort((a, b) => {
+          if (a.fusionScore !== b.fusionScore) return b.fusionScore - a.fusionScore;
+          const left = candidate.get(a.id)!;
+          const right = candidate.get(b.id)!;
+          const leftKey = `${left.filePath}:${left.blockId || ''}`;
+          const rightKey = `${right.filePath}:${right.blockId || ''}`;
+          return leftKey < rightKey ? -1 : leftKey > rightKey ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+        });
 
         // Map fused rows back to enriched candidates. fusionScore order is the
         // canonical ordering; minSimilarity is NOT re-applied here (it was the
@@ -572,8 +649,15 @@ export function createSemanticHandlers(
         // `none`/unavailable/malformed → ordering UNCHANGED, scores empty,
         // rerankerAvailable:false + reason (mirrors the graphAvailable SHAPE).
         // ---------------------------------------------------------------
-        const resultKey = (r: { filePath: string; blockId: string | null }) =>
+        const legacyKey = (r: { filePath: string; blockId: string | null }) =>
           `${r.filePath}:${r.blockId || ''}`;
+        const rerankKeyCounts = new Map<string, number>();
+        for (const row of results) {
+          const key = legacyKey(row);
+          rerankKeyCounts.set(key, (rerankKeyCounts.get(key) ?? 0) + 1);
+        }
+        const resultKey = (r: { filePath: string; blockId: string | null }) =>
+          (rerankKeyCounts.get(legacyKey(r)) ?? 0) > 1 ? `\u0000${candidateKey(r)}` : legacyKey(r);
         let rankedResults = boundedResults;
         let rerankerScores = new Map<string, number>();
         let rerankerAvailable: boolean | null = null;
@@ -687,9 +771,17 @@ export function createSemanticHandlers(
             results: rankedResults.map(enrichResult)
           });
         }
+        const winningCandidates = new Map(rankedResults.map(r => [r.filePath, r]));
         const currentResults = graphAttach.results
           .filter(r => sources.getCurrent(r.path))
-          .slice(0, returnLimit);
+          .slice(0, returnLimit)
+          .map(r => {
+            const winner = winningCandidates.get(r.path);
+            const evidence = winner
+              ? finalizeIndexedEvidence(evidenceByCandidate.get(candidateKey(winner))) : undefined;
+            const hit = evidence ? { ...r, evidence } : r;
+            return args.compact ? compactSemanticHit(hit) : hit;
+          });
 
         return {
           content: [{
