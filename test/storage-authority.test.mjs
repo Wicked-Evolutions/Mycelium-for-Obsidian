@@ -372,12 +372,17 @@ test('legacy outstanding WAL state cannot redirect recovery through a raced SHM 
   assert.deepEqual(fs.readFileSync(databasePath), mainSnapshot);
 });
 
-test('SQLite receives only a private memory snapshot and persists it atomically', () => {
+test('SQLite receives only a private disk-backed copy and persists it atomically', () => {
   const vault = makeVault({ 'Note.md': '# Note' });
   const root = pinVaultRootSync(vault);
   const openedSources = [];
   const openDatabase = (source) => {
-    openedSources.push(Buffer.isBuffer(source) ? 'buffer' : source);
+    assert.equal(typeof source, 'string');
+    assert.notEqual(source, ':memory:');
+    assert.notEqual(fs.realpathSync(source), fs.realpathSync(path.join(vault, '.mcp-obsidian', 'embeddings.db')));
+    assert.equal(fs.statSync(source).mode & 0o777, 0o600);
+    assert.equal(fs.statSync(path.dirname(source)).mode & 0o777, 0o700);
+    openedSources.push(source);
     return new Database(source);
   };
 
@@ -388,7 +393,7 @@ test('SQLite receives only a private memory snapshot and persists it atomically'
   const reopened = new EmbeddingStorage(root, { openDatabase });
   try {
     assert.equal(reopened.getContent('Note.md'), 'persisted content');
-    assert.deepEqual(openedSources, [':memory:', 'buffer']);
+    assert.ok(openedSources.length >= 2);
     assert.deepEqual(
       fs.readdirSync(path.join(vault, '.mcp-obsidian')).sort(),
       ['embeddings.db'],
@@ -396,7 +401,134 @@ test('SQLite receives only a private memory snapshot and persists it atomically'
   } finally {
     reopened.close();
   }
+  for (const source of openedSources) {
+    assert.equal(fs.existsSync(source), false, 'private database remains after close');
+    assert.equal(fs.existsSync(path.dirname(source)), false, 'private directory remains after close');
+  }
 });
+
+test('a private database is removed when SQLite construction fails', () => {
+  const vault = makeVault({ 'Note.md': '# Note' });
+  const failure = new Error('injected SQLite construction failure');
+  let workingPath;
+  assert.throws(() => new EmbeddingStorage(vault, {
+    openDatabase: source => {
+      assert.equal(typeof source, 'string');
+      assert.notEqual(source, ':memory:');
+      workingPath = source;
+      throw failure;
+    },
+  }), error => error === failure);
+  assert.ok(workingPath);
+  assert.equal(fs.existsSync(workingPath), false);
+  assert.equal(fs.existsSync(path.dirname(workingPath)), false);
+});
+
+for (const replacement of ['database', 'journal']) {
+  test(`a private ${replacement} swap at SQLite open is rejected before pragmas`, () => {
+    const vault = makeVault({ 'Note.md': '# Note' });
+    const outside = makeVault();
+    const externalPath = path.join(outside, 'external.db');
+    const external = new Database(externalPath);
+    external.exec("CREATE TABLE sentinel(value TEXT); INSERT INTO sentinel VALUES ('untouched')");
+    external.close();
+    let database;
+    let beforeBytes;
+    let beforeIdentity;
+    const pragmas = [];
+    assert.throws(() => new EmbeddingStorage(vault, {
+      openDatabase: source => {
+        database = new Database(source);
+        const pragma = database.pragma.bind(database);
+        database.pragma = (...args) => {
+          pragmas.push(args[0]);
+          return pragma(...args);
+        };
+        pathsToClean.push(path.dirname(source));
+        if (replacement === 'database') {
+          fs.renameSync(source, `${source}.held`);
+          fs.linkSync(externalPath, source);
+        } else {
+          fs.symlinkSync(externalPath, `${source}-journal`);
+        }
+        beforeBytes = fs.readFileSync(externalPath);
+        beforeIdentity = fs.statSync(externalPath, { bigint: true });
+        return database;
+      },
+    }), /private|identity|unsafe|storage/i);
+    assert.deepEqual(pragmas, []);
+    assert.equal(database.open, false);
+    assert.deepEqual(fs.readFileSync(externalPath), beforeBytes);
+    const afterIdentity = fs.statSync(externalPath, { bigint: true });
+    for (const key of ['dev', 'ino', 'nlink', 'mode', 'size', 'mtimeNs', 'ctimeNs']) {
+      assert.equal(afterIdentity[key], beforeIdentity[key], `external ${key} changed`);
+    }
+  });
+}
+
+for (const replacement of ['file symlink', 'file hard link', 'directory symlink', 'journal symlink', 'WAL hard link']) {
+  for (const closeMethod of ['close', 'disposeForShutdown']) {
+    test(`private work ${replacement} cannot redirect reads, writes or ${closeMethod}`, () => {
+      const vault = makeVault({ 'Prior.md': '# Prior' });
+      const outside = makeVault();
+      const outsideDatabase = path.join(outside, 'embeddings.db');
+      const external = new Database(outsideDatabase);
+      external.exec("CREATE TABLE sentinel(value TEXT); INSERT INTO sentinel VALUES ('external evidence')");
+      external.close();
+      let workingPath;
+      const databases = [];
+      const storage = new EmbeddingStorage(vault, {
+        openDatabase: source => {
+          workingPath = source;
+          const database = new Database(source);
+          databases.push(database);
+          return database;
+        },
+      });
+      storage.store('Prior.md', [1, 0], 'prior', {}, null, 'prior evidence');
+      const workingDirectory = path.dirname(workingPath);
+      pathsToClean.push(workingDirectory);
+
+      if (replacement === 'directory symlink') {
+        const heldDirectory = `${workingDirectory}.held`;
+        fs.renameSync(workingDirectory, heldDirectory);
+        pathsToClean.push(heldDirectory);
+        fs.symlinkSync(outside, workingDirectory, 'dir');
+      } else if (replacement.startsWith('file')) {
+        fs.renameSync(workingPath, `${workingPath}.held`);
+        if (replacement === 'file symlink') fs.symlinkSync(outsideDatabase, workingPath);
+        else fs.linkSync(outsideDatabase, workingPath);
+      } else if (replacement === 'journal symlink') {
+        fs.symlinkSync(outsideDatabase, `${workingPath}-journal`);
+      } else {
+        fs.linkSync(outsideDatabase, `${workingPath}-wal`);
+      }
+      const beforeBytes = fs.readFileSync(outsideDatabase);
+      const beforeIdentity = fs.statSync(outsideDatabase, { bigint: true });
+      const beforeNames = fs.readdirSync(outside);
+
+      try {
+        assert.throws(() => storage.getContent('Prior.md'), /private|identity|unsafe|storage/i);
+        assert.throws(() => storage.store('Rejected.md', [0, 1], 'rejected'), /private|identity|unsafe|storage|closed/i);
+        if (!storage.isClosed()) {
+          assert.throws(() => storage[closeMethod](), /private|identity|unsafe|storage/i);
+        }
+        assert.equal(storage.isClosed(), true);
+        assert.ok(databases.every(database => !database.open), 'failed cleanup retained an open SQLite connection');
+        assert.deepEqual(fs.readFileSync(outsideDatabase), beforeBytes);
+        const afterIdentity = fs.statSync(outsideDatabase, { bigint: true });
+        for (const key of ['dev', 'ino', 'nlink', 'mode', 'size', 'mtimeNs', 'ctimeNs']) {
+          assert.equal(afterIdentity[key], beforeIdentity[key], `external ${key} changed`);
+        }
+        assert.deepEqual(fs.readdirSync(outside), beforeNames);
+      } finally {
+        if (!storage.isClosed()) {
+          try { storage.close(); } catch { /* tampered work paths must remain fail-closed */ }
+        }
+      }
+    });
+  }
+}
 
 test('batched indexing publishes one snapshot only at its owned boundary', async () => {
   const vault = makeVault({ 'Note.md': '# Note' });
@@ -442,7 +574,7 @@ test('batched indexing publishes one snapshot only at its owned boundary', async
   }
 });
 
-test('failed publications restore memory and cannot become durable later', async (t) => {
+test('failed publications restore the private database and cannot become durable later', async (t) => {
   const scenarios = [
     {
       name: 'store',
@@ -478,7 +610,12 @@ test('failed publications restore memory and cannot become durable later', async
       seed.close();
 
       let rejectNextPublication = true;
+      const workingDirectories = new Set();
       const storage = new EmbeddingStorage(root, {
+        openDatabase: source => {
+          workingDirectories.add(path.dirname(source));
+          return new Database(source);
+        },
         afterSnapshotRename: () => {
           if (!rejectNextPublication) return;
           rejectNextPublication = false;
@@ -499,11 +636,14 @@ test('failed publications restore memory and cannot become durable later', async
       } finally {
         reopened.close();
       }
+      for (const directory of workingDirectories) {
+        assert.equal(fs.existsSync(directory), false, 'failed publication left a private work directory');
+      }
     });
   }
 });
 
-test('pre-journal serialization failures restore every mutation shape', async (t) => {
+test('pre-journal working-copy failures restore every mutation shape', async (t) => {
   const scenarios = [
     {
       name: 'store',
@@ -552,26 +692,30 @@ test('pre-journal serialization failures restore every mutation shape', async (t
       seed.store('Keep.md', [1, 1], 'keep-hash', {}, null, 'keep content');
       seed.close();
 
-      let rejectNextSerialization = true;
+      let rejectNextCopy = true;
+      const workingDirectories = new Set();
       const storage = new EmbeddingStorage(root, {
-        serializeDatabase: database => {
-          if (rejectNextSerialization) {
-            rejectNextSerialization = false;
-            throw new Error('injected pre-journal serialization failure');
+        openDatabase: source => {
+          workingDirectories.add(path.dirname(source));
+          return new Database(source);
+        },
+        beforeWorkingDatabaseCopy: () => {
+          if (rejectNextCopy) {
+            rejectNextCopy = false;
+            throw new Error('injected pre-journal working-copy failure');
           }
-          return database.serialize();
         },
       });
 
       if (scenario.async) {
         await assert.rejects(
           scenario.mutate(storage),
-          /injected pre-journal serialization failure/,
+          /injected pre-journal working-copy failure/,
         );
       } else {
         assert.throws(
           () => scenario.mutate(storage),
-          /injected pre-journal serialization failure/,
+          /injected pre-journal working-copy failure/,
         );
       }
       scenario.assertRestored(storage);
@@ -586,6 +730,9 @@ test('pre-journal serialization failures restore every mutation shape', async (t
         assert.equal(reopened.getContent('Later.md'), 'later content');
       } finally {
         reopened.close();
+      }
+      for (const directory of workingDirectories) {
+        assert.equal(fs.existsSync(directory), false, 'failed copy left a private work directory');
       }
     });
   }

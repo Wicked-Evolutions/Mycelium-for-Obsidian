@@ -28,6 +28,7 @@ import {
   openFileAt,
   openPinnedDirectory,
   renameAt,
+  rmdirAt,
   unlinkAt,
 } from './secure-fs.js';
 
@@ -123,7 +124,8 @@ export interface EmbeddingStorageDependencies {
   openDatabase?: (
     source: string | Buffer
   ) => Database.Database;
-  serializeDatabase?: (database: Database.Database) => Buffer;
+  /** Test-only boundary before the private working database is streamed for publication. */
+  beforeWorkingDatabaseCopy?: () => void;
   openDatabaseFile?: (databasePath: string, flags: number) => number;
   beforeRollbackSnapshotCopy?: () => void;
   beforeSnapshotRename?: (temporaryPath: string) => void;
@@ -142,6 +144,16 @@ interface StorageAuthority {
   vaultRoot: PinnedVaultRoot;
   storageDirectory: string;
   storageDirectoryIdentity: FileIdentity;
+  databasePath: string;
+  databaseIdentity: FileIdentity;
+}
+
+interface PrivateWorkingDatabase {
+  directory: string;
+  directoryIdentity: FileIdentity;
+  parentDirectory: string;
+  parentDirectoryIdentity: FileIdentity;
+  directoryName: string;
   databasePath: string;
   databaseIdentity: FileIdentity;
 }
@@ -312,37 +324,245 @@ function readVerifiedDatabaseHeaderAt(storageDescriptor: number): Buffer | null 
   } finally { fs.closeSync(descriptor); }
 }
 
-function readPinnedDatabase(
+/**
+ * The canonical index is an immutable input while a server instance is running.
+ * SQLite therefore works only on a private file outside the vault.  Keeping that
+ * file on disk avoids better-sqlite3's 1 GiB deserialize ceiling without giving
+ * SQLite a pathname into user-controlled vault storage.
+ */
+function createPrivateWorkingDatabase(
   authority: StorageAuthority,
-  openDatabaseFile: (databasePath: string, flags: number) => number
-): Buffer {
-  const flags = fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW ?? 0);
-  const descriptor = openDatabaseFile(authority.databasePath, flags);
+  openCanonicalFile: (databasePath: string, flags: number) => number = fs.openSync
+): PrivateWorkingDatabase {
+  assertStorageAuthority(authority);
+  // os.tmpdir() may be a symlinked spelling on macOS. Pin the physical parent
+  // that mkdtemp will use so the recorded identity is comparable on cleanup.
+  const temporaryParent = fs.realpathSync(os.tmpdir());
+  const relativeToVault = path.relative(authority.vaultRoot.path, temporaryParent);
+  if (relativeToVault === '' || (!relativeToVault.startsWith(`..${path.sep}`) && relativeToVault !== '..')) {
+    throw new EmbeddingStorageError('index_storage_unsafe');
+  }
+  const initialParentIdentity = verifiedIdentity(temporaryParent, 'directory');
+  const initialParentDescriptor = openPinnedDirectory(temporaryParent, initialParentIdentity);
+  let directory: string;
   try {
-    const before = fs.fstatSync(descriptor, { bigint: true });
-    if (
-      !before.isFile() ||
-      before.nlink !== 1n ||
-      !sameIdentity(identityOf(before), authority.databaseIdentity)
-    ) {
+    directory = fs.mkdtempSync(path.join(temporaryParent, 'mycelium-embedding-work-'));
+  } catch (error) {
+    fs.closeSync(initialParentDescriptor);
+    throw error;
+  }
+  const databasePath = path.join(directory, 'embeddings.db');
+  const parentDirectory = path.dirname(directory);
+  const directoryName = path.basename(directory);
+  let directoryDescriptor: number | null = null;
+  let databaseDescriptor: number | null = null;
+  let canonicalDescriptor: number | null = null;
+  let storageDescriptor: number | null = null;
+  let privateDirectoryIdentity: FileIdentity | null = null;
+  let privateParentIdentity: FileIdentity | null = initialParentIdentity;
+  let privateDatabaseIdentity: FileIdentity | null = null;
+  try {
+    fs.chmodSync(directory, 0o700);
+    const directoryStat = fs.lstatSync(directory, { bigint: true });
+    if (!directoryStat.isDirectory() || directoryStat.isSymbolicLink()) {
+      throw new Error('Private embedding work directory has an invalid physical identity.');
+    }
+    const directoryIdentity = identityOf(directoryStat);
+    privateDirectoryIdentity = directoryIdentity;
+    const parentDirectoryIdentity = verifiedIdentity(parentDirectory, 'directory');
+    if (!sameIdentity(parentDirectoryIdentity, initialParentIdentity)) {
+      throw new Error('Private embedding work parent directory changed during creation.');
+    }
+    directoryDescriptor = openPinnedDirectory(directory, directoryIdentity);
+    databaseDescriptor = openFileAt(
+      directoryDescriptor,
+      'embeddings.db',
+      fs.constants.O_CREAT | fs.constants.O_EXCL | fs.constants.O_RDWR,
+      0o600
+    );
+    const emptyDatabase = fs.fstatSync(databaseDescriptor, { bigint: true });
+    if (!emptyDatabase.isFile() || emptyDatabase.nlink !== 1n || emptyDatabase.size !== 0n) {
+      throw new Error('Private embedding work database has an invalid physical identity.');
+    }
+    const databaseIdentity = identityOf(emptyDatabase);
+    privateDatabaseIdentity = databaseIdentity;
+
+    storageDescriptor = openPinnedDirectory(
+      authority.storageDirectory,
+      authority.storageDirectoryIdentity
+    );
+    canonicalDescriptor = openCanonicalFile(
+      authority.databasePath,
+      fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW ?? 0)
+    );
+    try {
+      assertOpenAtIdentity(
+        storageDescriptor,
+        'embeddings.db',
+        canonicalDescriptor,
+        authority.databaseIdentity,
+        1n,
+        'Embedding database before private work copy'
+      );
+    } catch (error) {
+      if (error instanceof EmbeddingStorageError) throw error;
       throw new EmbeddingStorageError('index_storage_unsafe');
     }
-    const content = fs.readFileSync(descriptor);
-    const after = fs.fstatSync(descriptor, { bigint: true });
-    if (
-      !after.isFile() ||
-      after.nlink !== 1n ||
-      after.size !== BigInt(content.length) ||
-      before.size !== after.size ||
-      before.mtimeNs !== after.mtimeNs ||
-      before.ctimeNs !== after.ctimeNs ||
-      !sameIdentity(identityOf(after), authority.databaseIdentity)
-    ) {
-      throw new EmbeddingStorageError('index_storage_unsafe');
+    const copied = copyVerifiedSnapshot(
+      canonicalDescriptor,
+      databaseDescriptor,
+      authority.databaseIdentity
+    );
+    if (!sameIdentity(copied.identity, databaseIdentity)) {
+      throw new Error('Private embedding work database changed while it was copied.');
     }
-    return content;
+    assertStorageAuthority(authority);
+    return {
+      directory, directoryIdentity, parentDirectory, parentDirectoryIdentity,
+      directoryName, databasePath, databaseIdentity,
+    };
+  } catch (error) {
+    try {
+      if (databaseDescriptor !== null) fs.closeSync(databaseDescriptor);
+      databaseDescriptor = null;
+      const cleanupDirectory = fs.lstatSync(directory, { bigint: true });
+      if (!privateDirectoryIdentity || !privateParentIdentity ||
+        !cleanupDirectory.isDirectory() || cleanupDirectory.isSymbolicLink() ||
+        !sameIdentity(identityOf(cleanupDirectory), privateDirectoryIdentity)) {
+        throw new Error('Private embedding work directory changed before cleanup.');
+      }
+      const cleanupDescriptor = openPinnedDirectory(directory, identityOf(cleanupDirectory));
+      try {
+        const entries = fs.readdirSync(directory);
+        if (privateDatabaseIdentity === null) {
+          if (entries.length !== 0) {
+            throw new Error('Private embedding work directory changed before cleanup.');
+          }
+        } else {
+          if (entries.length !== 1 || entries[0] !== 'embeddings.db') {
+            throw new Error('Private embedding work directory changed before cleanup.');
+          }
+          const work = statArtifactAtIfPresent(cleanupDescriptor, 'embeddings.db');
+          if (!work) {
+            throw new Error('Private embedding work database changed before cleanup.');
+          }
+          unlinkVerifiedArtifact(
+            cleanupDescriptor,
+            'embeddings.db',
+            privateDatabaseIdentity,
+            1n,
+            'Private embedding work database'
+          );
+        }
+        fsyncDirectory(cleanupDescriptor);
+      } finally { fs.closeSync(cleanupDescriptor); }
+      const pinnedParent = fs.fstatSync(initialParentDescriptor, { bigint: true });
+      if (!pinnedParent.isDirectory() ||
+        !sameIdentity(identityOf(pinnedParent), privateParentIdentity)) {
+        throw new Error('Private embedding work parent directory changed before cleanup.');
+      }
+      rmdirAt(initialParentDescriptor, directoryName);
+      fsyncDirectory(initialParentDescriptor);
+    } catch {
+      // The original error is the useful failure. Cleanup remains limited to the
+      // two identities this function created.
+    }
+    throw error;
+  } finally {
+    if (canonicalDescriptor !== null) fs.closeSync(canonicalDescriptor);
+    if (storageDescriptor !== null) fs.closeSync(storageDescriptor);
+    if (databaseDescriptor !== null) fs.closeSync(databaseDescriptor);
+    if (directoryDescriptor !== null) fs.closeSync(directoryDescriptor);
+    fs.closeSync(initialParentDescriptor);
+  }
+}
+
+function assertPrivateWorkingDatabase(working: PrivateWorkingDatabase): void {
+  const parentDirectory = fs.lstatSync(working.parentDirectory, { bigint: true });
+  const directory = fs.lstatSync(working.directory, { bigint: true });
+  const database = fs.lstatSync(working.databasePath, { bigint: true });
+  if (
+    !parentDirectory.isDirectory() || parentDirectory.isSymbolicLink() ||
+    !sameIdentity(identityOf(parentDirectory), working.parentDirectoryIdentity) ||
+    !directory.isDirectory() || directory.isSymbolicLink() ||
+    !sameIdentity(identityOf(directory), working.directoryIdentity) ||
+    !database.isFile() || database.isSymbolicLink() || database.nlink !== 1n ||
+    !sameIdentity(identityOf(database), working.databaseIdentity)
+  ) {
+    throw new Error('Private embedding work storage changed during use.');
+  }
+}
+
+function removePrivateWorkingDatabase(working: PrivateWorkingDatabase): void {
+  assertPrivateWorkingDatabase(working);
+  assertPrivateWorkingDatabaseQuiescent(working);
+  const directoryDescriptor = openPinnedDirectory(
+    working.directory,
+    working.directoryIdentity
+  );
+  try {
+    const databaseDescriptor = openFileAt(
+      directoryDescriptor,
+      'embeddings.db',
+      fs.constants.O_RDONLY | fs.constants.O_NONBLOCK
+    );
+    try {
+      assertOpenAtIdentity(
+        directoryDescriptor,
+        'embeddings.db',
+        databaseDescriptor,
+        working.databaseIdentity,
+        1n,
+        'Private embedding work database before cleanup'
+      );
+      unlinkAt(directoryDescriptor, 'embeddings.db');
+      const after = fs.fstatSync(databaseDescriptor, { bigint: true });
+      if (!after.isFile() || after.nlink !== 0n ||
+        !sameIdentity(identityOf(after), working.databaseIdentity)) {
+        throw new Error('Private embedding work database changed during cleanup.');
+      }
+      fsyncDirectory(directoryDescriptor);
+    } finally {
+      fs.closeSync(databaseDescriptor);
+    }
+  } finally {
+    fs.closeSync(directoryDescriptor);
+  }
+  const parentDescriptor = openPinnedDirectory(
+    working.parentDirectory,
+    working.parentDirectoryIdentity
+  );
+  try {
+    rmdirAt(parentDescriptor, working.directoryName);
+    fsyncDirectory(parentDescriptor);
+  } finally {
+    fs.closeSync(parentDescriptor);
+  }
+}
+
+function privateWorkingDatabaseHasWalHeader(working: PrivateWorkingDatabase): boolean {
+  assertPrivateWorkingDatabase(working);
+  const directoryDescriptor = openPinnedDirectory(working.directory, working.directoryIdentity);
+  const descriptor = openFileAt(
+    directoryDescriptor,
+    'embeddings.db',
+    fs.constants.O_RDONLY | fs.constants.O_NONBLOCK
+  );
+  try {
+    const header = Buffer.alloc(20);
+    const length = fs.readSync(descriptor, header, 0, header.length, 0);
+    return length === header.length && header[18] === 2 && header[19] === 2;
   } finally {
     fs.closeSync(descriptor);
+    fs.closeSync(directoryDescriptor);
+  }
+}
+
+function assertPrivateWorkingDatabaseQuiescent(working: PrivateWorkingDatabase): void {
+  assertPrivateWorkingDatabase(working);
+  const entries = fs.readdirSync(working.directory);
+  if (entries.length !== 1 || entries[0] !== 'embeddings.db') {
+    throw new Error('Private embedding work database left SQLite sidecars behind.');
   }
 }
 
@@ -421,38 +641,6 @@ function copyVerifiedSnapshot(
     throw new Error('Embedding rollback snapshot copy is incomplete.');
   }
   return { identity: identityOf(destinationAfter), sha256: hash.digest('hex') };
-}
-
-function normalizeDatabaseSnapshot(content: Buffer): {
-  source: string | Buffer;
-  requiresPersistence: boolean;
-} {
-  if (content.length === 0) {
-    return { source: ':memory:', requiresPersistence: true };
-  }
-  const snapshot = Buffer.from(content);
-  if (snapshot.length >= 20 && (snapshot[18] === 2 || snapshot[19] === 2)) {
-    // A quiescent WAL database has already checkpointed its data into the main
-    // file. Let SQLite normalize only a private copy; it never opens the vault path.
-    const temporaryRoot = fs.mkdtempSync(
-      path.join(os.tmpdir(), 'mycelium-embedding-migration-')
-    );
-    const temporaryDatabase = path.join(temporaryRoot, 'embeddings.db');
-    let migration: Database.Database | null = null;
-    try {
-      fs.writeFileSync(temporaryDatabase, snapshot, { mode: 0o600, flag: 'wx' });
-      migration = new Database(temporaryDatabase, { fileMustExist: true });
-      migration.pragma('journal_mode = DELETE');
-      return {
-        source: migration.serialize(),
-        requiresPersistence: true,
-      };
-    } finally {
-      migration?.close();
-      fs.rmSync(temporaryRoot, { recursive: true, force: true });
-    }
-  }
-  return { source: snapshot, requiresPersistence: false };
 }
 
 function normalizeVaultRoot(input: string | PinnedVaultRoot): PinnedVaultRoot {
@@ -885,9 +1073,8 @@ function readHashedArtifactAt(
   storageDescriptor: number,
   name: string,
   expected: fs.BigIntStats,
-  sha256: string,
-  retainContent = false
-): Buffer | undefined {
+  sha256: string
+): void {
   const descriptor = openFileAt(storageDescriptor, name, fs.constants.O_RDONLY | fs.constants.O_NONBLOCK);
   try {
     const opened = fs.fstatSync(descriptor, { bigint: true });
@@ -900,7 +1087,6 @@ function readHashedArtifactAt(
       throw new EmbeddingStorageError('index_recovery_identity_mismatch');
     }
     const hash = createHash('sha256');
-    const content = retainContent ? Buffer.alloc(Number(expected.size)) : undefined;
     const chunk = Buffer.allocUnsafe(1024 * 1024);
     let offset = 0;
     while (offset < Number(expected.size)) {
@@ -909,7 +1095,6 @@ function readHashedArtifactAt(
       if (read <= 0) throw new EmbeddingStorageError('index_recovery_identity_mismatch');
       const bytes = chunk.subarray(0, read);
       hash.update(bytes);
-      content?.set(bytes, offset);
       offset += read;
     }
     if (hash.digest('hex') !== sha256 ||
@@ -917,7 +1102,6 @@ function readHashedArtifactAt(
       !sameFileVersion(expected, statArtifactAtIfPresent(storageDescriptor, name))) {
       throw new EmbeddingStorageError('index_recovery_identity_mismatch');
     }
-    return content;
   } finally { fs.closeSync(descriptor); }
 }
 
@@ -925,7 +1109,6 @@ interface CommittedPublicationProof {
   owner: ReturnType<typeof readPublishLockOwner>;
   canonical: fs.BigIntStats;
   rollback: fs.BigIntStats | null;
-  content?: Buffer;
 }
 
 /** Hashes establish byte continuity, not authentication of local publication records. */
@@ -934,8 +1117,7 @@ function verifyCommittedPublication(
   storageDirectory: string,
   assertLocation: () => void,
   owner: ReturnType<typeof readPublishLockOwner>,
-  previous?: CommittedPublicationProof,
-  retainContent = false
+  previous?: CommittedPublicationProof
 ): CommittedPublicationProof {
   const { transaction } = owner;
   if (!owner.committed || transaction.version !== 4) {
@@ -983,8 +1165,8 @@ function verifyCommittedPublication(
       (previous.rollback === null ? rollback !== null : !sameFileVersion(previous.rollback, rollback)))) {
       throw new EmbeddingStorageError('index_recovery_identity_mismatch');
     }
-    const content = readHashedArtifactAt(storageDescriptor, 'embeddings.db', canonical,
-      transaction.publishedSha256, retainContent);
+    readHashedArtifactAt(storageDescriptor, 'embeddings.db', canonical,
+      transaction.publishedSha256);
     if (rollback) {
       readHashedArtifactAt(storageDescriptor, rollbackName, rollback, transaction.rollbackSha256);
     }
@@ -997,7 +1179,7 @@ function verifyCommittedPublication(
       throw new EmbeddingStorageError('index_recovery_identity_mismatch');
     }
     assertLocation();
-    return { owner, canonical, rollback, content };
+    return { owner, canonical, rollback };
   } catch (error) {
     if (isSecureFsCode(error, 'ENOENT')) throw new EmbeddingStorageError('index_recovery_required');
     if (isSecureFsCode(error, 'ELOOP') || isSecureFsCode(error, 'ENOTDIR')) {
@@ -1437,7 +1619,7 @@ function assertNoInspectionPublication(
     throw new EmbeddingStorageError('index_publication_in_progress');
   }
   if (owner?.committed && owner.transaction.version === 4 && assertLocation) {
-    return verifyCommittedPublication(storageDescriptor, storageDirectory, assertLocation, owner, undefined, true);
+    return verifyCommittedPublication(storageDescriptor, storageDirectory, assertLocation, owner);
   }
   const artifacts = fs.readdirSync(storageDirectory)
     .filter(name => /^\.embeddings\.db\..*\.(tmp|rollback)$/.test(name));
@@ -1460,6 +1642,7 @@ export function inspectEmbeddingIndex(vault: string | PinnedVaultRoot): Embeddin
   let vaultDescriptor: number | null = null;
   let storageDescriptor: number | null = null;
   let db: Database.Database | null = null;
+  let working: PrivateWorkingDatabase | null = null;
   const empty: EmbeddingIndexInspection = {
     stats: { totalEmbeddings: 0, uniqueFiles: 0, lastUpdated: null },
     pathStats: [],
@@ -1495,22 +1678,25 @@ export function inspectEmbeddingIndex(vault: string | PinnedVaultRoot): Embeddin
       assertLocation();
       return empty;
     }
+    const header = readVerifiedDatabaseHeaderAt(storageDescriptor);
+    if (header === null || header.length < 100 || header.subarray(0, 16).toString('binary') !== 'SQLite format 3\0') {
+      throw new EmbeddingStorageError('index_storage_unsafe', true);
+    }
+    if (header[18] === 2 && header[19] === 2) {
+      throw new EmbeddingStorageError('legacy_index_upgrade_required', true);
+    }
+    if (header[18] !== 1 || header[19] !== 1) {
+      throw new EmbeddingStorageError('index_storage_unsafe', true);
+    }
     const authority: StorageAuthority = {
       vaultRoot, storageDirectory, storageDirectoryIdentity, databasePath,
       databaseIdentity: identityOf(databaseStat),
     };
-    const content = publication?.content ?? readPinnedDatabase(authority, (_databasePath, flags) =>
-      openFileAt(storageDescriptor!, 'embeddings.db', flags | fs.constants.O_NONBLOCK)
-    );
+    working = createPrivateWorkingDatabase(authority);
     assertLocation();
-    if (content.length < 100 || content.subarray(0, 16).toString('binary') !== 'SQLite format 3\0') {
-      throw new EmbeddingStorageError('index_storage_unsafe');
-    }
-    if (content[18] === 2 && content[19] === 2) {
-      throw new EmbeddingStorageError('legacy_index_upgrade_required');
-    }
-    if (content[18] !== 1 || content[19] !== 1) throw new EmbeddingStorageError('index_storage_unsafe');
-    db = new Database(content, { readonly: true });
+    assertPrivateWorkingDatabaseQuiescent(working);
+    db = new Database(working.databasePath, { readonly: true, fileMustExist: true });
+    assertPrivateWorkingDatabaseQuiescent(working);
     const columns = db.pragma('table_info(embeddings)') as Array<{ name: string }>;
     if (!['file_path', 'updated_at'].every(name => columns.some(column => column.name === name))) {
       throw new EmbeddingStorageError('index_storage_unsafe');
@@ -1540,10 +1726,14 @@ export function inspectEmbeddingIndex(vault: string | PinnedVaultRoot): Embeddin
       db?.close();
     } finally {
       try {
+        if (working) removePrivateWorkingDatabase(working);
+      } finally {
+       try {
         if (storageDescriptor !== null) fs.closeSync(storageDescriptor);
       } finally {
         if (vaultDescriptor !== null) fs.closeSync(vaultDescriptor);
       }
+       }
     }
   }
 }
@@ -1582,15 +1772,14 @@ export function getSharedStorage(vault: string | PinnedVaultRoot): EmbeddingStor
 
 export class EmbeddingStorage {
   private db!: Database.Database;
-  private readonly dbPath: string;
   private readonly authority: StorageAuthority;
   private readonly dependencies: EmbeddingStorageDependencies;
   private readonly openDatabase: (source: string | Buffer) => Database.Database;
+  private working!: PrivateWorkingDatabase;
   private readonly batchContext = new AsyncLocalStorage<symbol>();
   private closed = false;
   private sharedKey: string | null = null;
   private dirty = false;
-  private persistedSnapshot: Buffer | null = null;
   private batchOwner: symbol | null = null;
   private evidenceRevision = 0;
 
@@ -1600,30 +1789,29 @@ export class EmbeddingStorage {
   ) {
     const vaultRoot = normalizeVaultRoot(vault);
     this.authority = prepareStorageAuthority(vaultRoot);
-    this.dbPath = this.authority.databasePath;
     this.dependencies = dependencies;
     this.openDatabase = dependencies.openDatabase ?? (
       (source: string | Buffer) => new Database(source)
     );
-    const openDatabaseFile = dependencies.openDatabaseFile ?? fs.openSync;
-
     try {
-      const content = readPinnedDatabase(this.authority, openDatabaseFile);
-      assertStorageAuthority(this.authority);
-      const snapshot = normalizeDatabaseSnapshot(content);
-      this.db = this.openDatabase(snapshot.source);
+      this.working = createPrivateWorkingDatabase(
+        this.authority,
+        dependencies.openDatabaseFile ?? fs.openSync
+      );
+      const privateNormalizationRequired = privateWorkingDatabaseHasWalHeader(this.working);
+      this.db = this.openWorkingDatabase();
       assertStorageAuthority(this.authority);
       const schemaChanged = this.initialize();
       assertStorageAuthority(this.authority);
-      if (snapshot.requiresPersistence || schemaChanged) {
+      if (privateNormalizationRequired || schemaChanged) {
         this.dirty = true;
         this.persistSnapshot();
       }
-      if (this.persistedSnapshot === null) {
-        this.persistedSnapshot = Buffer.from(this.db.serialize());
-      }
     } catch (error) {
-      if (this.db?.open) this.db.close();
+      try { this.closeWorkingDatabase(); } catch { /* preserve the opening error */ }
+      if (this.working) {
+        try { removePrivateWorkingDatabase(this.working); } catch { /* preserve the opening error */ }
+      }
       throw error;
     }
   }
@@ -1650,6 +1838,8 @@ export class EmbeddingStorage {
   private ensureAuthority(): void {
     if (this.closed) throw new Error('Embedding storage is closed.');
     assertStorageAuthority(this.authority);
+    assertPrivateWorkingDatabase(this.working);
+    assertPrivateWorkingDatabaseQuiescent(this.working);
   }
 
   private refreshSharedKey(): void {
@@ -1669,29 +1859,100 @@ export class EmbeddingStorage {
 
   private invalidate(): void {
     this.dirty = false;
-    if (this.db?.open) this.db.close();
+    let cleanupError: unknown;
+    let workingConnectionClosed = !this.db?.open;
+    try {
+      this.closeWorkingDatabase();
+      workingConnectionClosed = true;
+    } catch (error) {
+      cleanupError = error;
+    }
+    workingConnectionClosed = !this.db?.open;
+    if (this.working && workingConnectionClosed) {
+      try {
+        removePrivateWorkingDatabase(this.working);
+      } catch (error) {
+        cleanupError = cleanupError
+          ? new AggregateError([cleanupError, error], 'Private embedding work close and cleanup both failed.')
+          : error;
+      }
+    }
     this.closed = true;
     this.unbindSharedInstance();
+    if (cleanupError) throw cleanupError;
+  }
+
+  private closeWorkingDatabase(): void {
+    if (!this.db?.open) return;
+    const failures: unknown[] = [];
+    try {
+      assertPrivateWorkingDatabase(this.working);
+      assertPrivateWorkingDatabaseQuiescent(this.working);
+    } catch (error) {
+      failures.push(error);
+    }
+    try {
+      // Even an untrusted private pathname must not keep a SQLite handle alive
+      // after the storage object is invalidated. Cleanup below remains guarded
+      // by the recorded identities and will refuse substituted artifacts.
+      this.db.close();
+    } catch (error) {
+      failures.push(error);
+    }
+    try {
+      assertPrivateWorkingDatabase(this.working);
+      assertPrivateWorkingDatabaseQuiescent(this.working);
+    } catch (error) {
+      failures.push(error);
+    }
+    if (failures.length === 1) throw failures[0];
+    if (failures.length > 1) {
+      throw new AggregateError(failures, 'Private embedding work validation and SQLite close both failed.');
+    }
+  }
+
+  private openWorkingDatabase(): Database.Database {
+    assertPrivateWorkingDatabase(this.working);
+    assertPrivateWorkingDatabaseQuiescent(this.working);
+    let database: Database.Database | null = null;
+    try {
+      database = this.openDatabase(this.working.databasePath);
+      // Do not give a swapped private pathname a chance to survive until a
+      // later pragma or query. The connection is closed below on any failure.
+      assertPrivateWorkingDatabase(this.working);
+      assertPrivateWorkingDatabaseQuiescent(this.working);
+      database.pragma('busy_timeout = 5000');
+      // A legacy WAL header is normalized only in this private copy. Canonical
+      // vault bytes and sidecars remain untouched until ordinary publication.
+      database.pragma('journal_mode = DELETE');
+      assertPrivateWorkingDatabase(this.working);
+      assertPrivateWorkingDatabaseQuiescent(this.working);
+      return database;
+    } catch (error) {
+      if (database?.open) database.close();
+      throw error;
+    }
   }
 
   private restorePersistedSnapshot(): void {
     this.dirty = false;
-    if (this.persistedSnapshot === null) return;
-
     let restored: Database.Database | null = null;
     try {
       assertStorageAuthority(this.authority);
-      restored = this.openDatabase(Buffer.from(this.persistedSnapshot));
-      restored.pragma('busy_timeout = 5000');
+      this.closeWorkingDatabase();
+      removePrivateWorkingDatabase(this.working);
+      this.working = createPrivateWorkingDatabase(
+        this.authority,
+        this.dependencies.openDatabaseFile ?? fs.openSync
+      );
+      restored = this.openWorkingDatabase();
     } catch (error) {
       restored?.close();
       this.invalidate();
       throw error;
     }
 
-    const rejected = this.db;
     this.db = restored;
-    rejected.close();
   }
 
   private rejectUncommittedMutation(error: unknown): never {
@@ -1703,7 +1964,7 @@ export class EmbeddingStorage {
         : String(error);
       throw new AggregateError(
         [error, restoreError],
-        `${failureMessage} The in-memory embedding state was invalidated.`
+        `${failureMessage} The private embedding working state was invalidated.`
       );
     }
     throw error;
@@ -1711,21 +1972,39 @@ export class EmbeddingStorage {
 
   private persistSnapshot(): void {
     if (!this.dirty) return;
-    let snapshot: Buffer;
+    let workingDescriptor: number | null = null;
     try {
       this.ensureAuthority();
-      snapshot = this.dependencies.serializeDatabase
-        ? this.dependencies.serializeDatabase(this.db)
-        : this.db.serialize();
-      if (!Buffer.isBuffer(snapshot)) {
-        throw new Error('Embedding snapshot serialization returned invalid bytes.');
+      assertPrivateWorkingDatabase(this.working);
+      assertPrivateWorkingDatabaseQuiescent(this.working);
+      this.closeWorkingDatabase();
+      assertPrivateWorkingDatabaseQuiescent(this.working);
+      const privateDirectoryDescriptor = openPinnedDirectory(
+        this.working.directory,
+        this.working.directoryIdentity
+      );
+      try {
+        workingDescriptor = openFileAt(
+          privateDirectoryDescriptor,
+          'embeddings.db',
+          fs.constants.O_RDONLY | fs.constants.O_NONBLOCK
+        );
+        assertOpenAtIdentity(
+          privateDirectoryDescriptor,
+          'embeddings.db',
+          workingDescriptor,
+          this.working.databaseIdentity,
+          1n,
+          'Private embedding work database before publication'
+        );
+      } finally {
+        fs.closeSync(privateDirectoryDescriptor);
       }
-      snapshot = Buffer.from(snapshot);
     } catch (error) {
+      if (workingDescriptor !== null) fs.closeSync(workingDescriptor);
       this.rejectUncommittedMutation(error);
     }
     const transactionNonce = randomUUID();
-    const publishedSha256 = createHash('sha256').update(snapshot).digest('hex');
     const temporaryName = `.embeddings.db.${process.pid}.${transactionNonce}.tmp`;
     const temporaryPath = path.join(
       this.authority.storageDirectory,
@@ -1735,6 +2014,7 @@ export class EmbeddingStorage {
     let storageDirectoryDescriptor: number | null = null;
     let descriptor: number | null = null;
     let temporaryIdentity: FileIdentity | null = null;
+    let publishedSha256: string | null = null;
     let canonicalDescriptor: number | null = null;
     let publicationLock: PublishLock | null = null;
     let rollbackDescriptor: number | null = null;
@@ -1761,8 +2041,13 @@ export class EmbeddingStorage {
         flags,
         0o600
       );
-      fs.writeFileSync(descriptor, snapshot);
-      fs.fsyncSync(descriptor);
+      this.dependencies.beforeWorkingDatabaseCopy?.();
+      const copiedWorking = copyVerifiedSnapshot(
+        workingDescriptor!,
+        descriptor,
+        this.working.databaseIdentity
+      );
+      publishedSha256 = copiedWorking.sha256;
       const temporaryStat = fs.fstatSync(descriptor, { bigint: true });
       if (!temporaryStat.isFile() || temporaryStat.nlink !== 1n) {
         throw new Error('Embedding snapshot temporary file lost its private identity.');
@@ -1904,7 +2189,6 @@ export class EmbeddingStorage {
       }
       markPublishCommitted(publicationLock, storageDirectoryDescriptor);
       publicationCommitted = true;
-      this.persistedSnapshot = Buffer.from(snapshot);
       this.dirty = false;
       this.refreshSharedKey();
       this.dependencies.afterCommitMarker?.();
@@ -1983,6 +2267,7 @@ export class EmbeddingStorage {
 
     if (rollbackDescriptor !== null) fs.closeSync(rollbackDescriptor);
     if (canonicalDescriptor !== null) fs.closeSync(canonicalDescriptor);
+    if (workingDescriptor !== null) fs.closeSync(workingDescriptor);
 
     let cleanupError: unknown = null;
     if (
@@ -2076,6 +2361,13 @@ export class EmbeddingStorage {
       );
     }
     if (publicationCommitted) {
+      if (!finalError) {
+        try {
+          this.db = this.openWorkingDatabase();
+        } catch (reopenError) {
+          finalError = reopenError;
+        }
+      }
       if (finalError) {
         console.error(
           '[mcp-obsidian] Embedding snapshot committed, but publication cleanup failed; restart is required:',
@@ -2842,15 +3134,58 @@ export class EmbeddingStorage {
       throw new Error('Embedding storage cannot close while a batch is active.');
     }
     let persistError: unknown;
+    let cleanupError: unknown;
     try {
       if (this.dirty) this.persistSnapshot();
     } catch (error) {
       persistError = error;
     } finally {
-      this.db.close();
+      let workingConnectionClosed = !this.db?.open;
+      try {
+        this.closeWorkingDatabase();
+      } catch (error) {
+        cleanupError = error;
+      }
+      workingConnectionClosed = !this.db?.open;
+      if (workingConnectionClosed) {
+        try {
+          removePrivateWorkingDatabase(this.working);
+        } catch (error) {
+          cleanupError = cleanupError
+            ? new AggregateError([cleanupError, error], 'Private embedding work close and cleanup both failed.')
+            : error;
+        }
+      }
       this.closed = true;
       this.unbindSharedInstance();
     }
-    if (persistError) throw persistError;
+    if (persistError && cleanupError) {
+      throw new AggregateError([persistError, cleanupError], 'Embedding persistence and private work cleanup both failed.');
+    }
+    if (persistError ?? cleanupError) throw persistError ?? cleanupError;
+  }
+
+  /** Process shutdown discards an unpublished batch before removing private work files. */
+  disposeForShutdown(): void {
+    if (this.closed) return;
+    this.dirty = false;
+    this.batchOwner = null;
+    this.invalidate();
+  }
+}
+
+/** Release every process-local private work database during server shutdown. */
+export function disposeSharedStorages(): void {
+  const failures: unknown[] = [];
+  for (const storage of new Set(sharedInstances.values())) {
+    try {
+      storage.disposeForShutdown();
+    } catch (error) {
+      failures.push(error);
+    }
+  }
+  sharedInstances.clear();
+  if (failures.length) {
+    throw new AggregateError(failures, 'One or more private embedding work databases could not be removed.');
   }
 }
