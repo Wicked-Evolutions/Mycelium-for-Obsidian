@@ -703,15 +703,17 @@ operation; unverified vectors are not stored or searched as an exact cohort.
 
 The derived SQLite index is bound to the physical vault root, storage directory,
 and database identity. Existing symlinked or hard-linked storage files and SQLite
-sidecars are rejected before SQLite runs. The canonical database is read through
-a verified file handle into a private in-memory SQLite working copy. When an older
-WAL-format main file needs normalization, its verified bytes are opened only in a
-private temporary directory outside the vault, serialized into memory, and the
-temporary directory is removed in a `finally` cleanup. SQLite never opens the
-vault's database or sidecar paths. Successful mutations replace the canonical
-database with a securely created atomic snapshot. Publication is
-serialized across processes. Temporary and rollback files are created privately;
+sidecars are rejected before SQLite runs. The canonical database is streamed
+through a verified file handle into a private disk-backed SQLite working copy.
+The private directory and database have verified identities and restrictive
+permissions. SQLite never opens the vault's database or sidecar paths.
+Successful mutations replace the canonical database with a securely created
+atomic snapshot. Publication is serialized across processes. Temporary and
+rollback files are created privately;
 the rollback snapshot is copied from a retained verified database handle.
+Normal storage close and server disconnect remove verified private work files.
+An abrupt process kill can leave its private `0700` work directory behind. It is
+outside the vault and never reused. It intentionally has no recursive sweep.
 Creation, copying, replacement, and removal are relative to one pinned storage-
 directory descriptor, so swapping the parent
 pathname cannot redirect publication or recovery into another directory. The
@@ -725,9 +727,11 @@ generation, including a crash after rename; a crash after the marker preserves t
 new generation. Missing or unverified recovery state fails closed. Authority
 verification and SQLite snapshot acquisition are inside the same rejection
 boundary as journal publication. A publication that reports failure restores both
-the prior on-disk generation and the last successfully published in-memory state,
-so later work or `close()` cannot commit a rejected mutation. If authority was
-lost, the stale connection is closed and removed from the shared cache instead.
+the prior on-disk generation and rebuilds the last successfully published private
+working state.
+That prevents later work or `close()` from committing a rejected mutation. If
+authority was lost, the stale connection is closed and removed from the shared
+cache instead.
 Once the marker is durable, a cleanup failure keeps the commit, invalidates that
 connection, and requires a clean reopen. Full-vault indexing
 publishes one snapshot at its

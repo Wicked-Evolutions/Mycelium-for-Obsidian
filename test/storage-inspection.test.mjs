@@ -239,12 +239,17 @@ test('inspection leaves an existing empty index unchanged', () => {
   assert.deepEqual(unchanged(vault, () => inspectEmbeddingIndex(vault)), expected);
 });
 
-test('inspection opens SQLite read-only in memory and issues no normalization pragmas', () => {
+test('inspection opens a private disk copy read-only and issues no normalization pragmas', () => {
   const vault = makeVault();
   const expected = seed(vault);
   const pragma = Database.prototype.pragma;
+  const workingPaths = [];
   const observed = mock.method(Database.prototype, 'pragma', function (source, ...args) {
-    assert.equal(this.name, ':memory:');
+    assert.notEqual(this.name, ':memory:');
+    assert.notEqual(fs.realpathSync(this.name), fs.realpathSync(databaseOf(vault)));
+    assert.equal(fs.statSync(this.name).mode & 0o777, 0o600);
+    assert.equal(fs.statSync(path.dirname(this.name)).mode & 0o777, 0o700);
+    workingPaths.push(this.name);
     assert.equal(this.readonly, true);
     assert.equal(source, 'table_info(embeddings)');
     return pragma.call(this, source, ...args);
@@ -252,7 +257,42 @@ test('inspection opens SQLite read-only in memory and issues no normalization pr
   mock.method(Database.prototype, 'exec', () => { throw new Error('inspection must not initialize a schema'); });
   assert.deepEqual(unchanged(vault, () => inspectEmbeddingIndex(vault)), expected);
   assert.equal(observed.mock.callCount(), 1);
+  for (const workingPath of workingPaths) {
+    assert.equal(fs.existsSync(workingPath), false);
+    assert.equal(fs.existsSync(path.dirname(workingPath)), false);
+  }
 });
+
+for (const temporaryLocation of ['vault root', 'vault child', 'alias to vault child']) {
+  test(`inspection refuses a temporary root at ${temporaryLocation} without changing the vault`, () => {
+    const vault = makeVault();
+    seed(vault);
+    const childDirectory = path.join(vault, 'temporary');
+    fs.mkdirSync(childDirectory);
+    let temporaryRoot = temporaryLocation === 'vault root' ? vault : childDirectory;
+    if (temporaryLocation === 'alias to vault child') {
+      temporaryRoot = path.join(makeVault(), 'alias');
+      fs.symlinkSync(childDirectory, temporaryRoot, 'dir');
+    }
+    const script = `
+      import assert from 'node:assert/strict';
+      const { inspectEmbeddingIndex } = await import(process.argv[1]);
+      assert.throws(() => inspectEmbeddingIndex(process.argv[2]), /temporary|private|storage/i);
+    `;
+    unchanged(vault, () => {
+      const result = spawnSync(process.execPath, [
+        '--input-type=module', '--eval', script,
+        new URL('../dist/embeddings/storage.js', import.meta.url).href, vault,
+      ], {
+        env: { ...process.env, TMPDIR: temporaryRoot, TMP: temporaryRoot, TEMP: temporaryRoot },
+        encoding: 'utf8', timeout: 10_000,
+      });
+      assert.equal(result.error, undefined, result.stderr);
+      assert.equal(result.status, 0, result.stderr);
+      assert.equal(result.signal, null);
+    });
+  });
+}
 
 test('inspection never normalizes an older schema or deduplicates its rows', () => {
   const vault = makeVault();
@@ -290,6 +330,42 @@ test('inspection refuses a sidecar-free WAL header without normalizing it', () =
   unchanged(vault, () => assert.throws(
     () => inspectEmbeddingIndex(vault), diagnostic('legacy_index_upgrade_required'),
   ));
+});
+
+test('mutable open normalizes a sidecar-free WAL copy and publishes preserved rows', () => {
+  const vault = makeVault();
+  const expected = seed(vault);
+  const legacy = new Database(databaseOf(vault));
+  try {
+    assert.equal(legacy.pragma('journal_mode = WAL', { simple: true }), 'wal');
+    legacy.pragma('wal_checkpoint(TRUNCATE)');
+  } finally {
+    legacy.close();
+  }
+  assert.deepEqual([...fs.readFileSync(databaseOf(vault)).subarray(18, 20)], [2, 2]);
+  assert.deepEqual(fs.readdirSync(directoryOf(vault)), ['embeddings.db']);
+  unchanged(vault, () => assert.throws(
+    () => inspectEmbeddingIndex(vault), diagnostic('legacy_index_upgrade_required'),
+  ));
+  const storage = new EmbeddingStorage(vault);
+  try {
+    assert.deepEqual(storage.getStats(), expected.stats);
+    assert.deepEqual(storage.getPathStats(), expected.pathStats);
+    assert.equal(storage.getContent('Note.md'), 'first');
+    assert.equal(storage.getContent('Note.md', 'section'), 'second');
+    assert.equal(storage.getContent('Other.md'), 'third');
+  } finally {
+    storage.close();
+  }
+  assert.deepEqual([...fs.readFileSync(databaseOf(vault)).subarray(18, 20)], [1, 1]);
+  assert.deepEqual(fs.readdirSync(directoryOf(vault)), ['embeddings.db']);
+  assert.deepEqual(unchanged(vault, () => inspectEmbeddingIndex(vault)), expected);
+  const verified = new Database(databaseOf(vault), { readonly: true });
+  try {
+    assert.equal(verified.pragma('quick_check', { simple: true }), 'ok');
+  } finally {
+    verified.close();
+  }
 });
 
 for (const phase of ['prepared', 'renamed', 'committed']) {
@@ -551,21 +627,33 @@ test('unexpected SQLite-access faults retain their original exception', () => {
   const vault = makeVault();
   seed(vault);
   const unexpected = new TypeError('unexpected test fault');
-  mock.method(Database.prototype, 'prepare', () => { throw unexpected; });
+  let workingPath;
+  mock.method(Database.prototype, 'prepare', function () {
+    workingPath = this.name;
+    throw unexpected;
+  });
   unchanged(vault, () => assert.throws(() => inspectEmbeddingIndex(vault), error => error === unexpected));
+  assert.ok(workingPath);
+  assert.equal(fs.existsSync(workingPath), false);
+  assert.equal(fs.existsSync(path.dirname(workingPath)), false);
 });
 
-test('both pinned descriptors close even when SQLite close throws', () => {
+test('pinned and private descriptors close even when SQLite close throws', () => {
   const vault = makeVault();
   seed(vault);
   const unexpected = new Error('injected SQLite close failure');
   const closeDatabase = Database.prototype.close;
   const closeDescriptor = fs.closeSync;
   let closingDatabase = false;
+  let workingPath;
   const closed = [];
-  const identity = stat => [stat.dev, stat.ino];
+  const identity = stat => `${stat.dev}:${stat.ino}`;
   const expected = [directoryOf(vault), vault].map(target => identity(fs.statSync(target, { bigint: true })));
   mock.method(Database.prototype, 'close', function () {
+    workingPath = this.name;
+    for (const target of [workingPath, path.dirname(workingPath), path.dirname(path.dirname(workingPath))]) {
+      expected.push(identity(fs.statSync(target, { bigint: true })));
+    }
     closeDatabase.call(this);
     closingDatabase = true;
     throw unexpected;
@@ -580,7 +668,12 @@ test('both pinned descriptors close even when SQLite close throws', () => {
       try { assert.throws(() => inspectEmbeddingIndex(vault), error => error === unexpected); }
       finally { closingDatabase = false; }
     });
-    assert.deepEqual(closed, expected);
+    assert.deepEqual(new Set(closed), new Set(expected));
+    for (const pinnedIdentity of expected.slice(0, 2)) {
+      assert.equal(closed.filter(value => value === pinnedIdentity).length, 1);
+    }
+    assert.equal(fs.existsSync(workingPath), false);
+    assert.equal(fs.existsSync(path.dirname(workingPath)), false);
   } finally {
     mock.restoreAll();
     syncBuiltinESMExports();

@@ -234,6 +234,16 @@ export function unlinkAt(directoryFd: number, name: string): void {
   }
 }
 
+/** Remove one empty directory through its already-pinned parent descriptor. */
+export function rmdirAt(directoryFd: number, name: string): void {
+  const loaded = syscalls();
+  // AT_REMOVEDIR is 0x80 on Darwin and 0x200 on Linux.
+  const removeDirectoryFlag = process.platform === 'darwin' ? 0x80 : 0x200;
+  if (loaded.unlinkat(directoryFd, safeBasename(name), removeDirectoryFlag) < 0) {
+    throwPosixFailure('rmdir');
+  }
+}
+
 export function fsyncDirectory(directoryFd: number): void {
   fs.fsyncSync(directoryFd);
 }

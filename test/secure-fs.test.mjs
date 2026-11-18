@@ -8,6 +8,7 @@ import {
   openFileAt,
   openPinnedDirectory,
   renameAt,
+  rmdirAt,
   secureMutationSupported,
   unlinkAt,
 } from '../dist/embeddings/secure-fs.js';
@@ -93,6 +94,8 @@ test('descriptor-relative mutations remain inside the pinned directory after a p
     assert.equal(fs.readFileSync(path.join(moved, 'embeddings.db'), 'utf8'), 'new generation');
     assert.equal(fs.existsSync(path.join(moved, 'cleanup.tmp')), false);
     assert.equal(fs.statSync(path.join(moved, 'child')).mode & 0o777, 0o700);
+    rmdirAt(directoryDescriptor, 'child');
+    assert.equal(fs.existsSync(path.join(moved, 'child')), false);
     for (const [name, before] of externalBefore) {
       const targetPath = path.join(external, name);
       const after = fs.lstatSync(targetPath);
@@ -123,7 +126,30 @@ test('descriptor-relative names reject traversal and nested path components', (t
         /one safe path component/i,
         name
       );
+      assert.throws(() => rmdirAt(descriptor, name), /one safe path component/i, name);
     }
+  } finally {
+    fs.closeSync(descriptor);
+  }
+});
+
+test('descriptor-relative directory removal refuses symlinks and nonempty directories', (t) => {
+  if (!secureMutationSupported()) {
+    t.skip('descriptor-relative mutation backend is unavailable on this platform');
+    return;
+  }
+  const directory = makeDirectory({ 'nonempty/sentinel': 'owned evidence' });
+  const external = makeDirectory({ sentinel: 'external evidence' });
+  const before = identity(external);
+  fs.symlinkSync(external, path.join(directory, 'link'), 'dir');
+  const descriptor = openPinnedDirectory(directory, identity(directory));
+  try {
+    assert.throws(() => rmdirAt(descriptor, 'link'), error => error.code === 'ENOTDIR');
+    assert.throws(() => rmdirAt(descriptor, 'nonempty'), error => ['ENOTEMPTY', 'EEXIST'].includes(error.code));
+    assert.deepEqual(identity(external), before);
+    assert.equal(fs.readFileSync(path.join(external, 'sentinel'), 'utf8'), 'external evidence');
+    assert.equal(fs.readFileSync(path.join(directory, 'nonempty/sentinel'), 'utf8'), 'owned evidence');
+    assert.equal(fs.lstatSync(path.join(directory, 'link')).isSymbolicLink(), true);
   } finally {
     fs.closeSync(descriptor);
   }

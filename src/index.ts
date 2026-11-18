@@ -34,6 +34,7 @@ import {
 } from './tools/index.js';
 import { allPrompts, getPromptMessages } from './prompts/index.js';
 import { createVaultWatcher, VaultWatcher } from './embeddings/watcher.js';
+import { disposeSharedStorages } from './embeddings/storage.js';
 import { secureMutationSupported } from './embeddings/secure-fs.js';
 import { createHttpServer } from './http-server.js';
 import { SERVER_VERSION } from './version.js';
@@ -151,6 +152,11 @@ function shutdown(reason: string): void {
   shuttingDown = true;
   console.error(`[mcp-obsidian] Shutting down (${reason})...`);
   if (watcher) watcher.stop();
+  try {
+    disposeSharedStorages();
+  } catch (error) {
+    console.error('[mcp-obsidian] Private embedding work cleanup failed:', error);
+  }
   process.exit(0);
 }
 

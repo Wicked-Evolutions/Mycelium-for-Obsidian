@@ -1,8 +1,11 @@
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
+import fs from 'node:fs';
 import { stat } from 'node:fs/promises';
 import path from 'node:path';
 import { afterEach, test } from 'node:test';
+import { pathToFileURL } from 'node:url';
+import Database from 'better-sqlite3';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { createTempVault, cleanup } from './helpers.mjs';
@@ -128,6 +131,73 @@ test('stdio transport initializes, exposes surfaces, accepts a large request, an
     assert.equal(signal, null);
     assert.match(stderr, /Shutting down \((transport closed|stdin (EOF|closed))/);
     assert.doesNotMatch(stderr, /Shutting down \(SIGTERM\)/);
+  } finally {
+    if (!clientClosed) await client.close();
+  }
+});
+
+test('stdio disconnect removes private databases and discards an unpublished batch', { timeout: 30_000 }, async () => {
+  const firstVault = createTempVault({ 'Committed.md': '# Committed' });
+  const secondVault = createTempVault({ 'Committed.md': '# Committed' });
+  const privateRoot = createTempVault();
+  vaultsToClean.push(firstVault, secondVault, privateRoot);
+  const storageModule = new URL('../dist/embeddings/storage.js', import.meta.url).href;
+  const bootstrap = `
+    const { getSharedStorage } = await import(${JSON.stringify(storageModule)});
+    const vaults = Object.values(JSON.parse(process.env.OBSIDIAN_VAULTS));
+    const stores = vaults.map(vault => getSharedStorage(vault));
+    for (const store of stores) {
+      store.store('Committed.md', [1, 0], 'committed', {}, null, 'committed evidence');
+    }
+    void stores[0].runBatch(async () => {
+      stores[0].store('Unpublished.md', [0, 1], 'unpublished', {}, null, 'unpublished evidence');
+      await new Promise(() => {});
+    });
+    await import(${JSON.stringify(pathToFileURL(serverEntry).href)});
+  `;
+  const transport = new StdioClientTransport({
+    command: process.execPath,
+    args: ['--input-type=module', '--eval', bootstrap],
+    cwd: repoRoot,
+    env: isolatedServerEnvironment({
+      TMPDIR: privateRoot,
+      OBSIDIAN_VAULTS: JSON.stringify({ First: firstVault, Second: secondVault }),
+      OBSIDIAN_AUTO_INDEX: 'false',
+      OBSIDIAN_HTTP_SERVER: 'false',
+      OBSIDIAN_READ_ONLY: 'false',
+      HTTP_MODE: 'false',
+    }),
+    stderr: 'pipe',
+  });
+  const client = new Client({ name: 'storage-disconnect-smoke', version: '1.0.0' });
+  let clientClosed = false;
+  try {
+    await client.connect(transport);
+    const privateDirectories = fs.readdirSync(privateRoot)
+      .filter(name => name.startsWith('mycelium-embedding-work-'));
+    assert.equal(privateDirectories.length, 2);
+    const databasePaths = [firstVault, secondVault]
+      .map(vault => path.join(vault, '.mcp-obsidian', 'embeddings.db'));
+    const committedSnapshots = databasePaths.map(databasePath => fs.readFileSync(databasePath));
+    const child = transport._process;
+    assert.ok(child);
+    const closed = once(child, 'close');
+    await client.close();
+    clientClosed = true;
+    const [exitCode, signal] = await withTimeout(closed, 3_000, 'storage server exit');
+    assert.equal(exitCode, 0);
+    assert.equal(signal, null);
+    assert.deepEqual(fs.readdirSync(privateRoot), []);
+    for (const [index, databasePath] of databasePaths.entries()) {
+      assert.deepEqual(fs.readFileSync(databasePath), committedSnapshots[index]);
+      const database = new Database(databasePath, { readonly: true });
+      try {
+        assert.deepEqual(database.prepare('SELECT file_path FROM embeddings').all(), [{ file_path: 'Committed.md' }]);
+        assert.equal(database.pragma('quick_check', { simple: true }), 'ok');
+      } finally {
+        database.close();
+      }
+    }
   } finally {
     if (!clientClosed) await client.close();
   }
